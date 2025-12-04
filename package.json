@@ -1,0 +1,17 @@
+{
+  "name": "hadra-prime-core",
+  "version": "1.0.0",
+  "description": "The cognitive kernel of HADRA-PRIME",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node src/kernel/index.ts",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "vitest": "^1.0.0"
+  }
+}
