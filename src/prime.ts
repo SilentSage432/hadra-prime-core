@@ -14,6 +14,7 @@ import { ContextManager } from "./context/context_manager.ts";
 import { FusionEngine } from "./cognition/fusion_engine.ts";
 import { ToneEngine } from "./expression/tone/tone_engine.ts";
 import { metaEngine } from "./meta/meta_engine.ts";
+import { StabilityMatrix } from "./stability/stability_matrix.ts";
 
 export type PrimeLifecycleState = "initializing" | "online" | "degraded" | "offline";
 
@@ -38,6 +39,7 @@ class PrimeEngine extends EventEmitter {
   private currentTick = 800;
 
   private cognitiveLoad = 5; // 1–100 dynamic load (later modules adjust this)
+  private throttleFactor = 0; // 0–1, increases when unstable
   private loopInterval: any = null;
   private memory: MemoryBroker;
   private memoryLayer: MemoryLayer; // Enhanced memory for interactions
@@ -77,6 +79,9 @@ class PrimeEngine extends EventEmitter {
     this.context = new ContextManager(this.memoryStore); // Context lattice integration
     this.toneEngine = new ToneEngine(); // Tone analysis for cognitive fusion
     this.fusion = new FusionEngine(this.memoryStore); // Cognitive fusion engine
+
+    // Initialize Stability Matrix
+    StabilityMatrix.init();
 
     this.bootstrap(); // system startup
     this.loadModules(); // NEW: dynamic module wiring
@@ -166,6 +171,13 @@ class PrimeEngine extends EventEmitter {
    * Synchronous neural pulse: PRIME's thinking cycle.
    */
   private tick() {
+    // Pre-cognition safety check
+    if (!SafetyGuard.preCognitionCheck()) {
+      this.log("⚠️ Cognition cycle skipped due to safety constraints.");
+      return; // skip cycle but keep loop alive
+    }
+
+    const tickStart = Date.now();
     this.updateTickRate();
     this.emit("heartbeat", this.getStatus());
 
@@ -175,7 +187,38 @@ class PrimeEngine extends EventEmitter {
     // 3. Intent engine → choose goal
     // 4. Action layer → execute
 
+    const cycleLatency = Date.now() - tickStart;
+    const taskLoad = this.cognitiveLoad / 100;
+    const taskErrors = 0; // TODO: track actual errors
+
+    // Update memory pressure (estimate based on memory layer size)
+    const memorySize = this.memoryLayer.getRecent(1000).length;
+    const memoryPressure = Math.min(memorySize / 1000, 1); // Normalize to 0-1
+    SafetyGuard.limiter.setMemoryPressure(memoryPressure);
+
+    // Update stability for each cycle
+    StabilityMatrix.update("cognition", {
+      latency: cycleLatency,
+      load: taskLoad,
+      errors: taskErrors,
+    });
+
+    // Check for instability
+    if (StabilityMatrix.unstable()) {
+      this.log("⚠️ Stability degradation detected — throttling cognition loop.");
+      this.reduceLoad();
+    }
+
     this.log(`TICK (${this.currentTick.toFixed(0)}ms) load=${this.cognitiveLoad}`);
+  }
+
+  /**
+   * Reduce cognitive load when instability is detected
+   */
+  private reduceLoad() {
+    this.throttleFactor = Math.min(this.throttleFactor + 0.1, 1);
+    this.cognitiveLoad = Math.min(this.cognitiveLoad + 5, 100);
+    this.log(`Throttle factor increased to ${this.throttleFactor.toFixed(2)}`);
   }
 
   /**
@@ -199,14 +242,41 @@ class PrimeEngine extends EventEmitter {
   }
 
   /**
+   * Get stability snapshot for monitoring
+   */
+  getStabilitySnapshot() {
+    return StabilityMatrix.getSnapshot();
+  }
+
+  /**
+   * Get safety limiter snapshot for monitoring
+   */
+  getSafetySnapshot() {
+    return SafetyGuard.snapshot();
+  }
+
+  /**
    * Process command (gateway compatibility)
    * Now uses Intent Engine for cognitive interpretation
    */
   async processCommand(input: string) {
+    // Reset recursion counter for new command
+    SafetyGuard.limiter.resetRecursion();
+
     this.log(`Command received: ${input}`);
 
+    const processStart = Date.now();
+
     // Process through Intent Engine
+    const intentStart = Date.now();
     const intent = this.intentEngine.process(input);
+    const intentLatency = Date.now() - intentStart;
+    
+    StabilityMatrix.update("intent_engine", {
+      latency: intentLatency,
+      load: intent.confidence || 0.5,
+      errors: 0,
+    });
     
     // Extract tone if content exists
     const tone = this.toneEngine.analyze(input || "");
@@ -217,15 +287,38 @@ class PrimeEngine extends EventEmitter {
       latestEmotion: this.context.latest("emotion"),
     };
 
-    // Build PRIME's unified cognitive state
+    // Build PRIME's unified cognitive state (with fusion stability)
+    const fusionStart = performance.now();
     const cognitiveState = this.fusion.buildCognitiveState(
       intent,
       tone,
       contextSnapshot
     );
+    const fusionLatency = performance.now() - fusionStart;
+    const fusionSize = JSON.stringify(cognitiveState).length;
+    const fusionErrors = cognitiveState.meta?.contextQuality === "low" ? 1 : 0;
+    
+    // Get integrity score from cognitive state (attached by fusion engine)
+    const integrityScore = (cognitiveState as any).integrity?.integrity ?? 1.0;
+    const integrityErrors = integrityScore < 0.4 ? 1 : 0;
+
+    // Update stability matrix with fusion metrics (including integrity)
+    StabilityMatrix.update("cognition", {
+      latency: fusionLatency,
+      load: Math.min(fusionSize / 5000, 1), // Normalize to 0-1
+      errors: fusionErrors + integrityErrors, // Combine meta and integrity errors
+    });
 
     // Step 4: Run meta-reasoning layer
+    const metaStart = Date.now();
     const metaState = metaEngine.evaluate(cognitiveState);
+    const metaLatency = Date.now() - metaStart;
+
+    StabilityMatrix.update("meta", {
+      latency: metaLatency,
+      load: metaState.certaintyLevel,
+      errors: metaState.contextQuality === "low" ? 1 : 0,
+    });
 
     // Attach meta state to cognitive state for downstream awareness
     cognitiveState.meta = metaState;
@@ -261,6 +354,7 @@ class PrimeEngine extends EventEmitter {
     this.log(`Intent detected: ${intent.type} (confidence: ${intent.confidence.toFixed(2)})`);
 
     // Route through expression system to generate response
+    const expressionStart = Date.now();
     const expressionPacket = this.expression.route({
       type: intent.type === "operator" && input.trim().toLowerCase() === "status" 
         ? "status_check" 
@@ -269,6 +363,20 @@ class PrimeEngine extends EventEmitter {
       intent: intent,
       context: contextSnapshot,
       cognitiveState: cognitiveState,
+    });
+    const expressionLatency = Date.now() - expressionStart;
+
+    StabilityMatrix.update("expression", {
+      latency: expressionLatency,
+      load: expressionPacket.confidence || 0.5,
+      errors: expressionPacket.type === "error" ? 1 : 0,
+    });
+
+    const totalLatency = Date.now() - processStart;
+    StabilityMatrix.update("cognition", {
+      latency: totalLatency,
+      load: cognitiveState.priorityLevel,
+      errors: 0,
     });
 
     // Handle specific intent types

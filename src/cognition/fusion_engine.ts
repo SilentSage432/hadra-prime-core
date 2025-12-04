@@ -3,6 +3,8 @@
 import type { ToneVector } from "../expression/tone/tone_detector.ts";
 import type { CognitiveState } from "./cognitive_state.ts";
 import { MemoryStore } from "../memory/memory_store.ts";
+import { CognitiveStabilizer } from "./stability/cognitive_stabilizer.ts";
+import { ReasoningIntegrity } from "./bias/integrity_layer.ts";
 
 export class FusionEngine {
   private memory: MemoryStore;
@@ -12,6 +14,8 @@ export class FusionEngine {
   }
 
   buildCognitiveState(intent: any, tone: ToneVector, contextSnapshot: any): CognitiveState {
+    const start = performance.now();
+
     const memoryRecall = this.memory.retrieveRelevant(intent?.type || "general");
 
     const priorityLevel = this.computePriority(intent, contextSnapshot);
@@ -24,16 +28,62 @@ export class FusionEngine {
       riskLevel
     );
 
-    return {
+    // Build fusion payload
+    const fusion = {
+      meaning: {
+        priorityLevel,
+        riskLevel,
+        operatorFocus,
+        recommendedResponseMode,
+        memoryRecall,
+      },
       intent,
-      tone,
       context: contextSnapshot,
-      memory: memoryRecall,
-      priorityLevel,
-      riskLevel,
-      operatorFocus,
-      recommendedResponseMode,
     };
+
+    // Measure fusion latency
+    const latency = performance.now() - start;
+
+    // Stabilize the fusion
+    const stabilized = CognitiveStabilizer.stabilize(fusion, latency);
+
+    // If stabilization returned null or degraded, use simplified state
+    if (!stabilized || stabilized.meaning?.degraded) {
+      return {
+        intent: stabilized?.intent || intent,
+        tone,
+        context: stabilized?.context || contextSnapshot,
+        memory: memoryRecall,
+        priorityLevel: stabilized?.meaning?.priorityLevel || priorityLevel,
+        riskLevel: stabilized?.meaning?.riskLevel || riskLevel,
+        operatorFocus: stabilized?.meaning?.operatorFocus || operatorFocus,
+        recommendedResponseMode: stabilized?.meaning?.recommendedResponseMode || recommendedResponseMode,
+      };
+    }
+
+    // Evaluate reasoning integrity and correct bias
+    const integrityResult = ReasoningIntegrity.evaluate(stabilized);
+    const corrected = ReasoningIntegrity.correct(stabilized, integrityResult.integrity);
+
+    // Store integrity result for downstream use
+    (corrected as any).integrity = integrityResult;
+
+    // Return stabilized and integrity-corrected cognitive state
+    const cognitiveState: CognitiveState = {
+      intent: corrected.intent,
+      tone,
+      context: corrected.context,
+      memory: corrected.meaning.memoryRecall,
+      priorityLevel: corrected.meaning.priorityLevel,
+      riskLevel: corrected.meaning.riskLevel,
+      operatorFocus: corrected.meaning.operatorFocus,
+      recommendedResponseMode: corrected.meaning.recommendedResponseMode,
+    };
+
+    // Attach integrity result for downstream use
+    (cognitiveState as any).integrity = integrityResult;
+
+    return cognitiveState;
   }
 
   private computePriority(intent: any, context: any): number {

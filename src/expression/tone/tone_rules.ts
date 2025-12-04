@@ -2,6 +2,8 @@
 
 import type { ToneVector } from "./tone_detector.ts";
 
+export type ToneProfile = "calm" | "technical" | "gentle" | "direct" | "neutral";
+
 export class ToneRules {
   static applyBaseModifiers(message: string, tone: ToneVector): string {
     switch (tone.emotionalState) {
@@ -32,6 +34,18 @@ export class ToneRules {
     }
 
     return message;
+  }
+
+  static applyToneRules(text: string, tone: ToneProfile): string {
+    if (!tone) return text;
+
+    // Basic tone shaping
+    if (tone === "calm") return text.replace(/\!/g, ".");
+    if (tone === "technical") return text;
+    if (tone === "gentle") return "✨ " + text;
+    if (tone === "direct") return text.replace(/(\.)?$/, ".");
+
+    return text;
   }
 }
 

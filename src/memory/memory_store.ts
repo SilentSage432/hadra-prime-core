@@ -3,6 +3,7 @@
  * Adapts MemoryLayer for use in expression system
  */
 import { MemoryLayer } from "./memory.ts";
+import { SafetyGuard } from "../safety/safety_guard.ts";
 
 export class MemoryStore {
   private memoryLayer: MemoryLayer;
@@ -15,6 +16,11 @@ export class MemoryStore {
    * Log an interaction to memory
    */
   logInteraction(type: string, data: any) {
+    if (!SafetyGuard.preCognitionCheck()) {
+      console.warn("[PRIME-MEMORY] Write prevented due to safety.");
+      return;
+    }
+
     // Store as a general memory event
     // The MemoryLayer already handles interaction storage via storeInteraction
     // This is for additional logging
