@@ -70,6 +70,7 @@ import { EmbeddingAdapter } from "../neural/embedding/embedding_adapter.ts";
 import { NeuralMemoryStore } from "../memory/neural/neural_memory_store.ts";
 import { ConceptDriftEngine } from "../memory/concepts/concept_drift_engine.ts";
 import { ConceptMergeSplitEngine } from "../memory/concepts/concept_merge_split_engine.ts";
+import { SemanticCompressionEngine } from "../memory/concepts/semantic_compression_engine.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -144,6 +145,10 @@ console.log("[PRIME-CONCEPTS] Concept Drift Engine online.");
 // A97: Initialize Concept Merge/Split Engine
 const conceptMergeSplit = new ConceptMergeSplitEngine();
 console.log("[PRIME-CONCEPTS] Concept Merge/Split Engine online.");
+
+// A98: Initialize Semantic Compression Engine
+const semanticCompression = new SemanticCompressionEngine();
+console.log("[PRIME-CONCEPTS] Semantic Compression Engine online.");
 
 console.log("[PRIME] Initializing cognitive threads...");
 // ThreadPool will be initialized with default instances
@@ -427,6 +432,9 @@ const kernelInstance = {
     
     // A97: Apply concept merge/split after drift
     conceptMergeSplit.tick();
+    
+    // A98: Apply semantic compression after merge/split
+    semanticCompression.tick();
     
     // Optionally store reflection in memory (future enhancement)
     // PRIME.remember({ type: "reflection", data: reflection });
