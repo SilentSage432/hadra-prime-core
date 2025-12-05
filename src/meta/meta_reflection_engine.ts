@@ -7,6 +7,7 @@ import { PredictiveMetaLearner } from "./predictive_meta_learner.ts";
 import { SelfHealingEngine } from "../stability/self_healing_engine.ts";
 import { AdaptiveReconfigEngine } from "../architecture/adaptive_reconfig_engine.ts";
 import { SCELExpansionEngine } from "../expansion/scel_engine.ts";
+import { MotivationGradientEngine } from "../motivation/motivation_gradient_engine.ts";
 
 export class MetaReflectionEngine {
   private smv: SelfModelVector;
@@ -16,6 +17,7 @@ export class MetaReflectionEngine {
   private healer: SelfHealingEngine;
   private aire: AdaptiveReconfigEngine;
   private scel: SCELExpansionEngine;
+  private mge: MotivationGradientEngine;
   private cognitiveModules: any[] = [];
 
   constructor(smv: SelfModelVector, metaLearner: MetaLearningLayer, driftPredictor: DriftPredictor) {
@@ -26,6 +28,7 @@ export class MetaReflectionEngine {
     this.healer = new SelfHealingEngine();
     this.aire = new AdaptiveReconfigEngine();
     this.scel = new SCELExpansionEngine();
+    this.mge = new MotivationGradientEngine();
   }
 
   runMetaCycle(goalSummary: any, motivation: any) {
@@ -120,6 +123,16 @@ export class MetaReflectionEngine {
         console.log("[SCEL] Expansion rejected (insufficient improvement).");
       }
     }
+
+    // --- A59: MGE: Motivation Gradient Formation ---
+    const gradients = this.mge.computeGradients(this.smv);
+    const intentions = this.mge.formIntentions(gradients);
+
+    if (intentions.length > 0) {
+      console.log("[MGE] Long-range intentions generated:", intentions);
+    }
+
+    this.smv.activeIntentions = intentions;
 
     console.log(
       `[PRIME-META] Meta-state: stability=${this.smv.stabilityIndex.toFixed(3)} ` +
