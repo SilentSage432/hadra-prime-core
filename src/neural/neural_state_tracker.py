@@ -29,6 +29,7 @@ class NeuralStateTracker:
     def __init__(self):
 
         self.last_embedding = None
+        self.last_perception = None
 
         self.drift = NeuralDriftEngine()
         self.timescales = NeuralTimescales()

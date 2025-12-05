@@ -34,6 +34,7 @@ if _root_path not in sys.path:
     sys.path.insert(0, _root_path)
 from persistence.memory_store import MemoryStore
 from persistence.log_writer import LogWriter
+from perception.perception_manager import PerceptionManager
 
 class NeuralBridge:
 
@@ -52,7 +53,11 @@ class NeuralBridge:
         self.action_engine = CognitiveActionEngine()
         self.memory_store = MemoryStore()
         self.logger = LogWriter()
+        self.perception = PerceptionManager(self)
         self.orchestrator = CognitiveLoopOrchestrator(self)
+        
+        # Seed neural memory with initial concepts on first run
+        self.seed_neural_memory()
 
     def process_perception(self, text):
 
@@ -192,7 +197,14 @@ class NeuralBridge:
         attention = self.attention.last_focus_vector
         identity = self.state.timescales.identity_vector
 
-        return self.generator.propose(fusion, attention, identity)
+        candidates = self.generator.propose(fusion, attention, identity)
+        
+        # Include last perception embedding as thought seed
+        if self.state.last_perception and self.state.last_perception.get("embedding") is not None:
+            perception_vec = self.state.last_perception["embedding"]
+            candidates.append(perception_vec)
+        
+        return candidates
 
     def memory_cycle(self):
         """
@@ -242,4 +254,75 @@ class NeuralBridge:
         Get the status of the last cognitive step.
         """
         return self.orchestrator.status()
+
+    def embed_seed_memory(self):
+        """
+        Embed seed memories from memory_store into vector form.
+        Returns list of embedded seed memories for use in thought generation.
+        """
+        seeds = self.memory_store.data.get("thought_events", [])
+        embedded = []
+        
+        for seed in seeds:
+            if seed.get("timestamp") == "seed" and "data" in seed:
+                content = seed["data"].get("content", "")
+                if content:
+                    # Use hooks to encode the seed text
+                    vec = self.hooks.on_perception(content)
+                    if vec is not None:
+                        # Convert to list if tensor
+                        try:
+                            import torch
+                            if isinstance(vec, torch.Tensor):
+                                vec = vec.tolist()
+                        except:
+                            pass
+                        embedded.append({
+                            "text": content,
+                            "type": seed["data"].get("type", "concept"),
+                            "embedding": vec
+                        })
+        
+        return embedded
+
+    def seed_neural_memory(self):
+        """
+        Seed the neural memory manager with initial concepts if it exists.
+        This ensures semantic memory has initial anchors for thought generation.
+        """
+        # Check if memory_manager exists, if not, initialize it
+        if not hasattr(self.state, "memory_manager") or self.state.memory_manager is None:
+            from ..memory.neural.neural_memory_manager import NeuralMemoryManager
+            self.state.memory_manager = NeuralMemoryManager()
+        
+        # Get seed embeddings
+        seed_embeddings = self.embed_seed_memory()
+        
+        # Store seeds in semantic memory
+        for seed in seed_embeddings:
+            seed_type = seed.get("type", "concept")
+            seed_text = seed.get("text", "")
+            seed_vec = seed.get("embedding")
+            
+            if seed_vec is not None:
+                # Store in semantic memory with a meaningful name
+                if seed_type == "identity":
+                    name = f"identity_{seed_text[:20].replace(' ', '_')}"
+                else:
+                    name = f"concept_{seed_text}"
+                
+                self.state.memory_manager.store_concept(name, seed_vec)
+
+    def inject_perception(self, text: str):
+        """
+        Main operator-facing API endpoint for injecting perceptions into PRIME.
+        Encodes the text, updates neural state, and logs the perception.
+        """
+        perception = self.perception.perceive(text)
+        self.memory_store.log_perception(perception)
+        
+        # Also process through the full perception pipeline
+        self.process_perception(text)
+        
+        return perception
 

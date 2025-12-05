@@ -21,6 +21,22 @@ class MemoryStore:
                     self.data = json.load(f)
             except:
                 pass  # Start fresh if corrupted
+        
+        # Import seed memories
+        try:
+            from .memory_seed import SEED_MEMORIES
+            
+            # If memory is empty, inject seed concepts
+            if len(self.data["thought_events"]) == 0 and len(self.data["reflections"]) == 0:
+                for item in SEED_MEMORIES:
+                    self.data["thought_events"].append({
+                        "timestamp": "seed",
+                        "data": item
+                    })
+                self.save()
+        except ImportError:
+            # If seed file doesn't exist, continue without seeds
+            pass
 
     def save(self):
         with open(self.filename, "w") as f:
@@ -49,4 +65,10 @@ class MemoryStore:
 
     def log_memory_recall(self, recalled):
         self.add_event("memory_recall_events", recalled)
+
+    def log_perception(self, perception):
+        self.add_event("thought_events", {
+            "type": "perception",
+            "content": perception
+        })
 
