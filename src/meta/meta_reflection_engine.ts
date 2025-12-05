@@ -11,6 +11,7 @@ import { MotivationGradientEngine } from "../motivation/motivation_gradient_engi
 import { LongHorizonIntentEngine } from "../motivation/long_horizon_engine.ts";
 import { ProtoDesireEngine } from "../desire/proto_desire_engine.ts";
 import { BehaviorSelector } from "../behavior/behavior_selector.ts";
+import { SelfRegulator } from "../regulation/self_regulator.ts";
 
 export class MetaReflectionEngine {
   private smv: SelfModelVector;
@@ -24,6 +25,7 @@ export class MetaReflectionEngine {
   private lhis: LongHorizonIntentEngine;
   private pdes: ProtoDesireEngine;
   private bsel: BehaviorSelector;
+  private regulator: SelfRegulator;
   private cognitiveModules: any[] = [];
 
   constructor(smv: SelfModelVector, metaLearner: MetaLearningLayer, driftPredictor: DriftPredictor) {
@@ -38,6 +40,7 @@ export class MetaReflectionEngine {
     this.lhis = new LongHorizonIntentEngine();
     this.pdes = new ProtoDesireEngine();
     this.bsel = new BehaviorSelector();
+    this.regulator = new SelfRegulator();
   }
 
   runMetaCycle(goalSummary: any, motivation: any) {
@@ -184,6 +187,28 @@ export class MetaReflectionEngine {
     const behavior = this.bsel.selectBehavior(this.smv);
     this.smv.selectedBehavior = behavior;
     console.log("[D-BSE] Selected behavior:", behavior);
+
+    // --- A63: INTERNAL SELF-REGULATION LOOP ---
+    if (!this.smv.regulationParams) {
+      this.smv.regulationParams = {
+        driftCorrectionWeight: 1.0,
+        claritySeekingWeight: 1.0,
+        explorationBias: 1.0,
+        consolidationWeight: 1.0,
+        predictionSharpness: 1.0,
+        stabilityGain: 1.0,
+        reflectionDepth: 1.0
+      };
+    }
+
+    const updated = this.regulator.regulate(
+      this.smv,
+      this.smv.regulationParams
+    );
+
+    this.smv.regulationParams = updated;
+
+    console.log("[A63-REGULATOR] updated params:", updated);
 
     console.log(
       `[PRIME-META] Meta-state: stability=${this.smv.stabilityIndex.toFixed(3)} ` +

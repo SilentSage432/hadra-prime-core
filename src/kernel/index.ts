@@ -178,6 +178,15 @@ setInterval(() => {
 
   // A54: Run meta-reflection cycle
   if (goals.length) {
+    // A63: Harvest regulation metrics before meta-reflection
+    smv.regulationMetrics = {
+      drift: smv.driftRisk || 0,
+      clarity: smv.clarityIndex || 1,
+      valenceTrend: smv.desireState?.recentValence || 0,
+      stability: smv.stabilityIndex || 1,
+      predictionVolatility: 0 // TODO: Compute from prediction engine volatility
+    };
+
     metaReflectionEngine.runMetaCycle(goals[0], m);
     
     // A62: Route selected behavior if available
@@ -185,6 +194,11 @@ setInterval(() => {
       console.log(`[KERNEL-BEHAVIOR] PRIME chooses: ${smv.selectedBehavior}`);
       // Behavior routing will be handled by future modules
       // For now, we log the selection
+    }
+    
+    // A63: Log self-regulation event
+    if (smv.regulationParams) {
+      console.log("[KERNEL] PRIME self-regulated cognitive landscape.");
     }
   }
 }, 7000); // every 7 seconds — slow and intentional
