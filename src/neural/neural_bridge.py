@@ -26,6 +26,15 @@ from ..memory.memory_interaction_engine import MemoryInteractionEngine
 from ..cognition.cognitive_action_engine import CognitiveActionEngine
 from ..cognition.cognitive_loop_orchestrator import CognitiveLoopOrchestrator
 
+# Import persistence layer (from project root)
+import sys
+import os
+_root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if _root_path not in sys.path:
+    sys.path.insert(0, _root_path)
+from persistence.memory_store import MemoryStore
+from persistence.log_writer import LogWriter
+
 class NeuralBridge:
 
     def __init__(self):
@@ -41,6 +50,8 @@ class NeuralBridge:
         self.reflector = ReflectiveThoughtGenerator()
         self.memory_engine = MemoryInteractionEngine()
         self.action_engine = CognitiveActionEngine()
+        self.memory_store = MemoryStore()
+        self.logger = LogWriter()
         self.orchestrator = CognitiveLoopOrchestrator(self)
 
     def process_perception(self, text):

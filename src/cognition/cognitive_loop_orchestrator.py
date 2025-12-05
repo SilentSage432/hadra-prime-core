@@ -78,6 +78,20 @@ class CognitiveLoopOrchestrator:
             "attention": attention_state,
         }
 
+        # Save persistent memory items
+        self.bridge.memory_store.log_thought_event(dbg)
+        self.bridge.memory_store.log_memory_recall(recalled)
+        self.bridge.memory_store.log_drift(drift_state)
+        
+        if action == "generate_reflection":
+            self.bridge.memory_store.log_reflection(action_output)
+        
+        if action == "update_identity":
+            self.bridge.memory_store.log_identity_update(action_output)
+
+        # Write runtime entry
+        self.bridge.logger.write(self.last_output)
+
         return self.last_output
 
     def status(self):
