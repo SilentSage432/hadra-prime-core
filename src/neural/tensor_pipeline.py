@@ -9,10 +9,10 @@ Later phases replace all internals with torch tensor ops.
 """
 
 try:
-    from .torch_utils import safe_tensor
+    from .torch_utils import safe_tensor, TORCH_AVAILABLE
     from .vector_math import normalize
 except ImportError:
-    from torch_utils import safe_tensor
+    from torch_utils import safe_tensor, TORCH_AVAILABLE
     from vector_math import normalize
 
 
@@ -23,28 +23,51 @@ class TensorPipeline:
     def encode_text(self, text: str):
         """
         TEMPORARY ENCODER:
-        Converts text → simple numeric vector (character ordinals).
-        Replaced by PyTorch encoder in phases A136–A140.
+        Converts text → numeric vector → torch tensor → normalized.
+        Replaced in A137+ by real PyTorch embedding model.
         """
+        import torch
         raw = [ord(c) % 97 for c in text.lower() if c.isalpha()]
-        vector = normalize(raw)
-        self.last_vector = vector
-        return safe_tensor(vector)
+        tensor = safe_tensor(raw)
+        if TORCH_AVAILABLE and hasattr(tensor, 'numel'):
+            if tensor.numel() > 0:
+                norm = torch.linalg.norm(tensor)
+                if norm > 0:
+                    tensor = tensor / norm
+        else:
+            # Fallback normalization
+            from .vector_math import normalize
+            tensor = safe_tensor(normalize(raw))
+        self.last_vector = tensor
+        return tensor
 
     def batch_vectors(self, vectors):
         """
         Prepares multiple vectors for future batching.
         """
-        return [safe_tensor(v) for v in vectors]
+        tensors = [safe_tensor(v) for v in vectors]
+        if TORCH_AVAILABLE and tensors:
+            try:
+                import torch
+                return torch.stack(tensors)
+            except (ImportError, TypeError):
+                return tensors
+        return tensors if tensors else None
 
     def stats(self):
         """
         Basic debug info.
         """
-        if not self.last_vector:
+        if self.last_vector is None:
             return {"status": "empty"}
+        if TORCH_AVAILABLE and hasattr(self.last_vector, 'numel'):
+            return {
+                "length": self.last_vector.numel(),
+                "preview": self.last_vector[:8].tolist()
+            }
+        # Fallback for non-tensor vectors
         return {
             "length": len(self.last_vector),
-            "preview": self.last_vector[:8],
+            "preview": self.last_vector[:8] if isinstance(self.last_vector, list) else list(self.last_vector)[:8]
         }
 
