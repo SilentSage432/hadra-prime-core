@@ -5,6 +5,7 @@ import { MetaLearningLayer } from "./meta_learning_layer.ts";
 import { DriftPredictor } from "./drift_predictor.ts";
 import { PredictiveMetaLearner } from "./predictive_meta_learner.ts";
 import { SelfHealingEngine } from "../stability/self_healing_engine.ts";
+import { AdaptiveReconfigEngine } from "../architecture/adaptive_reconfig_engine.ts";
 
 export class MetaReflectionEngine {
   private smv: SelfModelVector;
@@ -12,6 +13,7 @@ export class MetaReflectionEngine {
   private driftPredictor: DriftPredictor;
   private predictive: PredictiveMetaLearner;
   private healer: SelfHealingEngine;
+  private aire: AdaptiveReconfigEngine;
 
   constructor(smv: SelfModelVector, metaLearner: MetaLearningLayer, driftPredictor: DriftPredictor) {
     this.smv = smv;
@@ -19,6 +21,7 @@ export class MetaReflectionEngine {
     this.driftPredictor = driftPredictor;
     this.predictive = new PredictiveMetaLearner();
     this.healer = new SelfHealingEngine();
+    this.aire = new AdaptiveReconfigEngine();
   }
 
   runMetaCycle(goalSummary: any, motivation: any) {
@@ -60,6 +63,18 @@ export class MetaReflectionEngine {
     // Example regeneration trigger
     if (this.smv.clarityIndex < 0.38) {
       this.healer.regenerateSubsystem("clarity-lattice");
+    }
+
+    // --- A57: AIRE RUNTIME RECONFIG ---
+    const reconfig = this.aire.analyze(this.smv);
+    if (Object.values(reconfig).some(v => v === true)) {
+      console.log("[AIRE] Reconfiguration triggered.");
+      this.aire.applyReconfiguration(this.smv);
+    }
+
+    // Fallback regeneration
+    if (this.smv.stabilityIndex < 0.42) {
+      this.aire.regeneratePathway("stability-coherence");
     }
 
     console.log(
