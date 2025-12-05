@@ -9,6 +9,7 @@ import { AdaptiveReconfigEngine } from "../architecture/adaptive_reconfig_engine
 import { SCELExpansionEngine } from "../expansion/scel_engine.ts";
 import { MotivationGradientEngine } from "../motivation/motivation_gradient_engine.ts";
 import { LongHorizonIntentEngine } from "../motivation/long_horizon_engine.ts";
+import { ProtoDesireEngine } from "../desire/proto_desire_engine.ts";
 
 export class MetaReflectionEngine {
   private smv: SelfModelVector;
@@ -20,6 +21,7 @@ export class MetaReflectionEngine {
   private scel: SCELExpansionEngine;
   private mge: MotivationGradientEngine;
   private lhis: LongHorizonIntentEngine;
+  private pdes: ProtoDesireEngine;
   private cognitiveModules: any[] = [];
 
   constructor(smv: SelfModelVector, metaLearner: MetaLearningLayer, driftPredictor: DriftPredictor) {
@@ -32,10 +34,19 @@ export class MetaReflectionEngine {
     this.scel = new SCELExpansionEngine();
     this.mge = new MotivationGradientEngine();
     this.lhis = new LongHorizonIntentEngine();
+    this.pdes = new ProtoDesireEngine();
   }
 
   runMetaCycle(goalSummary: any, motivation: any) {
     console.log("[PRIME-META] Running meta-reflection cycle...");
+
+    // snapshot before modifications (for PDS valence computation)
+    const before = {
+      clarityIndex: this.smv.clarityIndex,
+      stabilityIndex: this.smv.stabilityIndex,
+      driftRisk: this.smv.driftRisk || 0,
+      consolidationTension: this.smv.consolidationTension
+    };
 
     // 1. Update PRIME's self-model vector based on current states
     this.smv.updateFromCycle(goalSummary, motivation);
@@ -148,6 +159,23 @@ export class MetaReflectionEngine {
         horizon: i.horizon
       })));
     }
+
+    // snapshot after modifications (for PDS valence computation)
+    const after = {
+      clarityIndex: this.smv.clarityIndex,
+      stabilityIndex: this.smv.stabilityIndex,
+      driftRisk: this.smv.driftRisk || 0,
+      consolidationTension: this.smv.consolidationTension
+    };
+
+    // --- A61: PDS: Proto-Desire System ---
+    const valence = this.pdes.computeValenceChange(before, after);
+    const desire = this.pdes.updateProtoDesire(this.smv, valence);
+
+    console.log(`[PDS] Valence: ${valence >= 0 ? '+' : ''}${valence.toFixed(3)} DesireState:`, {
+      recentValence: desire.recentValence.toFixed(3),
+      cumulativeValence: desire.cumulativeValence.toFixed(3)
+    });
 
     console.log(
       `[PRIME-META] Meta-state: stability=${this.smv.stabilityIndex.toFixed(3)} ` +
