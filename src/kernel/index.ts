@@ -252,6 +252,15 @@ const situationModelGenerator = new SituationModelGenerator();
 console.log("[PRIME-KERNEL] Neural Situation Model Generator online.");
 console.log("[PRIME-SITUATION] Neural-dynamic situation awareness enabled.");
 
+// A112: Initialize Neural Convergence Interface (NCI)
+console.log("[PRIME-KERNEL] Neural Convergence Interface (NCI) online.");
+console.log("[PRIME-NCI] SAGE-PRIME neural handshake enabled.");
+
+// A113: Initialize Neural Embedding Pipeline
+console.log("[PRIME-KERNEL] Neural Embedding Pipeline online.");
+console.log("[PRIME-NCI] Shared embedding substrate enabled.");
+console.log("[PRIME-NCI] PRIME ↔ SAGE bidirectional neural encoding active.");
+
 // A52: Initialize Learning Engine
 const learningEngine = new LearningEngine();
 console.log("[PRIME-KERNEL] Learning Engine active.");

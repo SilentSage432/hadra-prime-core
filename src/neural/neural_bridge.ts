@@ -1,6 +1,7 @@
 // src/neural/neural_bridge.ts
 // A101: Neural Slot #2 Preparation Layer
 // A112: Neural Bridge v2 - Tensor Handshake Layer with temporal sequence support
+// A112: Neural Convergence Interface (NCI) - SAGE-PRIME neural handshake
 // Cross-Modal Embedding Bridge
 // This is the Rosetta Stone between PRIME's rule-based engine and the neural substrate
 // A108b: Hardware-aware neural offloading
@@ -8,6 +9,11 @@
 import type { SymbolicPacket } from "../shared/symbolic_packet.ts";
 import type { HardwareProfile } from "../hardware/hardware_profile.ts";
 import type { NeuralInteractionPayload } from "./models/temporal_embedding_model.ts";
+import type { NeuralPacket } from "./contract/neural_interaction_contract.ts";
+import { NeuralConvergenceContract } from "./contract/neural_interaction_contract.ts";
+import { primeEmbeddingAdapter } from "./embedding/prime_embedding_adapter.ts";
+import { sageEmbeddingParser } from "./embedding/sage_embedding_parser.ts";
+import type { SharedEmbedding } from "../shared/embedding.ts";
 
 export interface TensorStub {
   shape: number[];
@@ -114,6 +120,144 @@ export class NeuralBridge {
   static getInstance(): typeof NeuralBridge {
     return NeuralBridge;
   }
+
+  // A112: Neural Convergence Interface (NCI) - SAGE-PRIME neural handshake
+  private static listeners: ((packet: NeuralPacket) => void)[] = [];
+
+  /**
+   * Send neural packet from SAGE to PRIME
+   * Validates and sanitizes before ingestion
+   * A113: Converts to shared embedding format
+   */
+  static sendToPrime(packet: NeuralPacket): boolean {
+    if (!NeuralConvergenceContract.validate(packet)) {
+      console.warn("[PRIME-NCI] Invalid neural packet rejected:", packet.id);
+      return false;
+    }
+
+    const clean = NeuralConvergenceContract.sanitize(packet);
+    
+    // A113: Convert SAGE packet to shared embedding
+    const shared = sageEmbeddingParser.parse(clean);
+    
+    // Get cortex manager to ingest external signal and shared embedding
+    const cortex = (globalThis as any).PRIME_CORTEX;
+    if (cortex) {
+      if (cortex.ingestExternalSignal) {
+        cortex.ingestExternalSignal(clean);
+      }
+      if (cortex.ingestSharedEmbedding) {
+        cortex.ingestSharedEmbedding(shared);
+      }
+      
+      console.log("[PRIME-NCI] Ingested SAGE neural packet:", {
+        id: clean.id,
+        channel: clean.channel,
+        embeddingSize: clean.embedding.length,
+        signalType: shared.signalType
+      });
+      return true;
+    } else {
+      console.warn("[PRIME-NCI] Cortex not available for external signal ingestion");
+      return false;
+    }
+  }
+
+  /**
+   * Register listener for PRIME neural events
+   */
+  static onPrimeNeuralEvent(callback: (packet: NeuralPacket) => void): () => void {
+    this.listeners.push(callback);
+    // Return unsubscribe function
+    return () => {
+      const index = this.listeners.indexOf(callback);
+      if (index > -1) {
+        this.listeners.splice(index, 1);
+      }
+    };
+  }
+
+  /**
+   * Emit neural packet from PRIME (to SAGE or other listeners)
+   * A113: Converts to shared embedding format before emission
+   */
+  static emitFromPrime(packet: NeuralPacket): void {
+    if (!NeuralConvergenceContract.validate(packet)) {
+      console.warn("[PRIME-NCI] Invalid PRIME neural packet, not emitting:", packet.id);
+      return;
+    }
+
+    const clean = NeuralConvergenceContract.sanitize(packet);
+    
+    // A113: Convert PRIME embedding to shared format
+    const shared = encodePrimeEmbedding(clean.embedding, clean.channel);
+    
+    // Emit both packet and shared embedding
+    this.listeners.forEach(listener => {
+      try {
+        listener(clean);
+        // Also emit shared embedding if listener accepts it
+        if (typeof (listener as any).onSharedEmbedding === "function") {
+          (listener as any).onSharedEmbedding(shared);
+        }
+      } catch (error) {
+        console.error("[PRIME-NCI] Error in neural event listener:", error);
+      }
+    });
+
+    console.log("[PRIME-NCI] Emitted PRIME neural packet:", {
+      id: clean.id,
+      channel: clean.channel,
+      source: clean.source,
+      signalType: shared.signalType
+    });
+  }
+
+  /**
+   * A113: Encode PRIME embedding to shared embedding format
+   */
+  static encodePrimeEmbedding(
+    vec: number[],
+    channel: "memory" | "state" | "intent" | "perception" = "memory"
+  ): SharedEmbedding {
+    // Map channel to signal type
+    let signalType: "cognition" | "state" | "intent" | "emotion" = "cognition";
+    switch (channel) {
+      case "state":
+        signalType = "state";
+        break;
+      case "intent":
+        signalType = "intent";
+        break;
+      case "perception":
+        signalType = "cognition";
+        break;
+      case "memory":
+        signalType = "cognition";
+        break;
+    }
+    
+    return primeEmbeddingAdapter.toSharedEmbedding(vec, signalType);
+  }
+
+  /**
+   * A113: Decode SAGE neural packet to shared embedding format
+   */
+  static decodeSageEmbedding(packet: NeuralPacket): SharedEmbedding {
+    return sageEmbeddingParser.parse(packet);
+  }
+}
+
+// A113: Export convenience functions for embedding conversion
+export function encodePrimeEmbedding(
+  vec: number[],
+  channel: "memory" | "state" | "intent" | "perception" = "memory"
+): SharedEmbedding {
+  return NeuralBridge.encodePrimeEmbedding(vec, channel);
+}
+
+export function decodeSageEmbedding(packet: NeuralPacket): SharedEmbedding {
+  return NeuralBridge.decodeSageEmbedding(packet);
 }
 
 // A108b: Initialize hardware awareness on module load

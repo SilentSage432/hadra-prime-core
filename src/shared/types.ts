@@ -48,3 +48,6 @@ export interface MotivationState {
   direction: string | null;
 }
 
+// A112: Neural Convergence Interface (NCI) - Neural channel types
+export type NeuralChannel = "memory" | "state" | "intent" | "perception";
+

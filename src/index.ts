@@ -26,3 +26,11 @@ export { StrategyEngine } from "./strategy/index.ts";
 // A92: Export Embedding Adapter
 export { getEmbeddingAdapter } from "./kernel/index.ts";
 
+// A112: Export Neural Convergence Interface (NCI)
+export { NeuralBridge, encodePrimeEmbedding, decodeSageEmbedding } from "./neural/neural_bridge.ts";
+export { NeuralConvergenceContract, type NeuralPacket } from "./neural/contract/neural_interaction_contract.ts";
+// A113: Export Neural Embedding Pipeline
+export { primeEmbeddingAdapter } from "./neural/embedding/prime_embedding_adapter.ts";
+export { sageEmbeddingParser } from "./neural/embedding/sage_embedding_parser.ts";
+export type { SharedEmbedding } from "./shared/embedding.ts";
+
