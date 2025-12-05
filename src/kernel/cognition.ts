@@ -4,6 +4,7 @@ import { PRIMEConfig } from "../shared/config.ts";
 import { MultiTimescaleSituationModel } from "../situation_model/multi_timescale_model.ts";
 import { PRIME_SITUATION } from "../situation_model/index.ts";
 import { AttentionDriftRegulator } from "../cognition/attention/attention_drift_regulator.ts";
+import { AttentionalWeightEngine } from "../cognition/attention/attentional_weight_engine.ts";
 import type { CognitiveState } from "../cognition/cognitive_state.ts";
 
 let lastCycle = Date.now();
@@ -39,16 +40,22 @@ export function triggerCooldown(intensity = 1) {
 
 // A118: PrimeCognition class for multi-timescale situation modeling
 // A120: Extended with Attention Drift Regulator
+// A121: Extended with Adaptive Attentional Weight Shifting Engine
 export class PrimeCognition {
   private timescaleModel = new MultiTimescaleSituationModel();
   private attentionRegulator = new AttentionDriftRegulator();
+  private attentionalWeighter = new AttentionalWeightEngine();
   private cognitiveState: Partial<CognitiveState> = {
     focusBias: 0,
     distractionFilterStrength: 0,
     taskCommitment: 0,
     contextAlignment: 0,
     missionAlignment: 0,
-    longHorizonFocus: 0
+    longHorizonFocus: 0,
+    // A121: Initialize attention weights
+    attentionMicro: 0.33,
+    attentionMeso: 0.33,
+    attentionMacro: 0.33
   };
 
   constructor() {
@@ -112,6 +119,19 @@ export class PrimeCognition {
         console.log("[PRIME-DRIFT] macro drift detected: recalibrating mission alignment.");
         break;
     }
+  }
+
+  // A121: Update attentional state based on drift and compute optimal weight shifts
+  updateAttentionalState() {
+    const drift = this.timescaleModel.getLastDrift();
+    const newWeights = this.attentionalWeighter.computeOptimalShift(drift, this.cognitiveState);
+    
+    // Update cognitive state with new attention weights
+    this.cognitiveState.attentionMicro = newWeights.micro;
+    this.cognitiveState.attentionMeso = newWeights.meso;
+    this.cognitiveState.attentionMacro = newWeights.macro;
+    
+    console.log("[PRIME-AWE] attentional state updated.");
   }
 }
 

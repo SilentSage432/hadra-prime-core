@@ -20,6 +20,7 @@ export class MultiTimescaleSituationModel {
     macro: null,
   };
   private driftEngine = new DriftEngine();
+  private lastDriftReport: DriftReport | null = null;
 
   updateMicro(s: MicroSituationModel) {
     this.state.micro = s;
@@ -57,7 +58,14 @@ export class MultiTimescaleSituationModel {
 
   // A119: Analyze drift across all timescales
   analyzeDrift(): DriftReport {
-    return this.driftEngine.computeDrift(this.state);
+    const report = this.driftEngine.computeDrift(this.state);
+    this.lastDriftReport = report;
+    return report;
+  }
+
+  // A121: Get the last drift report for attentional weight computation
+  getLastDrift(): DriftReport | null {
+    return this.lastDriftReport;
   }
 }
 

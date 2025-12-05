@@ -1,6 +1,7 @@
 // src/cognition/cognitive_state.ts
 // A113: Extended with neural signal support
 // A120: Extended with attentional drift regulation fields
+// A121: Extended with adaptive attentional weight shifting
 
 import type { ToneVector } from "../expression/tone/tone_detector.ts";
 import type { MetaState } from "../meta/meta_state.ts";
@@ -36,5 +37,9 @@ export interface CognitiveState {
   contextAlignment?: number;       // Contextual coherence
   missionAlignment?: number;       // Macro-level mission alignment
   longHorizonFocus?: number;       // Long-term goal focus
+  // A121: Adaptive Attentional Weight Shifting fields
+  attentionMicro?: number;         // Micro-level attention weight (0-1)
+  attentionMeso?: number;          // Meso-level attention weight (0-1)
+  attentionMacro?: number;         // Macro-level attention weight (0-1)
 }
 

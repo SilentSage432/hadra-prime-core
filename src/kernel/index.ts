@@ -923,6 +923,9 @@ setInterval(() => {
   // A119: Check for contextual drift across all timescales
   primeCognition.driftCheck();
 
+  // A121: Update attentional state based on drift and compute optimal weight shifts
+  primeCognition.updateAttentionalState();
+
   // A65: Update micro situation with current state
   const selState = SEL.getState();
   PRIME_SITUATION.micro.update({
