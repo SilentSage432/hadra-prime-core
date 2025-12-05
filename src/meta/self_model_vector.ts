@@ -8,6 +8,11 @@ export class SelfModelVector {
   driftRisk: number = 0.10;
   activeIntentions?: any[];
   longHorizonIntentions?: any[];
+  selectedBehavior?: string;
+  desireState?: {
+    recentValence: number;
+    cumulativeValence: number;
+  };
 
   updateFromCycle(goalSummary: any, motivation: any) {
     // Update from consolidation vs curiosity tension

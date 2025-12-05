@@ -179,6 +179,13 @@ setInterval(() => {
   // A54: Run meta-reflection cycle
   if (goals.length) {
     metaReflectionEngine.runMetaCycle(goals[0], m);
+    
+    // A62: Route selected behavior if available
+    if (smv.selectedBehavior) {
+      console.log(`[KERNEL-BEHAVIOR] PRIME chooses: ${smv.selectedBehavior}`);
+      // Behavior routing will be handled by future modules
+      // For now, we log the selection
+    }
   }
 }, 7000); // every 7 seconds — slow and intentional
 

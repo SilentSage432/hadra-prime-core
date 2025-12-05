@@ -10,6 +10,7 @@ import { SCELExpansionEngine } from "../expansion/scel_engine.ts";
 import { MotivationGradientEngine } from "../motivation/motivation_gradient_engine.ts";
 import { LongHorizonIntentEngine } from "../motivation/long_horizon_engine.ts";
 import { ProtoDesireEngine } from "../desire/proto_desire_engine.ts";
+import { BehaviorSelector } from "../behavior/behavior_selector.ts";
 
 export class MetaReflectionEngine {
   private smv: SelfModelVector;
@@ -22,6 +23,7 @@ export class MetaReflectionEngine {
   private mge: MotivationGradientEngine;
   private lhis: LongHorizonIntentEngine;
   private pdes: ProtoDesireEngine;
+  private bsel: BehaviorSelector;
   private cognitiveModules: any[] = [];
 
   constructor(smv: SelfModelVector, metaLearner: MetaLearningLayer, driftPredictor: DriftPredictor) {
@@ -35,6 +37,7 @@ export class MetaReflectionEngine {
     this.mge = new MotivationGradientEngine();
     this.lhis = new LongHorizonIntentEngine();
     this.pdes = new ProtoDesireEngine();
+    this.bsel = new BehaviorSelector();
   }
 
   runMetaCycle(goalSummary: any, motivation: any) {
@@ -176,6 +179,11 @@ export class MetaReflectionEngine {
       recentValence: desire.recentValence.toFixed(3),
       cumulativeValence: desire.cumulativeValence.toFixed(3)
     });
+
+    // --- A62: D-BSE: Desire-Driven Behavior Selection Engine ---
+    const behavior = this.bsel.selectBehavior(this.smv);
+    this.smv.selectedBehavior = behavior;
+    console.log("[D-BSE] Selected behavior:", behavior);
 
     console.log(
       `[PRIME-META] Meta-state: stability=${this.smv.stabilityIndex.toFixed(3)} ` +
