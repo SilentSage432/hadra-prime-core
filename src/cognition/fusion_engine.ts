@@ -1,4 +1,5 @@
 // src/cognition/fusion_engine.ts
+// A89: Neural Inference Boundary Controller Integration
 
 import type { ToneVector } from "../expression/tone/tone_detector.ts";
 import type { CognitiveState } from "./cognitive_state.ts";
@@ -11,6 +12,9 @@ import { ClusterBus } from "../distributed/cluster_bus.ts";
 import { PredictiveConsensus } from "../distributed/predictive_consensus.ts";
 import { SEL } from "../emotion/sel.ts";
 import type { IntentResult } from "../intent/intent_engine.ts";
+import { NeuralBoundary } from "../neural/boundary_controller.ts";
+import { NeuralContextEncoder } from "../neural/context_encoder.ts";
+import { MotivationEngine } from "./motivation_engine.ts";
 
 export class FusionEngine {
   private memory: MemoryStore;
@@ -128,6 +132,38 @@ export class FusionEngine {
 
     // A46: Attach multimodal data to cognitive state
     (cognitiveState as any).multimodal = multimodal;
+
+    // A89: Neural assistance pathway (if allowed)
+    const motivations = MotivationEngine.compute();
+    if (NeuralBoundary.allowNeuralInference(motivations)) {
+      console.log("[NEURAL] Neural inference permitted.");
+      
+      const stabilitySnapshot = {
+        score: (fusion as any).stabilityScore || 0.6,
+        stabilityScore: (fusion as any).stabilityScore || 0.6,
+        recursionRisk: 0,
+        coherenceScore: SEL.getState().coherence
+      };
+      
+      const embedding = new NeuralContextEncoder().encodeContext(
+        cognitiveState,
+        motivations,
+        stabilitySnapshot
+      );
+      
+      const safeEmbedding = NeuralBoundary.sanitizeInput(embedding.vector);
+      
+      // FUTURE HOOK: PyTorch inference call
+      const rawOutput = null; // placeholder for A90–A95
+      
+      const validated = NeuralBoundary.validateNeuralOutput(rawOutput);
+      if (validated && NeuralBoundary.approve(validated, motivations)) {
+        (cognitiveState as any).neuralAssistance = validated;
+        console.log(`[NEURAL] Assistance approved: ${JSON.stringify(validated)}`);
+      } else {
+        console.log("[NEURAL] Assistance rejected or unavailable.");
+      }
+    }
 
     // Synthetic Emotion Integration
     this.finalizeFusion(cognitiveState);

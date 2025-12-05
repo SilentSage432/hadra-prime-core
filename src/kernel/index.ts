@@ -107,6 +107,9 @@ console.log("[PRIME-SELF] Cognitive Realignment Engine online.");
 // A88: Initialize Cognitive Homeostasis Engine
 console.log("[PRIME-SELF] Cognitive Homeostasis Engine active.");
 
+// A89: Initialize Neural Inference Boundary Controller
+console.log("[PRIME-NEURAL] Neural Boundary Controller online.");
+
 console.log("[PRIME] Initializing cognitive threads...");
 // ThreadPool will be initialized with default instances
 // For full integration, it should be initialized with PRIME's actual instances
