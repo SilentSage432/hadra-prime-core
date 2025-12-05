@@ -13,6 +13,7 @@ export class SafetyGuard {
   static limiter = new SafetyLimiter();
   static maxRecursionDepth = 35;
   static maxBranching = 4;
+  static allowAutonomousStrategy = false;
   static flags = {
     allowVision: true,
     allowAudio: true,
@@ -145,6 +146,16 @@ export class SafetyGuard {
    */
   static snapshot() {
     return this.limiter.snapshot();
+  }
+
+  /**
+   * A64: Enforce strategy call safety - block autonomous strategy generation
+   */
+  static enforceStrategyCall(): boolean {
+    if (!this.allowAutonomousStrategy) {
+      return true; // safe - autonomous is blocked
+    }
+    return false; // unsafe - autonomous allowed (should never happen in safe mode)
   }
 }
 

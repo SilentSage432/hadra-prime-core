@@ -37,6 +37,9 @@ import { MetaReflectionEngine } from "../meta/meta_reflection_engine.ts";
 import { SelfModelVector } from "../meta/self_model_vector.ts";
 import { MetaLearningLayer } from "../meta/meta_learning_layer.ts";
 import { DriftPredictor } from "../meta/drift_predictor.ts";
+import { StrategyEngine } from "../strategy/strategy_engine.ts";
+import { MemoryStore } from "../memory/memory_store.ts";
+import { MemoryLayer } from "../memory/memory.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -82,11 +85,19 @@ const driftPredictor = new DriftPredictor();
 const metaReflectionEngine = new MetaReflectionEngine(smv, metaLearner, driftPredictor);
 console.log("[PRIME-KERNEL] Meta-Reflection Engine active.");
 
+// A64: Initialize Strategy Engine (Safe Edition)
+const strategyMemoryLayer = new MemoryLayer();
+const strategyMemoryStore = new MemoryStore(strategyMemoryLayer);
+const strategyEngine = new StrategyEngine(strategyMemoryStore);
+console.log("[PRIME-KERNEL] Strategy Engine online (operator-gated).");
+console.log("[PRIME-STRATEGY] Engine loaded. Awaiting operator directives.");
+
 // A48: Kernel instance for operator command handling
 const kernelInstance = {
   actionEngine,
   intentRouter,
   planEngine,
+  strategyEngine,
   async generateAndRunPlan(goal: string, highLevelAction: string, params?: any) {
     // Step decomposition (placeholder — later ML-driven)
     const steps: PlanStep[] = [

@@ -20,3 +20,6 @@ export * from "./expression/types.ts";
 // Export Synthetic Emotion Layer
 export { SEL } from "./emotion/sel.ts";
 
+// A64: Export Strategy Engine
+export { StrategyEngine } from "./strategy/index.ts";
+
