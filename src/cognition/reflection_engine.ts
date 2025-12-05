@@ -14,6 +14,7 @@
 // A87: Cognitive Realignment Engine Integration
 // A88: Cognitive Homeostasis System Integration
 // A93: Neural Memory Encoding Integration
+// A95: Concept Formation Engine Integration
 
 import { Concepts } from "./concepts/concept_engine.ts";
 import { Hierarchy } from "./concepts/concept_hierarchy.ts";
@@ -29,6 +30,7 @@ import { ConflictEngine } from "./self/conflict_resolver.ts";
 import { Realignment } from "./self/realignment_engine.ts";
 import { Homeostasis } from "./self/homeostasis_engine.ts";
 import { recallSimilar } from "../memory/memory_router.ts";
+import { ConceptGraph } from "../memory/concepts/concept_store.ts";
 
 export class ReflectionEngine {
   // A93: Neural recall integration method
@@ -385,6 +387,21 @@ export class ReflectionEngine {
         `before=${JSON.stringify(before)}\n` +
         `after=${JSON.stringify(regulated)}`
       );
+    }
+
+    // A95: Show concepts if available in cognitive state or memory
+    if (cognitiveState.concept) {
+      const conceptId = cognitiveState.concept;
+      const concept = ConceptGraph.find(c => c.id === conceptId);
+      if (concept) {
+        console.log("[PRIME-REFLECTION] Concept:", {
+          id: concept.id,
+          label: concept.label,
+          confidence: concept.confidence.toFixed(3),
+          stability: concept.stability.toFixed(3),
+          members: concept.members.length
+        });
+      }
     }
 
     return reflection;
