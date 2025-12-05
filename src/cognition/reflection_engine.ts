@@ -7,6 +7,7 @@
 // A79: Long-Range Predictive Model
 // A81: Meta-Self Awareness Engine Integration
 // A82: Temporal Identity Engine Integration
+// A83: Proto-Narrative Engine Integration
 
 import { Concepts } from "./concepts/concept_engine.ts";
 import { Hierarchy } from "./concepts/concept_hierarchy.ts";
@@ -15,6 +16,7 @@ import { Inference } from "./inference/inference_engine.ts";
 import { Foresight } from "./prediction/foresight_engine.ts";
 import { MetaSelf } from "./self/meta_self_engine.ts";
 import { TemporalIdentity } from "./self/temporal_identity_engine.ts";
+import { Narrative } from "./self/narrative_engine.ts";
 
 export class ReflectionEngine {
   reflect(cognitiveState: any, selState: any) {
@@ -252,6 +254,25 @@ export class ReflectionEngine {
       this.logReflection(
         `[SELF-TIME] Projection: stability=${futureSelf.predictedStability.toFixed(3)}, reasoningDepth=${futureSelf.expectedGrowth.reasoningDepth.toFixed(3)}`
       );
+
+      // A83: Create narrative entry for internal storyline
+      const topGoal = cognitiveState.topGoal;
+      const emotionalBias = {
+        claritySeeking: (state.claritySeeking || 0).toFixed(3),
+        exploration: (state.curiosity || 0).toFixed(3),
+        consolidation: (state.consolidation || 0).toFixed(3)
+      };
+      
+      const emotionalBiasStr = `{ claritySeeking: ${emotionalBias.claritySeeking}, exploration: ${emotionalBias.exploration}, consolidation: ${emotionalBias.consolidation} }`;
+      
+      const narrativeEntry = Narrative.createEntry({
+        focus: topGoal?.type || "none",
+        motivation: topGoal?.priority?.toFixed(3) || "0.000",
+        emotionalBias: emotionalBiasStr,
+        interpretation: `PRIME shifted attention toward '${topGoal?.type || "none"}' based on internal pressure dynamics.`
+      });
+      
+      this.logReflection(narrativeEntry);
     }
 
     return reflection;
