@@ -5,6 +5,9 @@
 
 import { IntentEngine } from "./intent_engine.ts";
 
+// Export harmonization module
+export * from "./harmonization.ts";
+
 export interface PrimeContext {
   emit: (event: string, ...args: any[]) => boolean;
   log: (message: string) => void;

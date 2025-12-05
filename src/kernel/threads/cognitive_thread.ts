@@ -7,6 +7,7 @@ import { MemoryStore } from "../../memory/memory_store.ts";
 import { SafetyGuard } from "../../safety/safety_guard.ts";
 import { ToneEngine } from "../../expression/tone/tone_engine.ts";
 import { ContextManager } from "../../context/context_manager.ts";
+import { broadcastIntent } from "../index.ts";
 
 export class CognitiveThread {
   id: string;
@@ -45,6 +46,9 @@ export class CognitiveThread {
     try {
       // 1. Intent resolution
       const intent = this.intentEngine.process(payload.input || payload.content || "");
+
+      // Broadcast intent for harmonization
+      broadcastIntent(intent);
 
       // 2. Extract tone
       const tone = this.toneEngine.analyze(payload.input || payload.content || "");

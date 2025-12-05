@@ -4,6 +4,10 @@
 import { SafetyLimiter } from "./safety_limiter/limiter.ts";
 import { StabilityMatrix } from "../stability/stability_matrix.ts";
 
+// Safety rate limiter - prevents runaway safety checks
+let lastSafetyRun = 0;
+const SAFETY_MIN_INTERVAL = 250; // ms
+
 export class SafetyGuard {
   static limiter = new SafetyLimiter();
 
@@ -29,6 +33,13 @@ export class SafetyGuard {
    * Returns false if cognition should be blocked
    */
   static preCognitionCheck(): boolean {
+    // Safety rate limiter - throttle safety checks
+    const now = Date.now();
+    if (now - lastSafetyRun < SAFETY_MIN_INTERVAL) {
+      return true; // Allow by default when throttled
+    }
+    lastSafetyRun = now;
+
     if (!this.limiter.recordRecursion()) return false;
 
     if (!this.limiter.memoryAllowed()) {

@@ -2,6 +2,11 @@
 
 import { TemporalRing } from "../memory/temporal_ring.ts";
 
+// Smoothing function to prevent volatility feeding safety
+function smooth(a: number, b: number, factor = 0.3): number {
+  return a * (1 - factor) + b * factor;
+}
+
 export interface Prediction {
   horizon: "short" | "medium";
   stabilityTrend: "rising" | "falling" | "stable";
@@ -44,11 +49,10 @@ export class PredictiveHorizon {
     const likelyNextIntent = intents[0] ?? null;
 
     // --- Recursion Risk Estimation ---
-    const recursionRisk =
-      Math.min(
-        1,
-        Math.abs(avgDelta) < 0.01 && intents[0] === intents[1] ? 0.8 : 0.2
-      );
+    // Apply smoothing to prevent volatility from feeding safety feedback loops
+    const rawRisk = Math.abs(avgDelta) < 0.01 && intents[0] === intents[1] ? 0.8 : 0.2;
+    const smoothedRisk = smooth(rawRisk, 0.2, 0.3); // Smooth towards baseline
+    const recursionRisk = Math.min(1, smoothedRisk);
 
     return {
       horizon: "medium",

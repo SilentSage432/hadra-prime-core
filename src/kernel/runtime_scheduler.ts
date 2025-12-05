@@ -13,29 +13,20 @@ export function startRuntime(modules: any) {
     ThreadPool.init();
   }
 
-  setInterval(() => {
-    // Heartbeat loop — future logic goes here
-    
-    // Pre-cognition safety check
-    if (!SafetyGuard.preCognitionCheck()) {
-      console.warn("[PRIME] Cognition cycle skipped due to safety constraints.");
-      return; // skip cycle but keep loop alive
-    }
-
-    console.log("💓 PRIME Heartbeat");
-    
-    // Note: Main stability monitoring happens in PrimeEngine.tick()
-    // Fusion metrics are tracked in PrimeEngine.processCommand()
-    // This is a secondary monitoring point for runtime scheduler
-    const snapshot = StabilityMatrix.getSnapshot();
-    if (StabilityMatrix.unstable()) {
-      console.warn("[PRIME] Stability degradation detected in runtime scheduler.");
-    }
-
-    // Broadcast distributed snapshot for future cluster sync
-    const distributedSnapshot = DistributedState.getSnapshot();
-    ClusterBus.broadcast(distributedSnapshot);
-  }, 3000);
+  // FIXED: Disabled auto-looping runtime scheduler to prevent recursion storms
+  // Runtime monitoring should be event-driven, not on a timer
+  // setInterval(() => {
+  //   // Pre-cognition safety check
+  //   if (!SafetyGuard.preCognitionCheck()) {
+  //     console.warn("[PRIME] Cognition cycle skipped due to safety constraints.");
+  //     return;
+  //   }
+  //   const snapshot = StabilityMatrix.getSnapshot();  // ← TRIGGERS PREDICTIONS
+  //   const distributedSnapshot = DistributedState.getSnapshot();
+  //   ClusterBus.broadcast(distributedSnapshot);
+  // }, 3000);
+  
+  console.log("[PRIME-RUNTIME] Runtime scheduler disabled — operating in event-driven mode");
 }
 
 /**

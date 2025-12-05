@@ -25,7 +25,18 @@ export class FusionEngine {
     const payloadWithTemporal = TemporalEngine.attachTemporalContext(payload);
     
     // Inject consensus prediction into the fusion payload (uses combined intelligence of all threads)
-    payload.prediction = PredictiveCoherence.computeConsensus();
+    // FIXED: Only compute consensus when explicitly requested to prevent recursion storms
+    // Predictions should be event-driven, not automatic
+    if ((payload as any).allowPrediction) {
+      payload.prediction = PredictiveCoherence.computeConsensus();
+    } else {
+      payload.prediction = {
+        horizon: "idle" as const,
+        stabilityTrend: "stable" as const,
+        likelyNextIntent: null,
+        recursionRisk: 0,
+      };
+    }
     
     // Merge temporal context and prediction into contextSnapshot for downstream use
     const enrichedContext = {
@@ -145,12 +156,13 @@ export class FusionEngine {
   }
 }
 
-// Fusion Engine learns from neighbor nodes (passive only)
-ClusterBus.onSnapshot((snapshot) => {
-  PredictiveConsensus.registerSnapshot(snapshot);
-  const result = PredictiveConsensus.computeConsensus();
-  console.log(
-    `[PRIME-DIST][Consensus] agreement=${result.agreement.toFixed(2)} samples=${result.samples}`
-  );
-});
+// FIXED: ClusterBus listener disabled to prevent recursion storms
+// Consensus computation should be event-driven, not automatic
+// ClusterBus.onSnapshot((snapshot) => {
+//   PredictiveConsensus.registerSnapshot(snapshot);
+//   const result = PredictiveConsensus.computeConsensus();
+//   console.log(
+//     `[PRIME-DIST][Consensus] agreement=${result.agreement.toFixed(2)} samples=${result.samples}`
+//   );
+// });
 

@@ -76,8 +76,9 @@ export class ThreadPool {
       load: Math.random() * 0.2, // placeholder — real load model soon
     });
 
-    // Threads report predictions after work is processed
-    if (result) {
+    // FIXED: Thread predictions are now conditional to prevent recursion storms
+    // Only submit predictions when explicitly requested (e.g., via event flag)
+    if (result && (result as any).allowPrediction) {
       const prediction = PredictiveHorizon.analyze();
       // Extract numeric thread ID from string ID (e.g., "T1" -> 1)
       const threadIdNum = parseInt(thread.id.replace(/\D/g, "")) || 0;

@@ -24,9 +24,10 @@ export class StabilityMatrix {
   static getSnapshot() {
     const snapshot = this.monitor.snapshot();
     
-    // After computing stability, log predictions
-    const prediction = PredictiveHorizon.analyze();
-    console.log("[PRIME-PREDICT]", prediction);
+    // FIXED: Removed automatic prediction trigger to prevent recursion storms
+    // Predictions should only be generated when explicitly requested via events
+    // const prediction = PredictiveHorizon.analyze();
+    // console.log("[PRIME-PREDICT]", prediction);
     
     return snapshot;
   }

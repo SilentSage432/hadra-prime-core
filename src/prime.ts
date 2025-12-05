@@ -15,6 +15,8 @@ import { FusionEngine } from "./cognition/fusion_engine.ts";
 import { ToneEngine } from "./expression/tone/tone_engine.ts";
 import { metaEngine } from "./meta/meta_engine.ts";
 import { StabilityMatrix } from "./stability/stability_matrix.ts";
+import { triggerCognition } from "./kernel/event_bus.ts";
+import { PRIMEConfig } from "./shared/config.ts";
 
 export type PrimeLifecycleState = "initializing" | "online" | "degraded" | "offline";
 
@@ -152,10 +154,16 @@ class PrimeEngine extends EventEmitter {
   /**
    * STEP 3 — Hybrid cognitive loop
    * A synchronous "tick" plus asynchronous subsystems.
+   * 
+   * FIXED: Disabled auto-looping tick. PRIME is now event-driven.
+   * The tick() method is only called when explicitly triggered via events.
    */
   private startLoop() {
-    this.updateTickRate(); // set initial adaptive tick
-    this.loopInterval = setInterval(() => this.tick(), this.currentTick);
+    // DISABLED: Auto-looping tick removed to prevent recursion storms
+    // PRIME now operates in event-driven mode via cognitive_loop.ts
+    // this.updateTickRate(); // set initial adaptive tick
+    // this.loopInterval = setInterval(() => this.tick(), this.currentTick);
+    this.log("PRIME tick loop disabled — operating in event-driven mode");
   }
 
   /**
@@ -289,6 +297,10 @@ class PrimeEngine extends EventEmitter {
   async processCommand(input: string) {
     // Reset recursion counter for new command
     SafetyGuard.limiter.resetRecursion();
+
+    // Trigger event-driven cognition
+    PRIMEConfig.runtime.hasStimulus = true;
+    triggerCognition(true);
 
     this.log(`Command received: ${input}`);
 
@@ -496,6 +508,15 @@ export async function processCommand(input: string) {
 
 export async function getMetaInsights(input: string) {
   return PRIME.getMetaInsights(input);
+}
+
+export function primeReceive(input: string) {
+  console.log("[PRIME] Received external input:", input);
+  // Trigger actual thought
+  PRIMEConfig.runtime.hasStimulus = true;
+  triggerCognition(true);
+  // Process the command
+  return PRIME.processCommand(input);
 }
 
 export function subscribeLogs(listener: LogListener) {
