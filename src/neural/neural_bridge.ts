@@ -5,6 +5,7 @@
 // Cross-Modal Embedding Bridge
 // This is the Rosetta Stone between PRIME's rule-based engine and the neural substrate
 // A108b: Hardware-aware neural offloading
+// A127: Dual-Mind Conflict Resolution integration
 
 import type { SymbolicPacket } from "../shared/symbolic_packet.ts";
 import type { HardwareProfile } from "../hardware/hardware_profile.ts";
@@ -25,6 +26,8 @@ export class NeuralBridge {
 
   static init() {
     this.hardware = (globalThis as any).__PRIME_HARDWARE__ || null;
+    // A127: Log conflict evaluation capability
+    console.log("[PRIME↔SAGE] Conflict evaluation enabled.");
   }
 
   static shouldOffloadNeuralOps(): boolean {

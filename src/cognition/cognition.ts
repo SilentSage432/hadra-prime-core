@@ -21,6 +21,7 @@ import { NeuralEventSegmentation } from "./neural_event_segmentation.ts";
 import { UncertaintyEngine } from "./uncertainty/uncertainty_engine.ts";
 import { RiskMitigationEngine } from "./risk/risk_mitigation_engine.ts";
 import { ReflectiveSafetyLoop } from "../safety/reflective_safety_loop.ts";
+import { DualMindConflictResolver } from "./self/conflict_resolver.ts";
 
 export class Cognition {
   private intentEngine = new IntentEngine();
@@ -28,6 +29,7 @@ export class Cognition {
   private uncertainty = new UncertaintyEngine();
   private risk = new RiskMitigationEngine();
   private safetyLoop = new ReflectiveSafetyLoop();
+  private dualResolver = new DualMindConflictResolver();
 
   constructor() {
     // Register handlers
@@ -172,6 +174,24 @@ export class Cognition {
     if (mitigation === "halt_and_request_operator") {
       console.log("[PRIME-SAFETY] Mitigation: halt_and_request_operator");
       console.log("[PRIME-SAFETY-LOOP] PRIME awaiting your guidance.");
+    }
+
+    // A127: Resolve conflicts with SAGE if dual-mind is active
+    const sageState = (globalThis as any).__SAGE_STATE__ || null;
+    if (sageState) {
+      const outcome = this.dualResolver.resolve(cognitiveState, sageState);
+      console.log("[PRIME-DUAL-CONFLICT]", {
+        resolved: outcome.resolved,
+        strategy: outcome.strategy,
+        severity: outcome.severity?.toFixed(3),
+        conflict: outcome.conflict
+      });
+
+      if (outcome.strategy === "halt_and_request_operator") {
+        console.log("[PRIME-DUAL] Operator input required.");
+        // Don't halt the entire cognition cycle, but mark that operator input is needed
+        cognitiveState.awaitingOperator = true;
+      }
     }
 
     // A42/A75: Generate plans for each goal (with recall-informed and concept-informed cognitive state)
