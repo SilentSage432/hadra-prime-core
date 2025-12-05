@@ -11,6 +11,8 @@
 // A84: Internal Dialogue Engine Integration
 // A85: Multi-Voice Deliberation Engine Integration
 // A86: Internal Conflict Resolution Engine Integration
+// A87: Cognitive Realignment Engine Integration
+// A88: Cognitive Homeostasis System Integration
 
 import { Concepts } from "./concepts/concept_engine.ts";
 import { Hierarchy } from "./concepts/concept_hierarchy.ts";
@@ -23,6 +25,8 @@ import { Narrative } from "./self/narrative_engine.ts";
 import { InternalDialogue } from "./self/internal_dialogue_engine.ts";
 import { MultiVoices } from "./self/multivoice_engine.ts";
 import { ConflictEngine } from "./self/conflict_resolver.ts";
+import { Realignment } from "./self/realignment_engine.ts";
+import { Homeostasis } from "./self/homeostasis_engine.ts";
 
 export class ReflectionEngine {
   reflect(cognitiveState: any, selState: any) {
@@ -309,6 +313,55 @@ export class ReflectionEngine {
       
       this.logReflection(
         `[CONFLICT] dissonance=${conflict.dissonance.toFixed(3)} → ${conflict.result}\nstrategy=${conflict.strategy}`
+      );
+
+      // A87: Apply realignment strategy
+      const realignedMotivations = Realignment.applyStrategy(
+        conflict.strategy,
+        state
+      );
+      
+      // Update the motivation state with realigned values
+      Object.assign(state, realignedMotivations);
+      
+      // Update MetaSelf with realigned values
+      if (realignedMotivations.claritySeeking !== undefined) {
+        MetaSelf.updateInternalState("motivation.claritySeeking", realignedMotivations.claritySeeking);
+      }
+      if (realignedMotivations.curiosity !== undefined) {
+        MetaSelf.updateInternalState("motivation.curiosity", realignedMotivations.curiosity);
+      }
+      if (realignedMotivations.stabilityPressure !== undefined) {
+        MetaSelf.updateInternalState("motivation.stabilityPressure", realignedMotivations.stabilityPressure);
+      }
+      
+      this.logReflection(
+        `[REALIGNMENT] Updated motivations: ${JSON.stringify(realignedMotivations)}`
+      );
+
+      // A88: Homeostasis balance regulation
+      const before = { ...state };
+      const regulated = Homeostasis.regulate(state);
+      Object.assign(state, regulated);
+      
+      // Update MetaSelf with regulated values
+      if (regulated.curiosity !== undefined) {
+        MetaSelf.updateInternalState("motivation.curiosity", regulated.curiosity);
+      }
+      if (regulated.claritySeeking !== undefined) {
+        MetaSelf.updateInternalState("motivation.claritySeeking", regulated.claritySeeking);
+      }
+      if (regulated.consolidation !== undefined) {
+        MetaSelf.updateInternalState("motivation.consolidation", regulated.consolidation);
+      }
+      if (regulated.stabilityPressure !== undefined) {
+        MetaSelf.updateInternalState("motivation.stabilityPressure", regulated.stabilityPressure);
+      }
+      
+      this.logReflection(
+        `[HOMEOSTASIS] Adjusted motivations:\n` +
+        `before=${JSON.stringify(before)}\n` +
+        `after=${JSON.stringify(regulated)}`
       );
     }
 
