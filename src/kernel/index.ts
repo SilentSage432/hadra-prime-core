@@ -33,6 +33,8 @@ import { PlanEngine, type Plan, type PlanStep } from "../planning/plan_engine.ts
 import { ReflectionEngine } from "../cognition/reflection_engine.ts";
 import { InternalMonologueEngine } from "../cognition/self/internal_monologue_engine.ts";
 import { NeuralSymbolicCoherence } from "../cognition/neural_symbolic_coherence.ts";
+import { NeuralCausality } from "../cognition/neural_causality_engine.ts";
+import { NeuralEventSegmentation } from "../cognition/neural_event_segmentation.ts";
 import { LearningEngine } from "../cognition/learning_engine.ts";
 import { MetaReasoningMonitor } from "../cognition/meta_reasoning_monitor.ts";
 import { MetaReflectionEngine } from "../meta/meta_reflection_engine.ts";
@@ -237,6 +239,14 @@ const internalMonologueEngine = new InternalMonologueEngine();
 console.log("[PRIME-KERNEL] Internal Monologue Engine online.");
 console.log("[PRIME-MONOLOGUE] Structured self-dialogue enabled.");
 
+// A114: Initialize Neural Causality Engine
+console.log("[PRIME-KERNEL] Neural Causality Engine online.");
+console.log("[PRIME-NEURAL] Causality engine online.");
+
+// A115: Initialize Neural Event Segmentation Engine
+console.log("[PRIME-KERNEL] Neural Event Segmentation Engine online.");
+console.log("[PRIME-NEURAL] Neural Event Segmentation online.");
+
 // A52: Initialize Learning Engine
 const learningEngine = new LearningEngine();
 console.log("[PRIME-KERNEL] Learning Engine active.");
@@ -385,6 +395,41 @@ const kernelInstance = {
         vectorLength: cognitiveState.temporalVector.length,
         relevance: cognitiveState.neuralCoherence.relevance.toFixed(3)
       });
+
+      // A114: Record causal relationship for reflection cycle
+      if (cognitiveState.neuralCoherence && cognitiveState.neuralSignals.length > 0) {
+        NeuralCausality.record(
+          cognitiveState.neuralSignals[cognitiveState.neuralSignals.length - 1],
+          cognitiveState.neuralCoherence,
+          "reflection_cycle",
+          {
+            goal: cognitiveSnapshot.topGoal?.type,
+            motivation: motivationState
+          }
+        );
+
+        // A114: Log causal map update periodically
+        const causalMap = NeuralCausality.inferCausality();
+        if (Object.keys(causalMap).length > 0) {
+          console.log("[PRIME-CAUSALITY] Updated causal map:", causalMap);
+        }
+
+        // A115: Add signal to event segmentation
+        NeuralEventSegmentation.addSignal(
+          cognitiveState.neuralSignals[cognitiveState.neuralSignals.length - 1],
+          cognitiveState.neuralCoherence
+        );
+
+        // A115: Check for new event boundaries
+        const currentEvent = (NeuralEventSegmentation as any).getCurrentEvent();
+        if (currentEvent) {
+          const recentEvents = NeuralEventSegmentation.getRecentEvents(1);
+          // Log when a new event starts (has only 1 signal)
+          if (currentEvent.signals.length === 1 && (!recentEvents.length || recentEvents[0].id !== currentEvent.id)) {
+            console.log("[PRIME-EVENT] New event boundary detected:", currentEvent.id);
+          }
+        }
+      }
     }
     
     // A74/A75/A76: Reflection with recall-informed, concept-informed, and domain-informed cognitive state

@@ -16,6 +16,8 @@ import { Recall } from "./recall_engine.ts";
 import type { CognitiveState } from "../shared/types.ts";
 import { NeuralContextEncoder } from "../neural/context_encoder.ts";
 import { NeuralSymbolicCoherence } from "./neural_symbolic_coherence.ts";
+import { NeuralCausality } from "./neural_causality_engine.ts";
+import { NeuralEventSegmentation } from "./neural_event_segmentation.ts";
 
 export class Cognition {
   private intentEngine = new IntentEngine();

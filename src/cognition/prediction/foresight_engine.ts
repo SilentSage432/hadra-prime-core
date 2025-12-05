@@ -4,6 +4,7 @@
 import type { MotivationState } from "../../shared/types.ts";
 import { Knowledge } from "../knowledge/knowledge_graph.ts";
 import { PRIME_TEMPORAL } from "../../temporal/reasoner.ts";
+import { NeuralCausality } from "../neural_causality_engine.ts";
 
 export interface MotivationProjection {
   urgency: number;
@@ -158,6 +159,19 @@ export class ForesightEngine {
         baseScore: 1.0,
         adjustedScore: predictionScore.toFixed(3),
         relevance: neuralCoherence.relevance.toFixed(3)
+      });
+    }
+
+    // A114: Apply causal influence modifier
+    const causal = NeuralCausality.inferCausality();
+    if (causal["moderate_relevance"]) {
+      const causalModifier = causal["moderate_relevance"] * 0.03;
+      predictionScore *= (1 + causalModifier);
+      console.log("[PRIME-PREDICT] Applying causal influence modifier:", {
+        modifier: `+${causalModifier.toFixed(3)}`,
+        tag: "moderate_relevance",
+        influence: causal["moderate_relevance"].toFixed(3),
+        finalScore: predictionScore.toFixed(3)
       });
     }
     

@@ -15,6 +15,7 @@ import { StabilityMatrix } from "../stability/stability_matrix.ts";
 import { CounterfactualEngine, type CounterfactualResult } from "../reflection/counterfactual_engine.ts";
 import type { CognitiveState } from "../shared/types.ts";
 import { PRIME_TEMPORAL } from "../temporal/reasoner.ts";
+import { NeuralCausality } from "./neural_causality_engine.ts";
 
 export interface InternalPlanStep {
   name: string;
@@ -213,6 +214,18 @@ export class PlanningEngine {
       console.log("[PRIME-PLANNING] Boost from neural coherence:", {
         boost: boost.toFixed(3),
         relevance: cognitiveState.neuralCoherence.relevance.toFixed(3)
+      });
+    }
+
+    // A114: Apply causal influence to plan score
+    const causal = NeuralCausality.inferCausality();
+    if (causal["high_relevance"]) {
+      const causalBoost = causal["high_relevance"] * 0.05;
+      score += causalBoost;
+      console.log("[PRIME-PLANNING] Causal boost applied:", {
+        boost: causalBoost.toFixed(3),
+        tag: "high_relevance",
+        influence: causal["high_relevance"].toFixed(3)
       });
     }
 

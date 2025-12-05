@@ -32,6 +32,7 @@ import { Homeostasis } from "./self/homeostasis_engine.ts";
 import { recallSimilar } from "../memory/memory_router.ts";
 import { ConceptGraph } from "../memory/concepts/concept_store.ts";
 import { PRIME_TEMPORAL } from "../temporal/reasoner.ts";
+import { NeuralCausality } from "./neural_causality_engine.ts";
 
 export class ReflectionEngine {
   lastReflection: any = null; // A100: Track last reflection for attention engine
@@ -88,6 +89,30 @@ export class ReflectionEngine {
       console.log("[PRIME-REFLECTION] Added neural_alignment insight:", {
         tags: cognitiveState.neuralCoherence.semanticTags,
         relevance: cognitiveState.neuralCoherence.relevance.toFixed(3)
+      });
+    }
+
+    // A114: Add neural causality insights to reflection
+    const causal = NeuralCausality.inferCausality();
+    if (Object.keys(causal).length > 0) {
+      for (const tag of Object.keys(causal)) {
+        const insight = {
+          type: "neural_causality",
+          detail: `Tag '${tag}' historically correlates with influence level ${causal[tag].toFixed(3)}`
+        };
+        
+        this.logReflection(`[CAUSALITY] ${insight.detail}`);
+        
+        // Attach to reflection
+        if (!(reflection as any).causalInsights) {
+          (reflection as any).causalInsights = [];
+        }
+        (reflection as any).causalInsights.push(insight);
+      }
+      
+      console.log("[PRIME-REFLECTION] Added neural_causality insights:", {
+        tags: Object.keys(causal),
+        causalMap: causal
       });
     }
 
