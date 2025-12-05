@@ -16,7 +16,7 @@ import { PRIME_LOOP_GUARD } from "../shared/loop_guard.ts";
 import { safetyEngine } from "../safety/safety_engine.ts";
 import { predictEngine } from "../prediction/predict_engine.ts";
 import { phaseEngine } from "../phase/phase_engine.ts";
-import { shouldProcessCognition, triggerCooldown } from "./cognition.ts";
+import { shouldProcessCognition, triggerCooldown, PrimeCognition } from "./cognition.ts";
 import { runSafetyChecks } from "../safety/safety_layer.ts";
 import { runPrediction } from "../prediction/predict.ts";
 import { runInterpretation } from "../interpretation/dispatcher.ts";
@@ -310,6 +310,10 @@ console.log("[PRIME-RESONANCE] Strategy ↔ Emotion ↔ Memory ↔ Identity fusi
 
 // A65: Initialize Situation Model
 console.log("[PRIME] Situation Model initialized.");
+
+// A118: Initialize Multi-Timescale Situation Model
+const primeCognition = new PrimeCognition();
+console.log("[PRIME] Multi-Timescale Situation Model initialized.");
 
 // A67: Initialize Episodic Memory System
 const eventCapture = new EventCapture();
@@ -905,6 +909,19 @@ setInterval(() => {
     uncertainty: situationSnapshot.uncertaintyScore.toFixed(3),
     salience: situationSnapshot.salience.slice(0, 3)
   });
+
+  // A118: Multi-Timescale Situation Model introspection
+  // Sync PrimeCognition with current PRIME_SITUATION state
+  primeCognition.updateSituations(
+    PRIME_SITUATION.micro,
+    PRIME_SITUATION.meso,
+    PRIME_SITUATION.macro
+  );
+  const situationState = primeCognition.getSituationSummary();
+  console.log("[PRIME-SITUATION]", situationState);
+
+  // A119: Check for contextual drift across all timescales
+  primeCognition.driftCheck();
 
   // A65: Update micro situation with current state
   const selState = SEL.getState();

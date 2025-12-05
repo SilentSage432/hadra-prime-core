@@ -27,4 +27,8 @@ export * from "./generator.ts";
 export * from "./micro.ts";
 export * from "./meso.ts";
 export * from "./macro.ts";
+// A118: Export multi-timescale model
+export * from "./multi_timescale_model.ts";
+// A119: Export drift engine
+export * from "./drift_engine.ts";
 
