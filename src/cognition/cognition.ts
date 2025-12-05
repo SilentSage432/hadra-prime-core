@@ -6,6 +6,7 @@ import { SafetyGuard } from "../safety/safety_guard.ts";
 import { StabilityMatrix } from "../stability/stability_matrix.ts";
 import { SEL } from "../emotion/sel.ts";
 import { MotivationEngine } from "./motivation_engine.ts";
+import { ProtoGoalEngine } from "./proto_goal_engine.ts";
 import { GreetingHandler } from "../handlers/greeting.ts";
 import { SystemStatusHandler } from "../handlers/system_status.ts";
 import { UnknownHandler } from "../handlers/unknown.ts";
@@ -45,6 +46,10 @@ export class Cognition {
     // A39: Compute motivation vector each cognition cycle
     const motivation = MotivationEngine.compute();
     console.log("[PRIME-MOTIVATION]", motivation);
+
+    // A40: Compute proto-goals
+    const goals = ProtoGoalEngine.computeGoals();
+    console.log("[PRIME-GOALS]", goals);
 
     // Update stability metrics
     StabilityMatrix.update("cognition", {

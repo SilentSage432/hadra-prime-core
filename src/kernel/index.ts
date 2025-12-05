@@ -25,6 +25,7 @@ import { eventBus, triggerInput } from "./event_bus.ts";
 import { cognition } from "../cognition/cognition.ts";
 import { SEL } from "../emotion/sel.ts";
 import { MotivationEngine } from "../cognition/motivation_engine.ts";
+import { ProtoGoalEngine } from "../cognition/proto_goal_engine.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -46,6 +47,12 @@ cognitiveLoop.start();
 setInterval(() => {
   const m = MotivationEngine.compute();
   console.log("[PRIME-HEARTBEAT] motivation:", m);
+
+  // A40: Log highest-priority proto-goal
+  const goals = ProtoGoalEngine.computeGoals();
+  if (goals.length) {
+    console.log("[PRIME-HEARTBEAT] top-goal:", goals[0]);
+  }
 }, 7000); // every 7 seconds — slow and intentional
 
 // Handle input events - PRIME's intent classification and routing system
