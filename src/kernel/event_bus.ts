@@ -14,3 +14,8 @@ export function triggerCognition(allowPrediction = false) {
   });
 }
 
+// Input event wrapper
+export function triggerInput(input: string) {
+  eventBus.emit("prime.input", { text: input });
+}
+

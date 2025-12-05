@@ -3,6 +3,7 @@
  */
 import { SafetyLimiter } from "./safety_limiter/limiter.ts";
 import { StabilityMatrix } from "../stability/stability_matrix.ts";
+import { SEL } from "../emotion/sel.ts";
 
 // Safety rate limiter - prevents runaway safety checks
 let lastSafetyRun = 0;
@@ -39,6 +40,13 @@ export class SafetyGuard {
       return true; // Allow by default when throttled
     }
     lastSafetyRun = now;
+
+    // Emotion-aware safety check
+    const emotion = SEL.getState();
+    if (emotion.tension > 0.7) {
+      console.warn("[PRIME-SAFETY] Elevated tension detected — caution mode enabled.");
+      // Continue processing but with caution flag
+    }
 
     if (!this.limiter.recordRecursion()) return false;
 

@@ -9,6 +9,7 @@ import { TemporalEngine } from "./temporal_engine.ts";
 import { PredictiveCoherence } from "./predictive_coherence.ts";
 import { ClusterBus } from "../distributed/cluster_bus.ts";
 import { PredictiveConsensus } from "../distributed/predictive_consensus.ts";
+import { SEL } from "../emotion/sel.ts";
 
 export class FusionEngine {
   private memory: MemoryStore;
@@ -112,7 +113,19 @@ export class FusionEngine {
     // Attach integrity result for downstream use
     (cognitiveState as any).integrity = integrityResult;
 
+    // Synthetic Emotion Integration
+    this.finalizeFusion(cognitiveState);
+
     return cognitiveState;
+  }
+
+  private finalizeFusion(fusion: any) {
+    // Synthetic Emotion Integration
+    SEL.updateEmotion({
+      stability: fusion.stabilityScore ?? 0.8,
+      certainty: fusion.confidence ?? 0.5,
+      tensionSignal: fusion.contradictionLevel ?? 0.0,
+    });
   }
 
   private computePriority(intent: any, context: any): number {

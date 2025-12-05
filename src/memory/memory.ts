@@ -1,5 +1,6 @@
 import type { MemoryRecord, ShortTermMemory, LongTermMemory } from "./types.ts";
 import type { IntentPacket } from "../intent_engine/types.ts";
+import { SEL } from "../emotion/sel.ts";
 import crypto from "crypto";
 
 export class MemoryLayer {
@@ -21,6 +22,10 @@ export class MemoryLayer {
       summary: this.generateSummary(intent),
       embedding: this.placeholderEmbedding(intent),
     };
+
+    // Add SEL emotion imprint to memory metadata
+    record.meta = record.meta || {};
+    record.meta.emotion = SEL.getState();
 
     this.shortTerm.buffer.push(record);
 

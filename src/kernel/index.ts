@@ -21,6 +21,9 @@ import { runPrediction } from "../prediction/predict.ts";
 import { runInterpretation } from "../interpretation/dispatcher.ts";
 import { PRIMEConfig } from "../shared/config.ts";
 import { cognitiveLoop } from "./cognitive_loop.ts";
+import { eventBus, triggerInput } from "./event_bus.ts";
+import { cognition } from "../cognition/cognition.ts";
+import { SEL } from "../emotion/sel.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -37,6 +40,16 @@ console.log("[KERNEL] HADRA-PRIME core boot sequence complete.");
 
 // Start event-driven cognitive loop
 cognitiveLoop.start();
+
+// Handle input events - PRIME's intent classification and routing system
+eventBus.on("prime.input", async (payload: { text: string }) => {
+  const response = await cognition.cycle(payload.text);
+  console.log("[PRIME-OUTPUT]", response);
+  
+  // Expose SEL state after cognition cycle
+  const emotion = SEL.getState();
+  console.log("[PRIME-EMOTION]", emotion);
+});
 
 // Intent harmonization broadcasting function
 function broadcastIntent(intent: any) {

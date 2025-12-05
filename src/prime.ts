@@ -15,8 +15,9 @@ import { FusionEngine } from "./cognition/fusion_engine.ts";
 import { ToneEngine } from "./expression/tone/tone_engine.ts";
 import { metaEngine } from "./meta/meta_engine.ts";
 import { StabilityMatrix } from "./stability/stability_matrix.ts";
-import { triggerCognition } from "./kernel/event_bus.ts";
+import { triggerCognition, triggerInput } from "./kernel/event_bus.ts";
 import { PRIMEConfig } from "./shared/config.ts";
+import { cognition } from "./cognition/cognition.ts";
 
 export type PrimeLifecycleState = "initializing" | "online" | "degraded" | "offline";
 
@@ -298,8 +299,9 @@ class PrimeEngine extends EventEmitter {
     // Reset recursion counter for new command
     SafetyGuard.limiter.resetRecursion();
 
-    // Trigger event-driven cognition
+    // Trigger event-driven cognition with intent classification
     PRIMEConfig.runtime.hasStimulus = true;
+    triggerInput(input); // Triggers intent classification via event bus
     triggerCognition(true);
 
     this.log(`Command received: ${input}`);
@@ -512,8 +514,9 @@ export async function getMetaInsights(input: string) {
 
 export function primeReceive(input: string) {
   console.log("[PRIME] Received external input:", input);
-  // Trigger actual thought
+  // Trigger intent classification and cognition
   PRIMEConfig.runtime.hasStimulus = true;
+  triggerInput(input); // Triggers intent classification
   triggerCognition(true);
   // Process the command
   return PRIME.processCommand(input);

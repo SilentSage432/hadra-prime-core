@@ -10,3 +10,6 @@ export { getStatus, processCommand, subscribeLogs };
 // Export expression types
 export * from "./expression/types.ts";
 
+// Export Synthetic Emotion Layer
+export { SEL } from "./emotion/sel.ts";
+

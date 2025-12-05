@@ -7,6 +7,10 @@ export interface MemoryRecord {
   intent: IntentPacket;
   summary?: string;
   embedding?: number[];
+  meta?: {
+    emotion?: any;
+    [key: string]: any;
+  };
 }
 
 export interface ShortTermMemory {
