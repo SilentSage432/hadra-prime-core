@@ -1,6 +1,7 @@
 // src/memory/concepts/concept_store.ts
 // A95: Concept Store
 // A96: Concept Drift Tracking
+// A99: Hierarchical Knowledge Architecture
 // A structure where concepts live, grow, get refined, and merge.
 
 export interface ConceptNode {
@@ -14,6 +15,11 @@ export interface ConceptNode {
   createdAt: number;
   lastUpdated: number;
   decayRate: number;     // how fast stability fades when unused
+  layer?: number;        // A99: hierarchical layer (0-5)
+  parents?: string[];    // A99: higher-layer concept IDs
+  children?: string[];   // A99: lower-layer concept IDs
+  importanceScore?: number;  // A99: computed importance
+  hierarchyConfidence?: number;  // A99: confidence in hierarchy placement
 }
 
 export const ConceptGraph: ConceptNode[] = [];
@@ -29,7 +35,13 @@ export function createConcept(label: string, vec: number[], memoryId: string): C
     drift: 0.15,
     createdAt: Date.now(),
     lastUpdated: Date.now(),
-    decayRate: 0.0005
+    decayRate: 0.0005,
+    // A99: Initialize hierarchical fields
+    layer: undefined,
+    parents: [],
+    children: [],
+    importanceScore: 0,
+    hierarchyConfidence: 0
   };
 
   ConceptGraph.push(node);
