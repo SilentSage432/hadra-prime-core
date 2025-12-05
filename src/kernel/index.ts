@@ -61,6 +61,7 @@ import { TemporalIdentity } from "../cognition/self/temporal_identity_engine.ts"
 import { Narrative } from "../cognition/self/narrative_engine.ts";
 import { InternalDialogue } from "../cognition/self/internal_dialogue_engine.ts";
 import { MultiVoices } from "../cognition/self/multivoice_engine.ts";
+import { ConflictEngine } from "../cognition/self/conflict_resolver.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -94,6 +95,9 @@ console.log("[PRIME-SELF] Internal Dialogue Engine online.");
 
 // A85: Initialize Multi-Voice Deliberation Engine
 console.log("[PRIME-SELF] Multi-Voice Deliberation Engine online.");
+
+// A86: Initialize Internal Conflict Resolution Engine
+console.log("[PRIME-SELF] Internal Conflict Resolution Engine online.");
 
 console.log("[PRIME] Initializing cognitive threads...");
 // ThreadPool will be initialized with default instances

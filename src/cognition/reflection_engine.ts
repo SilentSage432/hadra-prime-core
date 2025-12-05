@@ -10,6 +10,7 @@
 // A83: Proto-Narrative Engine Integration
 // A84: Internal Dialogue Engine Integration
 // A85: Multi-Voice Deliberation Engine Integration
+// A86: Internal Conflict Resolution Engine Integration
 
 import { Concepts } from "./concepts/concept_engine.ts";
 import { Hierarchy } from "./concepts/concept_hierarchy.ts";
@@ -21,6 +22,7 @@ import { TemporalIdentity } from "./self/temporal_identity_engine.ts";
 import { Narrative } from "./self/narrative_engine.ts";
 import { InternalDialogue } from "./self/internal_dialogue_engine.ts";
 import { MultiVoices } from "./self/multivoice_engine.ts";
+import { ConflictEngine } from "./self/conflict_resolver.ts";
 
 export class ReflectionEngine {
   reflect(cognitiveState: any, selState: any) {
@@ -298,6 +300,16 @@ export class ReflectionEngine {
       });
       
       this.logReflection(deliberation.conclusion);
+
+      // A86: Resolve internal conflicts
+      const conflict = ConflictEngine.resolveConflict(
+        deliberation.voices,
+        state
+      );
+      
+      this.logReflection(
+        `[CONFLICT] dissonance=${conflict.dissonance.toFixed(3)} → ${conflict.result}\nstrategy=${conflict.strategy}`
+      );
     }
 
     return reflection;
