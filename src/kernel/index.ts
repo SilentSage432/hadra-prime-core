@@ -32,6 +32,7 @@ import { CommandProtocol, type OperatorCommand } from "../operator/command_proto
 import { PlanEngine, type Plan, type PlanStep } from "../planning/plan_engine.ts";
 import { ReflectionEngine } from "../cognition/reflection_engine.ts";
 import { InternalMonologueEngine } from "../cognition/self/internal_monologue_engine.ts";
+import { NeuralSymbolicCoherence } from "../cognition/neural_symbolic_coherence.ts";
 import { LearningEngine } from "../cognition/learning_engine.ts";
 import { MetaReasoningMonitor } from "../cognition/meta_reasoning_monitor.ts";
 import { MetaReflectionEngine } from "../meta/meta_reflection_engine.ts";
@@ -365,13 +366,36 @@ const kernelInstance = {
     // A74: Now cognitiveState has recall information, use it for reflection
     cognitiveState.lastReflection = null; // Will be set after reflection
     
+    // A113: Convert temporal vector to neural signal if present
+    if (cognitiveState.temporalVector && cognitiveState.temporalVector.length > 0) {
+      if (!cognitiveState.neuralSignals) {
+        cognitiveState.neuralSignals = [];
+      }
+      cognitiveState.neuralSignals.push({
+        vector: cognitiveState.temporalVector,
+        slot: 4, // Slot #4 is temporal embedding model
+        timestamp: Date.now(),
+        source: "temporal_embedding"
+      });
+      
+      // Interpret the neural signal
+      cognitiveState.neuralCoherence = NeuralSymbolicCoherence.interpret(cognitiveState.neuralSignals[cognitiveState.neuralSignals.length - 1]);
+      
+      console.log("[PRIME-NEURAL] Temporal embedding converted to neural signal:", {
+        vectorLength: cognitiveState.temporalVector.length,
+        relevance: cognitiveState.neuralCoherence.relevance.toFixed(3)
+      });
+    }
+    
     // A74/A75/A76: Reflection with recall-informed, concept-informed, and domain-informed cognitive state
     const reflection = reflectionEngine.reflect(
       { 
         ...cognitiveSnapshot, 
         recall: cognitiveState.recall,
         concept: cognitiveState.concept,
-        embedding: cognitiveState.embedding
+        embedding: cognitiveState.embedding,
+        neuralSignals: cognitiveState.neuralSignals, // A113: Pass neural signals
+        neuralCoherence: cognitiveState.neuralCoherence // A113: Pass coherence result
       },
       sel
     );

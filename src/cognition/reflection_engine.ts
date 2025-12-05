@@ -69,6 +69,28 @@ export class ReflectionEngine {
       });
     }
 
+    // A113: Add neural alignment insight to reflection
+    if (cognitiveState.neuralCoherence) {
+      const neuralInsight = {
+        type: "neural_alignment",
+        detail: `Neural signals indicate ${cognitiveState.neuralCoherence.semanticTags.join(", ")}`,
+        relevance: cognitiveState.neuralCoherence.relevance,
+        confidence: cognitiveState.neuralCoherence.confidence
+      };
+      
+      this.logReflection(
+        `[NEURAL] ${neuralInsight.detail} (relevance=${neuralInsight.relevance.toFixed(3)}, confidence=${neuralInsight.confidence.toFixed(3)})`
+      );
+      
+      // Attach neural insight to reflection
+      (reflection as any).neuralInsight = neuralInsight;
+      
+      console.log("[PRIME-REFLECTION] Added neural_alignment insight:", {
+        tags: cognitiveState.neuralCoherence.semanticTags,
+        relevance: cognitiveState.neuralCoherence.relevance.toFixed(3)
+      });
+    }
+
     // A75: Match current embedding to concepts
     // A93: Integrate neural recall if embedding is available
     if (cognitiveState.embedding && cognitiveState.embedding.length > 0) {
@@ -185,7 +207,8 @@ export class ReflectionEngine {
       try {
         const foresight = Foresight.forecastSystemState(
           cognitiveState.motivation,
-          selState
+          selState,
+          cognitiveState.neuralCoherence // A113: Pass neural coherence
         );
 
         // Log motivation projections

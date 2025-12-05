@@ -15,6 +15,7 @@ import { UnknownHandler } from "../handlers/unknown.ts";
 import { Recall } from "./recall_engine.ts";
 import type { CognitiveState } from "../shared/types.ts";
 import { NeuralContextEncoder } from "../neural/context_encoder.ts";
+import { NeuralSymbolicCoherence } from "./neural_symbolic_coherence.ts";
 
 export class Cognition {
   private intentEngine = new IntentEngine();
@@ -57,12 +58,14 @@ export class Cognition {
     console.log("[PRIME-GOALS]", goals);
 
     // A74/A79: Create cognitive state and perform recall before planning
+    // A113: Initialize neural signals array
     const topGoal = goals[0] || null;
     const cognitiveState: any = {
       activeGoal: topGoal ? { type: topGoal.type } : undefined,
       confidence: intent.confidence,
       uncertainty: 1 - intent.confidence,
-      motivation: motivation // A79: Include motivation for foresight predictions
+      motivation: motivation, // A79: Include motivation for foresight predictions
+      neuralSignals: [] // A113: Initialize neural signals array
     };
 
     // A74: Perform preliminary recall lookup for planning

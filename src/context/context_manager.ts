@@ -11,13 +11,27 @@ export class ContextManager {
     this.memory = memory;
   }
 
-  update(label: string, type: string, value: any, ttl?: number) {
-    this.lattice.addContext(label, {
+  update(label: string, type: string, value: any, ttl?: number, neuralCoherence?: any) {
+    const nodeData: any = {
       type,
       value,
       ttl,
       timestamp: Date.now(),
-    });
+    };
+
+    // A113: Bind neural coherence to context node
+    if (neuralCoherence) {
+      nodeData.neuralRelevance = neuralCoherence.relevance;
+      nodeData.neuralTags = neuralCoherence.semanticTags;
+      nodeData.neuralAnchors = neuralCoherence.contextAnchors;
+      console.log("[PRIME-CONTEXT] Context node updated with neural anchors:", {
+        label,
+        relevance: neuralCoherence.relevance.toFixed(3),
+        tags: neuralCoherence.semanticTags
+      });
+    }
+
+    this.lattice.addContext(label, nodeData);
 
     // Also store important context to memory
     this.memory.logInteraction("context", { label, type, value });

@@ -1,7 +1,9 @@
 // src/cognition/cognitive_state.ts
+// A113: Extended with neural signal support
 
 import type { ToneVector } from "../expression/tone/tone_detector.ts";
 import type { MetaState } from "../meta/meta_state.ts";
+import type { NeuralSignal, CoherenceResult } from "./neural_symbolic_coherence.ts";
 
 export interface CognitiveState {
   intent: any;                // interpreted intent packet
@@ -22,5 +24,9 @@ export interface CognitiveState {
     | "detailed"
     | "cautious";
   meta?: MetaState;           // meta-reasoning layer state
+  // A113: Neural signal integration
+  neuralSignals?: NeuralSignal[];  // Array of neural signals
+  neuralCoherence?: CoherenceResult | null;  // Interpreted coherence result
+  temporalVector?: number[];  // A112: Temporal embedding vector
 }
 

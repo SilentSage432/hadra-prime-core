@@ -141,13 +141,25 @@ export class ForesightEngine {
   /** High-level foresight summary */
   forecastSystemState(
     currentMotivation: MotivationState,
-    sel: any
+    sel: any,
+    neuralCoherence?: any
   ): SystemForecast {
     // A112: Compute temporal embedding for foresight
     const temporalVector = PRIME_TEMPORAL.computeTemporalEmbedding(
       PRIME_TEMPORAL.long,
       "foresight_projection"
     );
+    
+    // A113: Apply neural coherence weight to predictions
+    let predictionScore = 1.0;
+    if (neuralCoherence) {
+      predictionScore = 1 + neuralCoherence.relevance * 0.05;
+      console.log("[PRIME-PREDICTION] Neural coherence weight applied:", {
+        baseScore: 1.0,
+        adjustedScore: predictionScore.toFixed(3),
+        relevance: neuralCoherence.relevance.toFixed(3)
+      });
+    }
     
     const forecast: SystemForecast = {
       projectedMotivation: this.predictMotivationTrajectory(currentMotivation, 25),
@@ -157,6 +169,9 @@ export class ForesightEngine {
     
     // A112: Attach temporal vector to forecast
     (forecast as any).temporalVector = temporalVector;
+    
+    // A113: Attach neural coherence score
+    (forecast as any).neuralCoherenceScore = predictionScore;
     
     return forecast;
   }

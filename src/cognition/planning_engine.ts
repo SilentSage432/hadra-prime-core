@@ -109,10 +109,15 @@ export class PlanningEngine {
     }
 
     // A79: Use foresight predictions to influence planning
+    // A113: Pass neural coherence to foresight
     if (cognitiveState?.motivation) {
       const selState = SEL.getState();
       try {
-        const fs = Foresight.forecastSystemState(cognitiveState.motivation, selState);
+        const fs = Foresight.forecastSystemState(
+          cognitiveState.motivation, 
+          selState,
+          cognitiveState.neuralCoherence // A113: Pass neural coherence
+        );
 
         // If future stability pressure is rising, bias toward stabilization plans
         if (fs.projectedSEL.length > 10 && fs.projectedSEL[10].stabilityPressure && fs.projectedSEL[10].stabilityPressure > 0.05) {
@@ -199,7 +204,17 @@ export class PlanningEngine {
       { name: "post_sel_normalization", fn: () => SEL.normalize() }
     ];
 
-    const score = this.evaluatePlan(steps, goal);
+    let score = this.evaluatePlan(steps, goal);
+
+    // A113: Apply neural coherence boost to plan score
+    if (cognitiveState?.neuralCoherence) {
+      const boost = cognitiveState.neuralCoherence.relevance * 0.1;
+      score += boost;
+      console.log("[PRIME-PLANNING] Boost from neural coherence:", {
+        boost: boost.toFixed(3),
+        relevance: cognitiveState.neuralCoherence.relevance.toFixed(3)
+      });
+    }
 
     const basePlan: InternalPlan = {
       goal,
