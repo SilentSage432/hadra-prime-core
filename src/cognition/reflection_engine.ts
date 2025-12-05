@@ -13,6 +13,7 @@
 // A86: Internal Conflict Resolution Engine Integration
 // A87: Cognitive Realignment Engine Integration
 // A88: Cognitive Homeostasis System Integration
+// A93: Neural Memory Encoding Integration
 
 import { Concepts } from "./concepts/concept_engine.ts";
 import { Hierarchy } from "./concepts/concept_hierarchy.ts";
@@ -27,8 +28,15 @@ import { MultiVoices } from "./self/multivoice_engine.ts";
 import { ConflictEngine } from "./self/conflict_resolver.ts";
 import { Realignment } from "./self/realignment_engine.ts";
 import { Homeostasis } from "./self/homeostasis_engine.ts";
+import { recallSimilar } from "../memory/memory_router.ts";
 
 export class ReflectionEngine {
+  // A93: Neural recall integration method
+  async integrateNeuralRecall(embedding: number[]) {
+    const similar = await recallSimilar(embedding, 3);
+    return similar;
+  }
+
   reflect(cognitiveState: any, selState: any) {
     const reflection = {
       timestamp: Date.now(),
@@ -50,7 +58,21 @@ export class ReflectionEngine {
     }
 
     // A75: Match current embedding to concepts
-    if (cognitiveState.embedding) {
+    // A93: Integrate neural recall if embedding is available
+    if (cognitiveState.embedding && cognitiveState.embedding.length > 0) {
+      // A93: Perform neural recall
+      this.integrateNeuralRecall(cognitiveState.embedding).then((neuralHints) => {
+        if (neuralHints.length > 0) {
+          console.log("[PRIME-REFLECTION] Neural recall hints:", neuralHints.map(h => ({
+            id: h.id,
+            score: h.score.toFixed(3),
+            tags: h.tags
+          })));
+        }
+      }).catch(err => {
+        console.warn("[PRIME-REFLECTION] Neural recall error:", err);
+      });
+
       const concept = Concepts.matchConcept(cognitiveState.embedding);
       if (concept && concept.strength >= 3) {
         this.logReflection(

@@ -67,6 +67,7 @@ import { Homeostasis } from "../cognition/self/homeostasis_engine.ts";
 import { CortexManager } from "../neural/cortex/cortex_manager.ts";
 import { NeuralRegistry } from "../neural/cortex/registry.ts";
 import { EmbeddingAdapter } from "../neural/embedding/embedding_adapter.ts";
+import { NeuralMemoryStore } from "../memory/neural/neural_memory_store.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -127,6 +128,12 @@ if (Cortex) {
   Embeddings = new EmbeddingAdapter(Cortex);
   console.log("[PRIME-CORTEX] Embedding adapter online.");
 }
+
+// A93: Initialize Neural Memory Store
+console.log("[PRIME-MEMORY] Initializing Neural Memory Store...");
+let NeuralMemStore: NeuralMemoryStore | null = null;
+NeuralMemStore = new NeuralMemoryStore();
+console.log("[PRIME-MEMORY] Neural Memory Store online.");
 
 console.log("[PRIME] Initializing cognitive threads...");
 // ThreadPool will be initialized with default instances
@@ -800,6 +807,11 @@ export function getRecentMemory(n: number = 5) {
 // A92: Export embedding adapter accessor
 export function getEmbeddingAdapter() {
   return Embeddings;
+}
+
+// A93: Export neural memory accessor
+export function getNeuralMemory() {
+  return NeuralMemStore;
 }
 
 // A48: Export kernel instance for operator command handling
