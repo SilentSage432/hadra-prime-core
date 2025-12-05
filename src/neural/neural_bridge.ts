@@ -249,6 +249,33 @@ export class NeuralBridge {
   static decodeSageEmbedding(packet: NeuralPacket): SharedEmbedding {
     return sageEmbeddingParser.parse(packet);
   }
+
+  /**
+   * A128: Send unified intent to SAGE
+   * Makes the shared intent available to SAGE for coordination
+   */
+  static sendUnifiedIntent(intent: any): void {
+    // Check if SAGE is available via global state
+    const sageState = (globalThis as any).__SAGE_STATE__;
+    if (!sageState) {
+      console.log("[PRIME-NCI] SAGE not available for unified intent sharing.");
+      return;
+    }
+
+    // Store unified intent in SAGE state for access
+    if (sageState.receiveUnifiedIntent) {
+      sageState.receiveUnifiedIntent(intent);
+    } else {
+      // Fallback: store in global state
+      (globalThis as any).__UNIFIED_INTENT__ = intent;
+    }
+
+    console.log("[PRIME-NCI] Unified intent shared with SAGE:", {
+      unifiedGoal: intent.unifiedGoal,
+      unifiedUrgency: intent.unifiedUrgency?.toFixed(3),
+      timestamp: intent.timestamp
+    });
+  }
 }
 
 // A113: Export convenience functions for embedding conversion

@@ -22,6 +22,8 @@ import { UncertaintyEngine } from "./uncertainty/uncertainty_engine.ts";
 import { RiskMitigationEngine } from "./risk/risk_mitigation_engine.ts";
 import { ReflectiveSafetyLoop } from "../safety/reflective_safety_loop.ts";
 import { DualMindConflictResolver } from "./self/conflict_resolver.ts";
+import { DualIntentCoherenceEngine } from "./intent/dual_intent_coherence_engine.ts";
+import { NeuralBridge } from "../neural/neural_bridge.ts";
 
 export class Cognition {
   private intentEngine = new IntentEngine();
@@ -30,6 +32,7 @@ export class Cognition {
   private risk = new RiskMitigationEngine();
   private safetyLoop = new ReflectiveSafetyLoop();
   private dualResolver = new DualMindConflictResolver();
+  private dualIntent = new DualIntentCoherenceEngine();
 
   constructor() {
     // Register handlers
@@ -192,6 +195,23 @@ export class Cognition {
         // Don't halt the entire cognition cycle, but mark that operator input is needed
         cognitiveState.awaitingOperator = true;
       }
+
+      // A128: Compute unified intent from both PRIME and SAGE
+      const dualIntent = this.dualIntent.computeCoherentIntent(cognitiveState, sageState);
+      cognitiveState.unifiedIntent = dualIntent;
+      console.log("[PRIME↔SAGE INTENT]", {
+        unifiedGoal: dualIntent.unifiedGoal,
+        unifiedUrgency: dualIntent.unifiedUrgency.toFixed(3),
+        unifiedPredictionVector: dualIntent.unifiedPredictionVector?.slice(0, 3),
+        weights: {
+          prime: dualIntent.weights.prime.toFixed(3),
+          sage: dualIntent.weights.sage.toFixed(3)
+        }
+      });
+      console.log("[DUAL-MIND] Unified intent generated.");
+
+      // A128: Share unified intent with SAGE via neural bridge
+      NeuralBridge.sendUnifiedIntent(dualIntent);
     }
 
     // A42/A75: Generate plans for each goal (with recall-informed and concept-informed cognitive state)

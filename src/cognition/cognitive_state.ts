@@ -12,6 +12,7 @@ import type { NeuralSignal, CoherenceResult } from "./neural_symbolic_coherence.
 import type { TimescaleAwarenessState } from "./timescale_awareness.ts";
 import type { UncertaintyVector } from "./uncertainty/uncertainty_engine.ts";
 import type { MitigationStrategy } from "./risk/risk_mitigation_engine.ts";
+import type { UnifiedIntent } from "./intent/dual_intent_coherence_engine.ts";
 
 export interface CognitiveState {
   intent: any;                // interpreted intent packet
@@ -62,5 +63,7 @@ export interface CognitiveState {
   mitigationStrategy?: MitigationStrategy;   // Current mitigation strategy
   narrativeInstability?: number;              // Narrative fragmentation risk
   emotionDrift?: number;                     // Emotional instability/drift
+  // A128: Dual-Intent Coherence Engine fields
+  unifiedIntent?: UnifiedIntent;             // Shared intent from PRIME and SAGE
 }
 
