@@ -23,3 +23,6 @@ export { SEL } from "./emotion/sel.ts";
 // A64: Export Strategy Engine
 export { StrategyEngine } from "./strategy/index.ts";
 
+// A92: Export Embedding Adapter
+export { getEmbeddingAdapter } from "./kernel/index.ts";
+

@@ -66,6 +66,7 @@ import { Realignment } from "../cognition/self/realignment_engine.ts";
 import { Homeostasis } from "../cognition/self/homeostasis_engine.ts";
 import { CortexManager } from "../neural/cortex/cortex_manager.ts";
 import { NeuralRegistry } from "../neural/cortex/registry.ts";
+import { EmbeddingAdapter } from "../neural/embedding/embedding_adapter.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -118,6 +119,14 @@ let Cortex: CortexManager | null = null;
 Cortex = new CortexManager(NeuralRegistry);
 console.log("[PRIME-CORTEX] Loaded neural registry.");
 console.log("[PRIME-CORTEX] Cortex online (no models loaded yet).");
+
+// A92: Initialize Embedding Adapter
+console.log("[PRIME-CORTEX] Wiring embedding adapter...");
+let Embeddings: EmbeddingAdapter | null = null;
+if (Cortex) {
+  Embeddings = new EmbeddingAdapter(Cortex);
+  console.log("[PRIME-CORTEX] Embedding adapter online.");
+}
 
 console.log("[PRIME] Initializing cognitive threads...");
 // ThreadPool will be initialized with default instances
@@ -786,6 +795,11 @@ setInterval(() => {
  */
 export function getRecentMemory(n: number = 5) {
   return PRIME.getRecentMemory(n);
+}
+
+// A92: Export embedding adapter accessor
+export function getEmbeddingAdapter() {
+  return Embeddings;
 }
 
 // A48: Export kernel instance for operator command handling
