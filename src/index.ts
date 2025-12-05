@@ -39,4 +39,7 @@ export { NeuralSyncEngine } from "./dual_mind/synchronization_engine.ts";
 export { ingestFederationPacket, createSagePulsePacket } from "./perception/federation_ingest.ts";
 // A116: Export Joint Situation Modeler
 export { JointSituationModeler, type JointSituationSnapshot } from "./situation_model/joint_situation_modeler.ts";
+// A115: Export Neural Event Segmentation Engine
+export { EventSegmentationEngine } from "./neural/event_segmentation_engine.ts";
+export type { EventBoundary } from "./memory/episodic/event_capture.ts";
 

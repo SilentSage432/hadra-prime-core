@@ -5,6 +5,7 @@ import PRIME from "../prime.ts"; // triggers PRIME initialization + log emit
 import { StabilityMatrix } from "../stability/stability_matrix.ts";
 import { ThreadPool } from "./threads/thread_pool.ts";
 import { anchorRegistry, resonanceBus } from "../memory/index.ts";
+(globalThis as any).__PRIME_RESONANCE_BUS__ = resonanceBus;
 import { generateEmbedding } from "../shared/embedding.ts";
 import { harmonizationBus, harmonizationEngine, type IntentSignature } from "../intent_engine/harmonization.ts";
 import { phaseScheduler, type CognitivePhase } from "./phase_scheduler.ts";
@@ -50,6 +51,7 @@ import { PRIME_SITUATION, SituationModelGenerator } from "../situation_model/ind
 import { DualMindSyncManager } from "../dual_mind/sync_manager.ts";
 import { JointSituationModeler } from "../situation_model/joint_situation_modeler.ts";
 import { PRIME_TEMPORAL } from "../temporal/reasoner.ts";
+import { EventSegmentationEngine } from "../neural/event_segmentation_engine.ts";
 import { EventCapture } from "../memory/episodic/event_capture.ts";
 import { EpisodeBuilder } from "../memory/episodic/episode_builder.ts";
 import { EpisodicArchive } from "../memory/episodic/episodic_archive.ts";
@@ -309,7 +311,9 @@ console.log("[PRIME] Situation Model initialized.");
 // A67: Initialize Episodic Memory System
 const eventCapture = new EventCapture();
 const episodeBuilder = new EpisodeBuilder();
+(globalThis as any).__PRIME_EPISODE_BUILDER__ = episodeBuilder;
 const episodicArchive = new EpisodicArchive();
+(globalThis as any).__PRIME_EPISODIC_ARCHIVE__ = episodicArchive;
 
 // A68: Initialize Episodic Reinforcement and Meta-Memory
 const reinforcementEngine = new EpisodicReinforcementEngine();

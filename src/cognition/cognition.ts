@@ -160,6 +160,36 @@ export class Cognition {
       JSM.update(primeContext, sageState);
     }
 
+    // A115: Detect event boundaries
+    const eventSegEngine = (globalThis as any).__PRIME_EVENT_SEG__;
+    if (eventSegEngine) {
+      const state = {
+        intent: intent.intent,
+        emotion: SEL.getState(),
+        goal: cognitiveState.activeGoal?.type,
+        embedding: cognitiveState.embedding,
+        stability: intent.confidence,
+        predictionError: 0 // Can be computed from prediction engine
+      };
+
+      const boundary = eventSegEngine.detectEventBoundary(state);
+      if (boundary) {
+        // Capture boundary in episodic archive
+        const episodicArchive = (globalThis as any).__PRIME_EPISODIC_ARCHIVE__;
+        if (episodicArchive && episodicArchive.captureBoundary) {
+          episodicArchive.captureBoundary(boundary);
+        }
+
+        // Broadcast event boundary
+        const resonanceBus = (globalThis as any).__PRIME_RESONANCE_BUS__;
+        if (resonanceBus && resonanceBus.broadcast) {
+          resonanceBus.broadcast("event_boundary", boundary);
+        } else if (resonanceBus && resonanceBus.publish) {
+          resonanceBus.publish({ type: "event_boundary", data: boundary });
+        }
+      }
+    }
+
     return routed;
   }
 
