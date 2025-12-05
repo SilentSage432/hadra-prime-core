@@ -18,6 +18,7 @@ import { NeuralContextEncoder } from "../neural/context_encoder.ts";
 import { MotivationEngine } from "./motivation_engine.ts";
 import { NIC, type NeuralInputContract } from "../neural/contract/neural_interaction_contract.ts";
 import type { SymbolicPacket } from "../shared/symbolic_packet.ts";
+import { AttentionEstimator } from "../neural/attention_estimator.ts";
 
 export class FusionEngine {
   private memory: MemoryStore;
@@ -74,6 +75,34 @@ export class FusionEngine {
       riskLevel
     );
 
+    // A102: Route perception/memory packets through Attention & Relevance Estimator
+    const inputPackets: SymbolicPacket[] = [
+      {
+        type: "intent",
+        payload: intent
+      },
+      {
+        type: "memory_recall",
+        payload: memoryRecall
+      },
+      {
+        type: "context",
+        payload: enrichedContext
+      }
+    ];
+
+    // Filter out empty/null packets
+    const validPackets = inputPackets.filter(p => p.payload != null);
+    
+    // Compute attention scores
+    const attentionScores = AttentionEstimator.computeRelevance(validPackets);
+    
+    // Log top relevance item
+    if (attentionScores.length > 0) {
+      const topItem = attentionScores[0];
+      console.log(`[PRIME-ATTENTION] Top relevance item: { type: ${topItem.item.type}, score: ${topItem.score.toFixed(2)} }`);
+    }
+
     // Build fusion payload
     const fusion = {
       meaning: {
@@ -86,6 +115,7 @@ export class FusionEngine {
       intent,
       context: enrichedContext,
       stabilityScore: 0.6, // Default stability score
+      attention: attentionScores  // A102: Attach attention scores
     };
 
     // Emotion-influenced fusion weighting
