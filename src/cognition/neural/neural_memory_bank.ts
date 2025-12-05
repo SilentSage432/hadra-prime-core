@@ -4,6 +4,7 @@
 import { cosineSimilarity } from "./similarity.ts";
 
 export interface NeuralMemoryEntry {
+  id?: string; // A75: Unique identifier for concept clustering
   embedding: number[];
   tag: string;
   weight: number;
@@ -18,6 +19,11 @@ export class NeuralMemoryBank {
 
   addMemory(entry: NeuralMemoryEntry) {
     if (!entry.embedding || entry.embedding.length === 0) return;
+
+    // A75: Ensure entry has an ID for concept clustering
+    if (!entry.id) {
+      entry.id = `mem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
 
     this.memory.push(entry);
     this.enforceSizeLimit();
@@ -65,6 +71,14 @@ export class NeuralMemoryBank {
       avgWeight:
         this.memory.reduce((a, b) => a + b.weight, 0) / (this.memory.length || 1),
     };
+  }
+
+  /** A75: Export all memory entries for concept clustering */
+  exportAll(): Array<{ id: string; embedding: number[] }> {
+    return this.memory.map(m => ({
+      id: m.id || `mem_${this.memory.indexOf(m)}`,
+      embedding: m.embedding
+    }));
   }
 }
 

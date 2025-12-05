@@ -91,7 +91,13 @@ export class Cognition {
       }
     }
 
-    // A42: Generate plans for each goal (with recall-informed cognitive state)
+    // A42/A75: Generate plans for each goal (with recall-informed and concept-informed cognitive state)
+    // A75: Match concept before planning if embedding is available
+    if (cognitiveState.recall && cognitiveState.recall.reference) {
+      // If we have recall, we likely have an embedding in the neural context
+      // For now, concepts will be matched during reflection, but we could do it here too
+    }
+    
     const plans = goals.map((g) => PlanningEngine.generatePlan(g, cognitiveState));
     console.log("[PRIME-PLANS]", plans);
 

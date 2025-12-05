@@ -51,12 +51,17 @@ import { PatternGeneralizationEngine } from "../memory/episodic/pattern_generali
 import { StrategicPatternGraph } from "../memory/episodic/strategic_pattern_graph.ts";
 import { NeuralContextEncoder } from "../neural/context_encoder.ts";
 import { NeuralMemory } from "../cognition/neural/neural_memory_bank.ts";
+import { Concepts } from "../cognition/concepts/concept_engine.ts";
+import { Hierarchy } from "../cognition/concepts/concept_hierarchy.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
 StabilityMatrix.init();
 
 console.log("[PRIME] Cognitive Fusion Stability Layer active.");
+
+// A75: Initialize concept engine
+console.log("[PRIME-CONCEPT] Concept Formation Engine initialized.");
 
 console.log("[PRIME] Initializing cognitive threads...");
 // ThreadPool will be initialized with default instances
@@ -169,14 +174,43 @@ const kernelInstance = {
       stabilitySnapshot
     );
     
+    // A75: Attach embedding to cognitive state for concept matching
+    cognitiveState.embedding = neuralContext.vector;
+    
+    // A75: Match concept for current cognitive state
+    const concept = Concepts.matchConcept(neuralContext.vector);
+    if (concept) {
+      cognitiveState.concept = concept;
+      
+      // A76: Find domain that contains this concept
+      const domain = Hierarchy.findDomainForConcept(concept.id);
+      if (domain) {
+        cognitiveState.domain = domain;
+        console.log("[PRIME-DOMAIN] Cognitive state matched to domain:", {
+          domainId: domain.id,
+          strength: domain.strength
+        });
+      }
+    }
+    
     // A74: Now cognitiveState has recall information, use it for reflection
     cognitiveState.lastReflection = null; // Will be set after reflection
     
-    // A74: Reflection with recall-informed cognitive state
+    // A74/A75/A76: Reflection with recall-informed, concept-informed, and domain-informed cognitive state
     const reflection = reflectionEngine.reflect(
-      { ...cognitiveSnapshot, recall: cognitiveState.recall },
+      { 
+        ...cognitiveSnapshot, 
+        recall: cognitiveState.recall,
+        concept: cognitiveState.concept,
+        embedding: cognitiveState.embedding
+      },
       sel
     );
+    
+    // A76: Domain may have been attached during reflection, ensure it's in cognitive state
+    if ((reflection as any).domain) {
+      cognitiveState.domain = (reflection as any).domain;
+    }
     
     // Update cognitive state with reflection info
     cognitiveState.lastReflection = reflection.summary ? { 
@@ -222,6 +256,9 @@ const kernelInstance = {
     
     eventBus.emit("neuralContext", neuralContext);
     console.log("[PRIME-NCEL] Encoded neural context vector:", neuralContext.vector.slice(0, 8), "...");
+    
+    // A75: Trigger concept derivation when new memory is added (event-driven)
+    eventBus.emit("memory-updated", { entryCount: NeuralMemory.getSnapshot().count });
     
     // Check if stability has stabilized and close episode if needed
     const currentEpisode = episodeBuilder.getCurrent();
@@ -516,6 +553,18 @@ setInterval(() => {
     }
   }
 }, 7000); // every 7 seconds — slow and intentional
+
+// A75: Concept derivation on memory updates
+let conceptDerivationCounter = 0;
+eventBus.on("memory-updated", () => {
+  conceptDerivationCounter++;
+  // Derive concepts periodically (every 5 memory updates) to avoid excessive computation
+  if (conceptDerivationCounter >= 5) {
+    conceptDerivationCounter = 0;
+    Concepts.deriveConcepts();
+    console.log("[PRIME-CONCEPT] Concept derivation triggered by memory update");
+  }
+});
 
 // Handle input events - PRIME's intent classification and routing system
 eventBus.on("prime.input", async (payload: { text: string }) => {

@@ -1,5 +1,6 @@
 // src/cognition/planning_engine.ts
 // A74: Neural Recall Integration
+// A76: Hierarchical Concept Networks
 
 import type { ProtoGoal } from "./proto_goal_engine.ts";
 import { ActionSelectionEngine } from "./action_selection_engine.ts";
@@ -39,6 +40,36 @@ export class PlanningEngine {
       console.log("[PRIME-RECALL] Planning influenced by past experience:", {
         intuition: cognitiveState.recall.intuition.toFixed(3),
         reference: cognitiveState.recall.reference
+      });
+    }
+
+    // A75: Apply concept-based bias to planning
+    if (cognitiveState?.concept) {
+      const conceptWeight = Math.min(0.2, cognitiveState.concept.strength * 0.05);
+      intentModifiers.push({
+        type: "concept_bias",
+        weight: conceptWeight,
+        note: `Influenced by concept: ${cognitiveState.concept.id}`
+      });
+      console.log("[PRIME-CONCEPT] Planning influenced by concept:", {
+        conceptId: cognitiveState.concept.id,
+        strength: cognitiveState.concept.strength,
+        weight: conceptWeight.toFixed(3)
+      });
+    }
+
+    // A76: Apply domain-based bias to planning
+    if (cognitiveState?.domain) {
+      const domainWeight = Math.min(0.3, cognitiveState.domain.strength * 0.05);
+      intentModifiers.push({
+        type: "domain_bias",
+        weight: domainWeight,
+        note: `Domain influence: ${cognitiveState.domain.id}`
+      });
+      console.log("[PRIME-DOMAIN] Planning influenced by domain:", {
+        domainId: cognitiveState.domain.id,
+        strength: cognitiveState.domain.strength,
+        weight: domainWeight.toFixed(3)
       });
     }
     

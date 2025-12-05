@@ -1,5 +1,10 @@
 // src/cognition/reflection_engine.ts
 // A74: Neural Recall Integration
+// A75: Concept Formation Integration
+// A76: Hierarchical Concept Networks
+
+import { Concepts } from "./concepts/concept_engine.ts";
+import { Hierarchy } from "./concepts/concept_hierarchy.ts";
 
 export class ReflectionEngine {
   reflect(cognitiveState: any, selState: any) {
@@ -20,6 +25,41 @@ export class ReflectionEngine {
         intuition: cognitiveState.recall.intuition.toFixed(3),
         reference: cognitiveState.recall.reference
       });
+    }
+
+    // A75: Match current embedding to concepts
+    if (cognitiveState.embedding) {
+      const concept = Concepts.matchConcept(cognitiveState.embedding);
+      if (concept && concept.strength >= 3) {
+        this.logReflection(
+          `Recognized emerging concept: ${concept.id} (strength=${concept.strength})`
+        );
+        console.log("[PRIME-CONCEPT] Reflection matched to concept:", {
+          conceptId: concept.id,
+          strength: concept.strength,
+          members: concept.members.length
+        });
+        // Attach concept to cognitive state
+        (cognitiveState as any).concept = concept;
+
+        // A76: Find domain that contains this concept
+        const domain = Hierarchy.findDomainForConcept(concept.id);
+        if (domain) {
+          this.logReflection(
+            `Recognized domain influence: ${domain.id} (strength=${domain.strength})`
+          );
+          console.log("[PRIME-DOMAIN] Reflection influenced by domain:", {
+            domainId: domain.id,
+            strength: domain.strength,
+            concepts: domain.concepts.length,
+            metaConcepts: domain.metaConcepts.length
+          });
+          // Attach domain to cognitive state
+          (cognitiveState as any).domain = domain;
+          // Also attach to reflection object so it can be accessed by kernel
+          (reflection as any).domain = domain;
+        }
+      }
     }
 
     console.log("[PRIME-REFLECTION]", reflection.summary);
