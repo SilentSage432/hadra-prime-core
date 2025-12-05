@@ -24,6 +24,9 @@ import { ReflectiveSafetyLoop } from "../safety/reflective_safety_loop.ts";
 import { DualMindConflictResolver } from "./self/conflict_resolver.ts";
 import { DualIntentCoherenceEngine } from "./intent/dual_intent_coherence_engine.ts";
 import { NeuralBridge } from "../neural/neural_bridge.ts";
+import { DualMemoryCoherenceEngine } from "../memory/coherence/dual_memory_coherence_engine.ts";
+import { integrateSharedMemory } from "../memory/memory_router.ts";
+import MemoryBroker from "../memory/index.ts";
 
 export class Cognition {
   private intentEngine = new IntentEngine();
@@ -33,6 +36,8 @@ export class Cognition {
   private safetyLoop = new ReflectiveSafetyLoop();
   private dualResolver = new DualMindConflictResolver();
   private dualIntent = new DualIntentCoherenceEngine();
+  private dualMemory = new DualMemoryCoherenceEngine();
+  private memoryBroker = new MemoryBroker();
 
   constructor() {
     // Register handlers
@@ -212,6 +217,30 @@ export class Cognition {
 
       // A128: Share unified intent with SAGE via neural bridge
       NeuralBridge.sendUnifiedIntent(dualIntent);
+
+      // A129: Process shared memory coherence with SAGE
+      const sageMemory = sageState.memory ?? null;
+      if (sageMemory) {
+        const primeMemoryState = this.memoryBroker.exportState();
+        const packet = this.dualMemory.generateCoherencePacket(primeMemoryState, sageMemory);
+        
+        // Integrate shared memory into PRIME
+        integrateSharedMemory(packet.mergedMemory);
+        
+        console.log("[PRIME↔SAGE MEMORY]", {
+          drift: packet.drift.toFixed(3),
+          mergedEpisodes: packet.mergedMemory.episodic.length
+        });
+
+        // A129: Send shared memory packet back to SAGE
+        if (sageState.receiveSharedMemory) {
+          sageState.receiveSharedMemory(packet);
+        } else {
+          // Fallback: store in global state
+          (globalThis as any).__SHARED_MEMORY_PACKET__ = packet;
+        }
+        console.log("[DUAL-MIND] Shared memory packet sent to SAGE.");
+      }
     }
 
     // A42/A75: Generate plans for each goal (with recall-informed and concept-informed cognitive state)

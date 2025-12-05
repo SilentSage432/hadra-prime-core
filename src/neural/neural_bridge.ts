@@ -276,6 +276,19 @@ export class NeuralBridge {
       timestamp: intent.timestamp
     });
   }
+
+  /**
+   * A129: Receive shared memory packet (contract for SAGE side)
+   * This method will be called by SAGE when it receives a shared memory packet
+   */
+  static receiveSharedMemory(packet: any): void {
+    console.log("[DUAL-MIND] Shared memory packet received", {
+      type: packet.type,
+      drift: packet.drift?.toFixed(3),
+      mergedEpisodes: packet.mergedMemory?.episodic?.length ?? 0,
+      timestamp: packet.timestamp
+    });
+  }
 }
 
 // A113: Export convenience functions for embedding conversion
