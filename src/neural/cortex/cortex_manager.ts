@@ -1,15 +1,57 @@
 // src/neural/cortex/cortex_manager.ts
 // A91: Neural Cortex Manager
+// A112: Expanded with Slot #4 (Temporal Embedding Model)
 // Loads neural models from /models, validates they obey the NIC, provides standard API
 
 import { NIC } from "../contract/neural_interaction_contract.ts";
+import { TemporalEmbeddingModel } from "../models/temporal_embedding_model.ts";
 
 export class CortexManager {
   private models: Map<string, any> = new Map();
   private registry: any[] = [];
+  
+  // A112: Neural slots system
+  private slots: Record<number, any> = {
+    1: null,
+    2: null,
+    3: null,
+    4: new TemporalEmbeddingModel(), // A112: Slot #4 - Temporal Embedding Model
+  };
 
   constructor(registry: any[]) {
     this.registry = registry;
+  }
+
+  // A112: Initialize all slots
+  async initialize() {
+    for (const id of Object.keys(this.slots)) {
+      const slot = this.slots[Number(id)];
+      if (slot && slot.warmup) {
+        await slot.warmup();
+        console.log(`[CORTEX] Slot #${id} initialized: ${slot.modelName || slot.constructor.name}`);
+      }
+    }
+  }
+
+  // A112: Get slot by ID
+  getSlot(id: number): any {
+    return this.slots[id] || null;
+  }
+
+  // A112: Load model into slot
+  async loadModelIntoSlot(id: number, model: any) {
+    if (id < 1 || id > 4) {
+      console.warn(`[CORTEX] Invalid slot ID: ${id}`);
+      return false;
+    }
+    
+    if (model && model.warmup) {
+      await model.warmup();
+    }
+    
+    this.slots[id] = model;
+    console.log(`[CORTEX] Model loaded into slot #${id}`);
+    return true;
   }
 
   async loadModel(name: string) {

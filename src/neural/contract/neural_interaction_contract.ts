@@ -1,6 +1,28 @@
 // src/neural/contract/neural_interaction_contract.ts
 // A90: Neural Interaction Contract (NIC)
+// A112: Extended with temporal sequence support
 // The formal API that any PyTorch neural model MUST obey to interface with PRIME.
+
+import type { TemporalSnapshot } from "../../temporal/window.ts";
+
+export interface TemporalStateWindow {
+  states: TemporalSnapshot[];
+  description: string;
+}
+
+export interface NeuralInteractionPayload {
+  type: "embedding" | "similarity" | "temporal_sequence";
+  text?: string;
+  tokens?: string[];
+  temporalWindow?: TemporalStateWindow;
+  sequence_length?: number;
+  embedding_depth?: number;
+  temporal_context_mask?: boolean[];
+  tensor_family?: string;
+}
+
+// Re-export for convenience
+export type { TemporalStateWindow as TemporalStateWindowType };
 
 export interface NeuralInputContract {
   embedding: number[];

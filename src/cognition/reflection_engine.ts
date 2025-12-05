@@ -31,6 +31,7 @@ import { Realignment } from "./self/realignment_engine.ts";
 import { Homeostasis } from "./self/homeostasis_engine.ts";
 import { recallSimilar } from "../memory/memory_router.ts";
 import { ConceptGraph } from "../memory/concepts/concept_store.ts";
+import { PRIME_TEMPORAL } from "../temporal/reasoner.ts";
 
 export class ReflectionEngine {
   lastReflection: any = null; // A100: Track last reflection for attention engine
@@ -42,12 +43,19 @@ export class ReflectionEngine {
   }
 
   reflect(cognitiveState: any, selState: any) {
+    // A112: Compute temporal embedding for reflection
+    const temporalVector = PRIME_TEMPORAL.computeTemporalEmbedding(
+      PRIME_TEMPORAL.medium,
+      `reflection_${cognitiveState.topGoal?.type || "unknown"}`
+    );
+    
     const reflection = {
       timestamp: Date.now(),
       motivation: cognitiveState.motivation,
       topGoal: cognitiveState.topGoal,
       sel: selState,
-      summary: this.generateSummary(cognitiveState, selState)
+      summary: this.generateSummary(cognitiveState, selState),
+      temporalVector: temporalVector // A112: Add temporal embedding
     };
 
     // A74: Log recall information if available

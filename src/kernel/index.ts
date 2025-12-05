@@ -143,11 +143,18 @@ console.log("[PRIME-SELF] Cognitive Homeostasis Engine active.");
 console.log("[PRIME-NEURAL] Neural Boundary Controller online.");
 
 // A91: Initialize Neural Cortex
+// A112: Initialize with Slot #4 (Temporal Embedding Model)
 console.log("[PRIME-CORTEX] Initializing neural cortex...");
 let Cortex: CortexManager | null = null;
 Cortex = new CortexManager(NeuralRegistry);
-console.log("[PRIME-CORTEX] Loaded neural registry.");
-console.log("[PRIME-CORTEX] Cortex online (no models loaded yet).");
+// A112: Initialize all slots including Slot #4
+Cortex.initialize().then(() => {
+  console.log("[PRIME-CORTEX] Loaded neural registry.");
+  console.log("[PRIME-CORTEX] Cortex online with Slot #4 (Temporal Embedding Model) initialized.");
+}).catch(err => {
+  console.error("[PRIME-CORTEX] Error initializing slots:", err);
+});
+(globalThis as any).PRIME_CORTEX = Cortex;
 
 // A92: Initialize Embedding Adapter
 console.log("[PRIME-CORTEX] Wiring embedding adapter...");

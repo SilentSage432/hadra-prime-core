@@ -3,6 +3,7 @@
 
 import type { MotivationState } from "../../shared/types.ts";
 import { Knowledge } from "../knowledge/knowledge_graph.ts";
+import { PRIME_TEMPORAL } from "../../temporal/reasoner.ts";
 
 export interface MotivationProjection {
   urgency: number;
@@ -142,11 +143,22 @@ export class ForesightEngine {
     currentMotivation: MotivationState,
     sel: any
   ): SystemForecast {
-    return {
+    // A112: Compute temporal embedding for foresight
+    const temporalVector = PRIME_TEMPORAL.computeTemporalEmbedding(
+      PRIME_TEMPORAL.long,
+      "foresight_projection"
+    );
+    
+    const forecast: SystemForecast = {
       projectedMotivation: this.predictMotivationTrajectory(currentMotivation, 25),
       projectedSEL: this.predictSelfRegulation(sel, 25),
       domainForecast: this.predictDomainTrends(),
     };
+    
+    // A112: Attach temporal vector to forecast
+    (forecast as any).temporalVector = temporalVector;
+    
+    return forecast;
   }
 
   /** Predict action outcomes (what will happen if we take this action) */

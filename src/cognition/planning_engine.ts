@@ -14,6 +14,7 @@ import { ActionSelectionEngine } from "./action_selection_engine.ts";
 import { StabilityMatrix } from "../stability/stability_matrix.ts";
 import { CounterfactualEngine, type CounterfactualResult } from "../reflection/counterfactual_engine.ts";
 import type { CognitiveState } from "../shared/types.ts";
+import { PRIME_TEMPORAL } from "../temporal/reasoner.ts";
 
 export interface InternalPlanStep {
   name: string;
@@ -34,6 +35,17 @@ export interface InternalPlan {
 
 export class PlanningEngine {
   static generatePlan(goal: ProtoGoal, cognitiveState?: CognitiveState): InternalPlan {
+    // A112: Compute temporal embedding for planning
+    const temporalVector = PRIME_TEMPORAL.computeTemporalEmbedding(
+      PRIME_TEMPORAL.short,
+      `planning_${goal.type}`
+    );
+    
+    // Attach temporal vector to cognitive state
+    if (cognitiveState) {
+      (cognitiveState as any).temporalVector = temporalVector;
+    }
+    
     // A74: Check for recall-based intuition and apply to planning
     const intentModifiers: Array<{ type: string; weight: number; note?: string }> = [];
     

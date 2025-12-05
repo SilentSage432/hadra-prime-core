@@ -1,11 +1,13 @@
 // src/neural/neural_bridge.ts
 // A101: Neural Slot #2 Preparation Layer
+// A112: Neural Bridge v2 - Tensor Handshake Layer with temporal sequence support
 // Cross-Modal Embedding Bridge
 // This is the Rosetta Stone between PRIME's rule-based engine and the neural substrate
 // A108b: Hardware-aware neural offloading
 
 import type { SymbolicPacket } from "../shared/symbolic_packet.ts";
 import type { HardwareProfile } from "../hardware/hardware_profile.ts";
+import type { NeuralInteractionPayload } from "./models/temporal_embedding_model.ts";
 
 export interface TensorStub {
   shape: number[];
@@ -74,6 +76,43 @@ export class NeuralBridge {
 
     // Stub: this is where PyTorch inference will run after A120+
     return tensor; // Echo back until neural engine exists
+  }
+
+  // A112: Compute neural embeddings/dispatch to appropriate slot
+  static compute(payload: NeuralInteractionPayload): number[] {
+    // A112: Dispatch temporal sequences to Slot #4
+    if (payload.type === "temporal_sequence") {
+      const cortex = (globalThis as any).PRIME_CORTEX;
+      if (!cortex) {
+        console.warn("[PRIME-NEURAL] Cortex not available for temporal sequence computation.");
+        return [];
+      }
+
+      const slot4 = cortex.getSlot(4);
+      if (!slot4) {
+        console.warn("[PRIME-NEURAL] Slot #4 (Temporal Embedding) not available.");
+        return [];
+      }
+
+      // Validate temporal window
+      if (slot4.adaptiveBoundaryCheck && payload.temporalWindow) {
+        if (!slot4.adaptiveBoundaryCheck(payload.temporalWindow)) {
+          console.warn("[PRIME-NEURAL] Temporal window failed boundary check.");
+          return [];
+        }
+      }
+
+      return slot4.compute(payload);
+    }
+
+    // Other payload types can be handled here in future
+    console.warn("[PRIME-NEURAL] Unsupported payload type:", payload.type);
+    return [];
+  }
+
+  // A112: Get singleton instance accessor
+  static getInstance(): typeof NeuralBridge {
+    return NeuralBridge;
   }
 }
 
