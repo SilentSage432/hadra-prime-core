@@ -29,6 +29,8 @@ import { ProtoGoalEngine } from "../cognition/proto_goal_engine.ts";
 import { ActionEngine } from "../action_layer/action_engine.ts";
 import { IntentRouter } from "../interpretation/intent_router.ts";
 import { CommandProtocol, type OperatorCommand } from "../operator/command_protocol.ts";
+import { PlanEngine, type Plan, type PlanStep } from "../planning/plan_engine.ts";
+import { ReflectionEngine } from "../cognition/reflection_engine.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -51,10 +53,41 @@ const actionEngine = new ActionEngine();
 const intentRouter = new IntentRouter(actionEngine);
 console.log("[PRIME-KERNEL] Action & Intent Routing Layer active.");
 
+// A49: Initialize Plan Engine
+const planEngine = new PlanEngine();
+console.log("[PRIME-KERNEL] Plan Engine active.");
+
+// A51: Initialize Reflection Engine
+const reflectionEngine = new ReflectionEngine();
+console.log("[PRIME-KERNEL] Reflection Engine active.");
+
 // A48: Kernel instance for operator command handling
 const kernelInstance = {
   actionEngine,
   intentRouter,
+  planEngine,
+  async generateAndRunPlan(goal: string, highLevelAction: string, params?: any) {
+    // Step decomposition (placeholder — later ML-driven)
+    const steps: PlanStep[] = [
+      { id: "step1", action: highLevelAction, params, status: "pending" }
+    ];
+
+    const plan = planEngine.createPlan(goal, steps);
+    await planEngine.executePlan(plan, actionEngine);
+    return plan;
+  },
+  async buildAndExecuteHierarchicalPlan(goal: string) {
+    const plan = planEngine.createHierarchicalPlan(goal);
+    await planEngine.executePlan(plan, actionEngine);
+    return plan;
+  },
+  runReflection(cognitiveSnapshot: any) {
+    const sel = SEL.getState();
+    const result = reflectionEngine.reflect(cognitiveSnapshot, sel);
+    // Optionally store reflection in memory (future enhancement)
+    // PRIME.remember({ type: "reflection", data: result });
+    return result;
+  },
   async handleOperatorCommand(cmd: OperatorCommand) {
     console.log("[OPERATOR-COMMAND] Received:", cmd);
 
@@ -84,6 +117,9 @@ const kernelInstance = {
   }
 };
 
+// A49: Connect kernel to intent router (after kernelInstance is created)
+intentRouter.setKernel(kernelInstance);
+
 // Start event-driven cognitive loop
 cognitiveLoop.start();
 
@@ -97,12 +133,35 @@ setInterval(() => {
   if (goals.length) {
     console.log("[PRIME-HEARTBEAT] top-goal:", goals[0]);
   }
+
+  // A51: Trigger reflection after heartbeat
+  if (goals.length) {
+    kernelInstance.runReflection({
+      motivation: m,
+      topGoal: goals[0]
+    });
+  }
 }, 7000); // every 7 seconds — slow and intentional
 
 // Handle input events - PRIME's intent classification and routing system
 eventBus.on("prime.input", async (payload: { text: string }) => {
   const response = await cognition.cycle(payload.text);
   console.log("[PRIME-OUTPUT]", response);
+  
+  // A49: Check for planning intents and route them
+  if (payload.text.toLowerCase().trim().startsWith("plan ")) {
+    const goal = payload.text.substring(5).trim();
+    const planningIntent = {
+      type: "action.plan.execute",
+      confidence: 0.9,
+      payload: {
+        goal: goal,
+        primaryAction: "diagnose", // placeholder
+        parameters: {}
+      }
+    };
+    await intentRouter.route(planningIntent);
+  }
   
   // A47: Route intent through action engine if actionable
   if (response && (response as any).intent) {

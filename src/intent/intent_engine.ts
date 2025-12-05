@@ -64,6 +64,42 @@ export class IntentEngine {
   classify(input: string): IntentResult {
     const lower = input.toLowerCase().trim();
 
+    // A50: Hierarchical planning intent detection
+    if (lower.startsWith("deep plan ")) {
+      const goal = input.substring(10).trim();
+      // Return a special intent structure for hierarchical planning
+      const intentResult: any = {
+        intent: "command",
+        confidence: 0.95,
+        entities: {},
+        raw: input,
+        type: "action.plan.hierarchical",
+        payload: {
+          goal: goal
+        }
+      };
+      return intentResult;
+    }
+
+    // A49: Planning intent detection
+    if (lower.startsWith("plan ")) {
+      const goal = input.substring(5).trim();
+      // Return a special intent structure for planning
+      const intentResult: any = {
+        intent: "command",
+        confidence: 0.9,
+        entities: {},
+        raw: input,
+        type: "action.plan.execute",
+        payload: {
+          goal: goal,
+          primaryAction: "diagnose", // placeholder
+          parameters: {}
+        }
+      };
+      return intentResult;
+    }
+
     // Basic heuristics now — LLM-driven later
     let intentResult: IntentResult;
     
