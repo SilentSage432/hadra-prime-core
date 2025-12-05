@@ -21,7 +21,10 @@ from .neural_attention_engine import NeuralAttentionEngine
 from .neural_context_fusion import NeuralContextFusion
 from .neural_thought_selector import NeuralThoughtSelector
 from .candidate_thought_generator import CandidateThoughtGenerator
+from .reflective_thought_generator import ReflectiveThoughtGenerator
+from ..memory.memory_interaction_engine import MemoryInteractionEngine
 from ..cognition.cognitive_action_engine import CognitiveActionEngine
+from ..cognition.cognitive_loop_orchestrator import CognitiveLoopOrchestrator
 
 class NeuralBridge:
 
@@ -35,7 +38,10 @@ class NeuralBridge:
         self.fusion = NeuralContextFusion()
         self.selector = NeuralThoughtSelector()
         self.generator = CandidateThoughtGenerator()
+        self.reflector = ReflectiveThoughtGenerator()
+        self.memory_engine = MemoryInteractionEngine()
         self.action_engine = CognitiveActionEngine()
+        self.orchestrator = CognitiveLoopOrchestrator(self)
 
     def process_perception(self, text):
 
@@ -176,4 +182,53 @@ class NeuralBridge:
         identity = self.state.timescales.identity_vector
 
         return self.generator.propose(fusion, attention, identity)
+
+    def memory_cycle(self):
+        """
+        Perform a full memory metabolism cycle:
+        - Recall contextually relevant memories
+        - Reinforce accessed memories
+        - Decay unused memories
+        """
+        fusion = self.fusion.last_fusion_vector
+        attention = self.attention.last_focus_vector
+        mm = self.state.memory_manager if hasattr(self.state, "memory_manager") else None
+
+        if mm is None:
+            return []
+
+        return self.memory_engine.maintenance_cycle(fusion, attention, mm)
+
+    def generate_reflection(self):
+        """
+        Generate a meaningful internal reflection embedding based on:
+        - Current fusion state
+        - Attention signals
+        - Relevant semantic memories
+        - Long-term identity
+        """
+        fusion = self.fusion.last_fusion_vector
+        attention = self.attention.last_focus_vector
+        timescales = self.state.timescales
+        mm = self.state.memory_manager if hasattr(self.state, "memory_manager") else None
+
+        return self.reflector.generate(fusion, attention, timescales, mm)
+
+    def cognitive_step(self):
+        """
+        Perform a single complete cognitive cycle:
+        - Propose candidate thoughts
+        - Select best thought
+        - Execute cognitive action
+        - Perform memory metabolism
+        - Update attention & fusion
+        - Monitor drift & coherence
+        """
+        return self.orchestrator.step()
+
+    def cognitive_status(self):
+        """
+        Get the status of the last cognitive step.
+        """
+        return self.orchestrator.status()
 

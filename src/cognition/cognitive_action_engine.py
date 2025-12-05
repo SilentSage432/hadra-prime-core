@@ -109,17 +109,12 @@ class CognitiveActionEngine:
 
         if action == "retrieve_memory":
 
-            if hasattr(bridge.state, "memory_manager") and bridge.state.memory_manager is not None:
-
-                return bridge.state.memory_manager.retrieve_recent()
-
-            return None
+            # Use memory cycle for active memory metabolism
+            return bridge.memory_cycle()
 
         elif action == "generate_reflection":
 
-            # Placeholder: real reflection generation is in A148
-
-            return bridge.hooks.on_reflection("internal reflection")
+            return bridge.generate_reflection()
 
         elif action == "analyze_drift":
 
