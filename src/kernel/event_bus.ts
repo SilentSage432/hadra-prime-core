@@ -1,10 +1,25 @@
 // src/kernel/event_bus.ts
 // A104b: Dual-Mind Integration
+// A105: Dual-Mind Event Hooks
 
 import { EventEmitter } from "events";
 import { DualMind } from "../dual_core/dual_mind_activation.ts";
+import { DualSyncChannel, sendToSAGE } from "../distributed/dual_sync_channel.ts";
 
 class PrimeEventBus extends EventEmitter {
+  constructor() {
+    super();
+    
+    // A105: Dual-Mind event hooks
+    this.on("dual_mind:send_to_sage", (packet) => {
+      sendToSAGE(packet);
+    });
+
+    DualSyncChannel.on("prime_to_sage_response", (packet) => {
+      this.emit("dual_mind:from_sage", packet);
+    });
+  }
+
   emit(event: string | symbol, ...args: any[]): boolean {
     // A104b: Optional event mirroring or shared perception when dual-mind is active
     if (DualMind.isActive()) {

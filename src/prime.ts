@@ -50,6 +50,7 @@ class PrimeEngine extends EventEmitter {
   private cognitiveLoad = 5; // 1–100 dynamic load (later modules adjust this)
   private throttleFactor = 0; // 0–1, increases when unstable
   private loopInterval: any = null;
+  private dualMindActive = false; // A105: Dual-Mind mode state
   private memory: MemoryBroker;
   private memoryLayer: MemoryLayer; // Enhanced memory for interactions
   private memoryStore: MemoryStore; // Memory wrapper for expression system
@@ -545,6 +546,21 @@ class PrimeEngine extends EventEmitter {
     const cognitiveState = (result.data as any)?.cognitiveState;
     const metaState = cognitiveState?.meta;
     return { cognitiveState, metaState };
+  }
+
+  // A105: Dual-Mind Activation Control (boundary-aware)
+  enableDualMind() {
+    this.dualMindActive = true;
+    console.log("[PRIME-DUAL] Dual-Mind Mode ENABLED.");
+  }
+
+  disableDualMind() {
+    this.dualMindActive = false;
+    console.log("[PRIME-DUAL] Dual-Mind Mode DISABLED.");
+  }
+
+  isDualMindActive() {
+    return this.dualMindActive;
   }
 }
 

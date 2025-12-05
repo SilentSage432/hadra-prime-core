@@ -76,6 +76,7 @@ import { KnowledgeAttentionEngine } from "../cognition/attention/knowledge_atten
 import { NeuralBridge } from "../neural/neural_bridge.ts";
 import { AttentionEstimator } from "../neural/attention_estimator.ts";
 import { DualMind } from "../dual_core/dual_mind_activation.ts";
+import { DualMindSafetyGate } from "../safety/dual_mind_safety_gate.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -170,6 +171,15 @@ console.log("[PRIME-NEURAL] Neural Slot #2 Bridge initialized.");
 // A102: Initialize Neural Slot #3 Attention Estimator
 console.log("[PRIME-NEURAL] Neural Slot #3 Attention Estimator initialized.");
 (globalThis as any).PRIME_ATTENTION = AttentionEstimator;
+
+// A105: Initialize Dual-Mind Boundary System
+console.log("[PRIME-DUAL] Dual-Mind Boundary System active.");
+(globalThis as any).PRIME_EVENT_BUS = eventBus;
+
+// A105: Add shutdown safety
+if (typeof process !== "undefined") {
+  process.on("beforeExit", () => DualMindSafetyGate.reset());
+}
 
 console.log("[PRIME] Initializing cognitive threads...");
 // ThreadPool will be initialized with default instances

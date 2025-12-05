@@ -4,7 +4,7 @@ import { ThreadPool } from "./threads/thread_pool.ts";
 import { TemporalRing } from "../memory/temporal_ring.ts";
 import { DistributedState } from "../distributed/state_snapshot.ts";
 import { ClusterBus } from "../distributed/cluster_bus.ts";
-import { DualSyncChannel } from "../distributed/dual_sync_channel.ts";
+import { DualSyncChannelLegacy } from "../distributed/dual_sync_channel.ts";
 import { DualMind } from "../dual_core/dual_mind_activation.ts";
 
 export function startRuntime(modules: any) {
@@ -15,9 +15,9 @@ export function startRuntime(modules: any) {
     ThreadPool.init();
   }
 
-  // A104b: Dual-Mind integration
+  // A104b/A105: Dual-Mind integration
   if (DualMind.isActive()) {
-    DualSyncChannel.broadcast("runtime_tick", {});
+    DualSyncChannelLegacy.broadcast("runtime_tick", {});
   }
 
   // FIXED: Disabled auto-looping runtime scheduler to prevent recursion storms
