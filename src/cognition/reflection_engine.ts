@@ -8,6 +8,7 @@
 // A81: Meta-Self Awareness Engine Integration
 // A82: Temporal Identity Engine Integration
 // A83: Proto-Narrative Engine Integration
+// A84: Internal Dialogue Engine Integration
 
 import { Concepts } from "./concepts/concept_engine.ts";
 import { Hierarchy } from "./concepts/concept_hierarchy.ts";
@@ -17,6 +18,7 @@ import { Foresight } from "./prediction/foresight_engine.ts";
 import { MetaSelf } from "./self/meta_self_engine.ts";
 import { TemporalIdentity } from "./self/temporal_identity_engine.ts";
 import { Narrative } from "./self/narrative_engine.ts";
+import { InternalDialogue } from "./self/internal_dialogue_engine.ts";
 
 export class ReflectionEngine {
   reflect(cognitiveState: any, selState: any) {
@@ -273,6 +275,15 @@ export class ReflectionEngine {
       });
       
       this.logReflection(narrativeEntry);
+
+      // A84: Generate internal dialogue turn
+      const dialogueTurn = InternalDialogue.generateDialogueTurn({
+        focus: topGoal?.type || "none",
+        reason: topGoal?.reason || "internal pressure dynamics",
+        claritySeeking: state.claritySeeking || 0
+      });
+      
+      this.logReflection(dialogueTurn);
     }
 
     return reflection;

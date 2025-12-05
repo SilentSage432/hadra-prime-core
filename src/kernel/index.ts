@@ -59,6 +59,7 @@ import { Foresight } from "../cognition/prediction/foresight_engine.ts";
 import { MetaSelf } from "../cognition/self/meta_self_engine.ts";
 import { TemporalIdentity } from "../cognition/self/temporal_identity_engine.ts";
 import { Narrative } from "../cognition/self/narrative_engine.ts";
+import { InternalDialogue } from "../cognition/self/internal_dialogue_engine.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -86,6 +87,9 @@ console.log("[PRIME-SELF] Temporal Identity Engine (TIE) online.");
 
 // A83: Initialize Proto-Narrative Engine
 console.log("[PRIME-SELF] Proto-Narrative Engine online.");
+
+// A84: Initialize Internal Dialogue Engine
+console.log("[PRIME-SELF] Internal Dialogue Engine online.");
 
 console.log("[PRIME] Initializing cognitive threads...");
 // ThreadPool will be initialized with default instances
