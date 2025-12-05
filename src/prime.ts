@@ -18,6 +18,7 @@ import { StabilityMatrix } from "./stability/stability_matrix.ts";
 import { triggerCognition, triggerInput } from "./kernel/event_bus.ts";
 import { PRIMEConfig } from "./shared/config.ts";
 import { cognition } from "./cognition/cognition.ts";
+import { HierarchicalPlanner } from "./planning/hierarchical_planner.ts";
 
 export type PrimeLifecycleState = "initializing" | "online" | "degraded" | "offline";
 
@@ -53,6 +54,7 @@ class PrimeEngine extends EventEmitter {
   private context: ContextManager; // Context lattice for continuity awareness
   private fusion: FusionEngine; // Cognitive fusion engine
   private toneEngine: ToneEngine; // Tone analysis for cognitive state
+  planner: HierarchicalPlanner; // A43: Hierarchical planning engine
 
   // Module placeholders (wired in later phases)
   private modules: Record<string, any> = {
@@ -82,6 +84,7 @@ class PrimeEngine extends EventEmitter {
     this.context = new ContextManager(this.memoryStore); // Context lattice integration
     this.toneEngine = new ToneEngine(); // Tone analysis for cognitive fusion
     this.fusion = new FusionEngine(this.memoryStore); // Cognitive fusion engine
+    this.planner = new HierarchicalPlanner(); // A43: Hierarchical planning engine
 
     // Initialize Stability Matrix
     StabilityMatrix.init();
@@ -484,6 +487,27 @@ class PrimeEngine extends EventEmitter {
    */
   getRecentMemory(n: number = 5) {
     return this.memoryLayer.getRecent(n);
+  }
+
+  /**
+   * A43: Build hierarchical plan from intent
+   */
+  async buildPlan(intent: string) {
+    const context = this.contextSnapshot();
+    return this.planner.buildPlan(intent, context);
+  }
+
+  /**
+   * A43: Generate context snapshot for planning
+   */
+  private contextSnapshot() {
+    return {
+      latestSession: this.context.latest("session"),
+      latestEmotion: this.context.latest("emotion"),
+      stability: StabilityMatrix.getSnapshot(),
+      status: this.getStatus(),
+      recentMemory: this.getRecentMemory(5)
+    };
   }
 
   /**
