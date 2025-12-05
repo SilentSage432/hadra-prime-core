@@ -4,11 +4,13 @@
 // A76: Hierarchical Concept Networks
 // A77: Knowledge Graph Integration
 // A78: Inference Engine Integration
+// A79: Long-Range Predictive Model
 
 import { Concepts } from "./concepts/concept_engine.ts";
 import { Hierarchy } from "./concepts/concept_hierarchy.ts";
 import { Knowledge } from "./knowledge/knowledge_graph.ts";
 import { Inference } from "./inference/inference_engine.ts";
+import { Foresight } from "./prediction/foresight_engine.ts";
 
 export class ReflectionEngine {
   reflect(cognitiveState: any, selState: any) {
@@ -125,6 +127,77 @@ export class ReflectionEngine {
         });
         // Attach strategy to reflection for planning use
         (reflection as any).inferredStrategy = strategy;
+      }
+    }
+
+    // A79: Perform foresight predictions
+    if (cognitiveState.motivation && selState) {
+      try {
+        const foresight = Foresight.forecastSystemState(
+          cognitiveState.motivation,
+          selState
+        );
+
+        // Log motivation projections
+        if (foresight.projectedMotivation.length > 0) {
+          const finalProjection = foresight.projectedMotivation[
+            foresight.projectedMotivation.length - 1
+          ];
+          
+          this.logReflection(
+            `Foresight: consolidation expected to decrease to ${finalProjection.consolidation.toFixed(3)}`
+          );
+          
+          this.logReflection(
+            `Foresight: claritySeeking projected to rise toward ${finalProjection.claritySeeking.toFixed(3)}`
+          );
+
+          this.logReflection(
+            `Foresight: curiosity projected to ${finalProjection.curiosity.toFixed(3)}`
+          );
+
+          console.log("[PRIME-FORESIGHT] Motivation trajectory projected:", {
+            steps: foresight.projectedMotivation.length,
+            finalConsolidation: finalProjection.consolidation.toFixed(3),
+            finalClaritySeeking: finalProjection.claritySeeking.toFixed(3),
+            finalCuriosity: finalProjection.curiosity.toFixed(3)
+          });
+        }
+
+        // Log SEL projections
+        if (foresight.projectedSEL.length > 0) {
+          const finalSEL = foresight.projectedSEL[foresight.projectedSEL.length - 1];
+          
+          this.logReflection(
+            `Foresight: SEL stability pressure trajectory ${(finalSEL.stabilityPressure || 0).toFixed(4)}`
+          );
+
+          this.logReflection(
+            `Foresight: coherence projected to ${finalSEL.coherence.toFixed(3)}`
+          );
+
+          console.log("[PRIME-FORESIGHT] SEL trajectory projected:", {
+            steps: foresight.projectedSEL.length,
+            finalCoherence: finalSEL.coherence.toFixed(3),
+            finalTension: finalSEL.tension.toFixed(3),
+            finalStabilityPressure: (finalSEL.stabilityPressure || 0).toFixed(4)
+          });
+        }
+
+        // Log domain forecasts
+        if (foresight.domainForecast.length > 0) {
+          console.log("[PRIME-FORESIGHT] Domain trends projected:", 
+            foresight.domainForecast.map(d => ({
+              domainId: d.id,
+              projectedStrength: d.projectedStrength.toFixed(3)
+            }))
+          );
+        }
+
+        // Attach foresight to reflection for planning use
+        (reflection as any).foresight = foresight;
+      } catch (error) {
+        console.warn("[PRIME-FORESIGHT] Error during prediction:", error);
       }
     }
 

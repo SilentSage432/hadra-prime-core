@@ -56,12 +56,13 @@ export class Cognition {
     const goals = ProtoGoalEngine.computeGoals();
     console.log("[PRIME-GOALS]", goals);
 
-    // A74: Create cognitive state and perform recall before planning
+    // A74/A79: Create cognitive state and perform recall before planning
     const topGoal = goals[0] || null;
-    const cognitiveState: CognitiveState = {
+    const cognitiveState: any = {
       activeGoal: topGoal ? { type: topGoal.type } : undefined,
       confidence: intent.confidence,
-      uncertainty: 1 - intent.confidence
+      uncertainty: 1 - intent.confidence,
+      motivation: motivation // A79: Include motivation for foresight predictions
     };
 
     // A74: Perform preliminary recall lookup for planning

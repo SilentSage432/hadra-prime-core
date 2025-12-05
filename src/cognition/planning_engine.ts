@@ -3,12 +3,14 @@
 // A76: Hierarchical Concept Networks
 // A77: Knowledge Graph Integration
 // A78: Inference Engine Integration
+// A79: Long-Range Predictive Model
 
 import type { ProtoGoal } from "./proto_goal_engine.ts";
 import { Knowledge } from "./knowledge/knowledge_graph.ts";
 import { Inference } from "./inference/inference_engine.ts";
-import { ActionSelectionEngine } from "./action_selection_engine.ts";
+import { Foresight } from "./prediction/foresight_engine.ts";
 import { SEL } from "../emotion/sel.ts";
+import { ActionSelectionEngine } from "./action_selection_engine.ts";
 import { StabilityMatrix } from "../stability/stability_matrix.ts";
 import { CounterfactualEngine, type CounterfactualResult } from "../reflection/counterfactual_engine.ts";
 import type { CognitiveState } from "../shared/types.ts";
@@ -91,6 +93,60 @@ export class PlanningEngine {
           confidence: inferred.confidence.toFixed(3),
           weight: inferred.confidence.toFixed(3)
         });
+      }
+    }
+
+    // A79: Use foresight predictions to influence planning
+    if (cognitiveState?.motivation) {
+      const selState = SEL.getState();
+      try {
+        const fs = Foresight.forecastSystemState(cognitiveState.motivation, selState);
+
+        // If future stability pressure is rising, bias toward stabilization plans
+        if (fs.projectedSEL.length > 10 && fs.projectedSEL[10].stabilityPressure && fs.projectedSEL[10].stabilityPressure > 0.05) {
+          intentModifiers.push({
+            type: "foresight_stabilization_bias",
+            weight: 0.15,
+            note: "Upcoming stability pressure detected",
+          });
+          console.log("[PRIME-FORESIGHT] Planning biased toward stabilization:", {
+            projectedPressure: fs.projectedSEL[10].stabilityPressure.toFixed(4)
+          });
+        }
+
+        // If future curiosity is rising, bias towards exploration
+        if (fs.projectedMotivation.length > 10) {
+          const futureCuriosity = fs.projectedMotivation[10].curiosity;
+          const currentCuriosity = cognitiveState.motivation.curiosity;
+          
+          if (futureCuriosity > currentCuriosity) {
+            intentModifiers.push({
+              type: "foresight_exploration_bias",
+              weight: 0.1,
+              note: "Long-term curiosity growth predicted",
+            });
+            console.log("[PRIME-FORESIGHT] Planning biased toward exploration:", {
+              currentCuriosity: currentCuriosity.toFixed(3),
+              projectedCuriosity: futureCuriosity.toFixed(3)
+            });
+          }
+        }
+
+        // If clarity-seeking is projected to rise significantly, bias toward clarity plans
+        if (fs.projectedMotivation.length > 10) {
+          const futureClarity = fs.projectedMotivation[10].claritySeeking;
+          const currentClarity = cognitiveState.motivation.claritySeeking;
+          
+          if (futureClarity > currentClarity + 0.1) {
+            intentModifiers.push({
+              type: "foresight_clarity_bias",
+              weight: 0.12,
+              note: "Significant clarity-seeking growth predicted",
+            });
+          }
+        }
+      } catch (error) {
+        console.warn("[PRIME-FORESIGHT] Error during planning prediction:", error);
       }
     }
 

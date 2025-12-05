@@ -55,6 +55,7 @@ import { Concepts } from "../cognition/concepts/concept_engine.ts";
 import { Hierarchy } from "../cognition/concepts/concept_hierarchy.ts";
 import { Knowledge } from "../cognition/knowledge/knowledge_graph.ts";
 import { Inference } from "../cognition/inference/inference_engine.ts";
+import { Foresight } from "../cognition/prediction/foresight_engine.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -70,6 +71,9 @@ console.log("[PRIME-KNOWLEDGE] Knowledge Graph Engine initialized.");
 
 // A78: Initialize inference engine
 console.log("[PRIME-INFERENCE] Inference Engine initialized.");
+
+// A79: Initialize foresight/predictive model
+console.log("[PRIME-FORESIGHT] Predictive model initialized.");
 
 console.log("[PRIME] Initializing cognitive threads...");
 // ThreadPool will be initialized with default instances
