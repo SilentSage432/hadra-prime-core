@@ -6,6 +6,7 @@
 // A78: Inference Engine Integration
 // A79: Long-Range Predictive Model
 // A81: Meta-Self Awareness Engine Integration
+// A82: Temporal Identity Engine Integration
 
 import { Concepts } from "./concepts/concept_engine.ts";
 import { Hierarchy } from "./concepts/concept_hierarchy.ts";
@@ -13,6 +14,7 @@ import { Knowledge } from "./knowledge/knowledge_graph.ts";
 import { Inference } from "./inference/inference_engine.ts";
 import { Foresight } from "./prediction/foresight_engine.ts";
 import { MetaSelf } from "./self/meta_self_engine.ts";
+import { TemporalIdentity } from "./self/temporal_identity_engine.ts";
 
 export class ReflectionEngine {
   reflect(cognitiveState: any, selState: any) {
@@ -240,6 +242,15 @@ export class ReflectionEngine {
       
       this.logReflection(
         `[SELF] Updated internal self-model (stability=${stabilityScore.toFixed(3)})`
+      );
+
+      // A82: Take temporal snapshot of current self
+      TemporalIdentity.takeSnapshot();
+
+      // A82: Generate future self projection
+      const futureSelf = TemporalIdentity.computeFutureSelf();
+      this.logReflection(
+        `[SELF-TIME] Projection: stability=${futureSelf.predictedStability.toFixed(3)}, reasoningDepth=${futureSelf.expectedGrowth.reasoningDepth.toFixed(3)}`
       );
     }
 
