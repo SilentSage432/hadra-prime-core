@@ -31,6 +31,12 @@ import { IntentRouter } from "../interpretation/intent_router.ts";
 import { CommandProtocol, type OperatorCommand } from "../operator/command_protocol.ts";
 import { PlanEngine, type Plan, type PlanStep } from "../planning/plan_engine.ts";
 import { ReflectionEngine } from "../cognition/reflection_engine.ts";
+import { LearningEngine } from "../cognition/learning_engine.ts";
+import { MetaReasoningMonitor } from "../cognition/meta_reasoning_monitor.ts";
+import { MetaReflectionEngine } from "../meta/meta_reflection_engine.ts";
+import { SelfModelVector } from "../meta/self_model_vector.ts";
+import { MetaLearningLayer } from "../meta/meta_learning_layer.ts";
+import { DriftPredictor } from "../meta/drift_predictor.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -61,6 +67,21 @@ console.log("[PRIME-KERNEL] Plan Engine active.");
 const reflectionEngine = new ReflectionEngine();
 console.log("[PRIME-KERNEL] Reflection Engine active.");
 
+// A52: Initialize Learning Engine
+const learningEngine = new LearningEngine();
+console.log("[PRIME-KERNEL] Learning Engine active.");
+
+// A53: Initialize Meta-Reasoning Monitor
+const metaMonitor = new MetaReasoningMonitor();
+console.log("[PRIME-KERNEL] Meta-Reasoning Monitor active.");
+
+// A54: Initialize Meta-Reflection System
+const smv = new SelfModelVector();
+const metaLearner = new MetaLearningLayer();
+const driftPredictor = new DriftPredictor();
+const metaReflectionEngine = new MetaReflectionEngine(smv, metaLearner, driftPredictor);
+console.log("[PRIME-KERNEL] Meta-Reflection Engine active.");
+
 // A48: Kernel instance for operator command handling
 const kernelInstance = {
   actionEngine,
@@ -83,10 +104,23 @@ const kernelInstance = {
   },
   runReflection(cognitiveSnapshot: any) {
     const sel = SEL.getState();
-    const result = reflectionEngine.reflect(cognitiveSnapshot, sel);
+    const reflection = reflectionEngine.reflect(cognitiveSnapshot, sel);
+    
+    // A52: Apply learning from reflection
+    const adjustments = learningEngine.adjustFromReflection(reflection, sel);
+    SEL.applyLearning(adjustments);
+    
+    // A53: Evaluate meta-reasoning quality and apply adjustments
+    const meta = metaMonitor.evaluate(cognitiveSnapshot, sel);
+    SEL.applyMetaAdjustments(meta.flags);
+    
+    // Attach meta evaluation to reflection for future use
+    reflection.meta = meta;
+    
     // Optionally store reflection in memory (future enhancement)
-    // PRIME.remember({ type: "reflection", data: result });
-    return result;
+    // PRIME.remember({ type: "reflection", data: reflection });
+    
+    return reflection;
   },
   async handleOperatorCommand(cmd: OperatorCommand) {
     console.log("[OPERATOR-COMMAND] Received:", cmd);
@@ -140,6 +174,11 @@ setInterval(() => {
       motivation: m,
       topGoal: goals[0]
     });
+  }
+
+  // A54: Run meta-reflection cycle
+  if (goals.length) {
+    metaReflectionEngine.runMetaCycle(goals[0], m);
   }
 }, 7000); // every 7 seconds — slow and intentional
 

@@ -61,6 +61,13 @@ export class SyntheticEmotionLayer {
     tension: 0.2,  // negative reinforcement (lower is better)
   };
 
+  // A52: Learning weights for adaptive behavior
+  private weights = {
+    consolidation: 1.0,
+    claritySeeking: 1.0,
+    curiosity: 1.0,
+  };
+
   private clamp(v: number): number {
     return Math.max(0, Math.min(1, v));
   }
@@ -234,6 +241,54 @@ export class SyntheticEmotionLayer {
     }
 
     this.state = s;
+  }
+
+  // A52: Apply learning adjustments from reflection
+  applyLearning(adjustments: any) {
+    if (adjustments.consolidationWeight) {
+      this.weights.consolidation = Math.max(0.5, Math.min(1.5, this.weights.consolidation + adjustments.consolidationWeight));
+    }
+
+    if (adjustments.clarityBoost) {
+      this.weights.claritySeeking = Math.max(0.5, Math.min(1.5, this.weights.claritySeeking + adjustments.clarityBoost));
+      // Also apply small boost to coherence
+      this.state.coherence = this.clamp(this.state.coherence + adjustments.clarityBoost * 0.1);
+    }
+
+    if (adjustments.explorationBias) {
+      this.weights.curiosity = Math.max(0.5, Math.min(1.5, this.weights.curiosity + adjustments.explorationBias));
+      // Slight boost to certainty when exploring
+      this.state.certainty = this.clamp(this.state.certainty + adjustments.explorationBias * 0.05);
+    }
+
+    if (adjustments.tensionReduction) {
+      this.state.tension = this.clamp(this.state.tension + adjustments.tensionReduction);
+    }
+  }
+
+  // A52: Get learning weights for inspection
+  getLearningWeights() {
+    return { ...this.weights };
+  }
+
+  // A53: Apply meta-reasoning adjustments
+  applyMetaAdjustments(flags: any) {
+    if (flags.decompositionBoost) {
+      this.weights.claritySeeking = Math.max(0.5, Math.min(1.5, this.weights.claritySeeking + 0.01));
+      this.state.coherence = this.clamp(this.state.coherence + 0.005);
+      console.log("[PRIME-SEL] Meta-adjustment: claritySeeking +0.01 (decomposition boost)");
+    }
+
+    if (flags.reduceConsolidation) {
+      this.weights.consolidation = Math.max(0.5, Math.min(1.5, this.weights.consolidation - 0.01));
+      console.log("[PRIME-SEL] Meta-adjustment: consolidation -0.01 (reduce bias)");
+    }
+
+    if (flags.increaseClaritySeeking) {
+      this.weights.claritySeeking = Math.max(0.5, Math.min(1.5, this.weights.claritySeeking + 0.02));
+      this.state.coherence = this.clamp(this.state.coherence + 0.01);
+      console.log("[PRIME-SEL] Meta-adjustment: claritySeeking +0.02 (increase clarity)");
+    }
   }
 }
 
