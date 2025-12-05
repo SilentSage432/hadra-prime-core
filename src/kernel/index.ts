@@ -26,6 +26,9 @@ import { cognition } from "../cognition/cognition.ts";
 import { SEL } from "../emotion/sel.ts";
 import { MotivationEngine } from "../cognition/motivation_engine.ts";
 import { ProtoGoalEngine } from "../cognition/proto_goal_engine.ts";
+import { ActionEngine } from "../action_layer/action_engine.ts";
+import { IntentRouter } from "../interpretation/intent_router.ts";
+import { CommandProtocol, type OperatorCommand } from "../operator/command_protocol.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -42,6 +45,44 @@ console.log("[KERNEL] HADRA-PRIME core boot sequence complete.");
 
 // A46: Multimodal Perception Layer active
 console.log("[PRIME-KERNEL] Multimodal Perception Layer active.");
+
+// A47: Initialize Action Engine and Intent Router
+const actionEngine = new ActionEngine();
+const intentRouter = new IntentRouter(actionEngine);
+console.log("[PRIME-KERNEL] Action & Intent Routing Layer active.");
+
+// A48: Kernel instance for operator command handling
+const kernelInstance = {
+  actionEngine,
+  intentRouter,
+  async handleOperatorCommand(cmd: OperatorCommand) {
+    console.log("[OPERATOR-COMMAND] Received:", cmd);
+
+    // 1. Structural validation
+    const validation = CommandProtocol.validate(cmd);
+    if (!validation.valid) {
+      console.log("[OPERATOR-COMMAND] Invalid:", validation.reason);
+      return { status: "invalid", reason: validation.reason };
+    }
+
+    // 2. YubiKey authorization placeholder
+    if (!cmd.token) {
+      console.log("[OPERATOR-COMMAND] Missing YubiKey token.");
+      return { status: "denied", reason: "auth_required" };
+    }
+
+    // 3. Convert to PRIME intent
+    const intent = CommandProtocol.toIntent(cmd);
+
+    // 4. Route via intent router
+    const result = await intentRouter.route(intent);
+
+    return {
+      status: "processed",
+      result,
+    };
+  }
+};
 
 // Start event-driven cognitive loop
 cognitiveLoop.start();
@@ -62,6 +103,11 @@ setInterval(() => {
 eventBus.on("prime.input", async (payload: { text: string }) => {
   const response = await cognition.cycle(payload.text);
   console.log("[PRIME-OUTPUT]", response);
+  
+  // A47: Route intent through action engine if actionable
+  if (response && (response as any).intent) {
+    await intentRouter.route((response as any).intent);
+  }
   
   // Expose SEL state after cognition cycle
   const emotion = SEL.getState();
@@ -198,4 +244,7 @@ setInterval(() => {
 export function getRecentMemory(n: number = 5) {
   return PRIME.getRecentMemory(n);
 }
+
+// A48: Export kernel instance for operator command handling
+export { kernelInstance };
 

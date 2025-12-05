@@ -17,6 +17,7 @@ export class SafetyGuard {
     allowVision: true,
     allowAudio: true,
     allowSymbolic: true,
+    hardLock: false,
   };
 
   /**
@@ -124,6 +125,18 @@ export class SafetyGuard {
     }
 
     this.limiter.recordPerceptionEvent();
+    return true;
+  }
+
+  /**
+   * A47: Check if an action type is allowed by safety rules
+   */
+  static allowAction(actionType: string): boolean {
+    if (this.flags.hardLock) return false;
+
+    // Prevent PRIME from escalating without operator intent
+    if (actionType === "prime.self_modify") return false;
+
     return true;
   }
 
