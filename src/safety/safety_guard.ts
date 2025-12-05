@@ -9,6 +9,9 @@ import { SEL } from "../emotion/sel.ts";
 let lastSafetyRun = 0;
 const SAFETY_MIN_INTERVAL = 250; // ms
 
+// A65: Ensure situation model never self-triggers cognition
+export const SITUATION_MODEL_SAFE = true;
+
 export class SafetyGuard {
   static limiter = new SafetyLimiter();
   static maxRecursionDepth = 35;

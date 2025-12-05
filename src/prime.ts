@@ -22,6 +22,8 @@ import { HierarchicalPlanner } from "./planning/hierarchical_planner.ts";
 import { SelfConsistencyEngine } from "./reflection/self_consistency.ts";
 import { PerceptionHub } from "./perception/perception_hub.ts";
 import { MultimodalPerception } from "./perception/multimodal.ts";
+import { PRIME_SITUATION } from "./situation_model/index.ts";
+import { PRIME_TEMPORAL } from "./temporal/reasoner.ts";
 
 export type PrimeLifecycleState = "initializing" | "online" | "degraded" | "offline";
 
@@ -574,6 +576,16 @@ export function primeReceive(input: string) {
 export function subscribeLogs(listener: LogListener) {
   logListeners.add(listener);
   return () => logListeners.delete(listener);
+}
+
+// A65: Safe accessor API for situation model
+export function getSituationSnapshot() {
+  return PRIME_SITUATION.snapshot();
+}
+
+// A66: Safe accessor API for temporal reasoning
+export function getTemporalSummary() {
+  return PRIME_TEMPORAL.summarize();
 }
 
 export default PRIME;

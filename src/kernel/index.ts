@@ -40,6 +40,8 @@ import { DriftPredictor } from "../meta/drift_predictor.ts";
 import { StrategyEngine } from "../strategy/strategy_engine.ts";
 import { MemoryStore } from "../memory/memory_store.ts";
 import { MemoryLayer } from "../memory/memory.ts";
+import { PRIME_SITUATION } from "../situation_model/index.ts";
+import { PRIME_TEMPORAL } from "../temporal/reasoner.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -92,6 +94,9 @@ const strategyEngine = new StrategyEngine(strategyMemoryStore);
 console.log("[PRIME-KERNEL] Strategy Engine online (operator-gated).");
 console.log("[PRIME-STRATEGY] Engine loaded. Awaiting operator directives.");
 
+// A65: Initialize Situation Model
+console.log("[PRIME] Situation Model initialized.");
+
 // A48: Kernel instance for operator command handling
 const kernelInstance = {
   actionEngine,
@@ -125,6 +130,22 @@ const kernelInstance = {
     const meta = metaMonitor.evaluate(cognitiveSnapshot, sel);
     SEL.applyMetaAdjustments(meta.flags);
     
+    // A65: Update meso situation with reflection data
+    const stabilitySnapshot = StabilityMatrix.getSnapshot();
+    PRIME_SITUATION.meso.update({
+      trends: {
+        clarityTrend: sel.coherence, // Use coherence as clarity proxy
+        consolidationTrend: sel.affinity, // Use affinity as consolidation proxy
+        curiosityTrend: sel.certainty // Use certainty as curiosity proxy
+      },
+      memoryPressure: 0, // TODO: Compute from memory system
+      stabilityShift: stabilitySnapshot.score || 0, // Use stability score as shift proxy
+      cognitiveTrajectory: sel.coherence > 0.7 ? "stable" : sel.coherence > 0.4 ? "moderate" : "unstable"
+    });
+    
+    // A66: Temporal reasoning capture (passive)
+    PRIME_TEMPORAL.record();
+    
     // Attach meta evaluation to reflection for future use
     reflection.meta = meta;
     
@@ -135,6 +156,11 @@ const kernelInstance = {
   },
   async handleOperatorCommand(cmd: OperatorCommand) {
     console.log("[OPERATOR-COMMAND] Received:", cmd);
+
+    // A65: Update micro situation with operator command
+    PRIME_SITUATION.micro.update({
+      lastOperatorCommand: cmd.action || cmd.type || "unknown"
+    });
 
     // 1. Structural validation
     const validation = CommandProtocol.validate(cmd);
@@ -178,6 +204,23 @@ setInterval(() => {
   if (goals.length) {
     console.log("[PRIME-HEARTBEAT] top-goal:", goals[0]);
   }
+
+  // A65: Update micro situation with current state
+  const selState = SEL.getState();
+  PRIME_SITUATION.micro.update({
+    emotionalState: {
+      coherence: selState.coherence,
+      certainty: selState.certainty,
+      tension: selState.tension,
+      valence: selState.valence,
+      arousal: selState.arousal,
+      affinity: selState.affinity
+    },
+    safetyPressure: SafetyGuard.snapshot().recursionDepth || 0,
+    clarity: selState.coherence,
+    cognitiveLoad: 0, // TODO: Compute from actual cognitive load
+    activeGoal: goals.length > 0 ? goals[0].type || null : null
+  });
 
   // A51: Trigger reflection after heartbeat
   if (goals.length) {
