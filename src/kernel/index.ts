@@ -75,6 +75,7 @@ import { HierarchicalKnowledgeEngine } from "../memory/knowledge/hierarchical_kn
 import { KnowledgeAttentionEngine } from "../cognition/attention/knowledge_attention_engine.ts";
 import { NeuralBridge } from "../neural/neural_bridge.ts";
 import { AttentionEstimator } from "../neural/attention_estimator.ts";
+import { DualMind } from "../dual_core/dual_mind_activation.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -616,6 +617,13 @@ const kernelInstance = {
   },
   getBackLinks(clusterId: string) {
     return strategicGraph.getBackLinks(clusterId);
+  },
+  // A104b: Dual-Mind Activation Control
+  enableDualMind() {
+    DualMind.activate();
+  },
+  disableDualMind() {
+    DualMind.deactivate();
   }
 };
 

@@ -588,5 +588,13 @@ export function getTemporalSummary() {
   return PRIME_TEMPORAL.summarize();
 }
 
+// A104b: Dual-Mind Activation Control
+import { DualMind } from "./dual_core/dual_mind_activation.ts";
+
+export const PRIME_DUAL_MIND = {
+  enableDualMind: () => DualMind.activate(),
+  disableDualMind: () => DualMind.deactivate()
+};
+
 export default PRIME;
 
