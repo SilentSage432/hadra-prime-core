@@ -22,24 +22,32 @@ class TensorPipeline:
 
     def encode_text(self, text: str):
         """
-        TEMPORARY ENCODER:
-        Converts text → numeric vector → torch tensor → normalized.
-        Replaced in A137+ by real PyTorch embedding model.
+        Uses the real neural encoder model (A137).
         """
-        import torch
-        raw = [ord(c) % 97 for c in text.lower() if c.isalpha()]
-        tensor = safe_tensor(raw)
-        if TORCH_AVAILABLE and hasattr(tensor, 'numel'):
-            if tensor.numel() > 0:
-                norm = torch.linalg.norm(tensor)
-                if norm > 0:
-                    tensor = tensor / norm
-        else:
-            # Fallback normalization
-            from .vector_math import normalize
-            tensor = safe_tensor(normalize(raw))
-        self.last_vector = tensor
-        return tensor
+        try:
+            from .neural_model_manager import NeuralModelManager
+            if not hasattr(self, "_model"):
+                self._model = NeuralModelManager()
+            vector = self._model.encode_text(text)
+            self.last_vector = vector
+            return vector
+        except (ImportError, RuntimeError) as e:
+            # Fallback to simple encoding if neural model unavailable
+            import torch
+            raw = [ord(c) % 97 for c in text.lower() if c.isalpha()]
+            if not raw:
+                raw = [0]
+            tensor = safe_tensor(raw)
+            if TORCH_AVAILABLE and hasattr(tensor, 'numel'):
+                if tensor.numel() > 0:
+                    norm = torch.linalg.norm(tensor)
+                    if norm > 0:
+                        tensor = tensor / norm
+            else:
+                from .vector_math import normalize
+                tensor = safe_tensor(normalize(raw))
+            self.last_vector = tensor
+            return tensor
 
     def batch_vectors(self, vectors):
         """

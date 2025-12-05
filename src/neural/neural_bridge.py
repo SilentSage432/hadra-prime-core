@@ -14,12 +14,14 @@ starts routing thoughts, perceptions, and narratives through embeddings.
 """
 
 from .neural_event_hooks import NeuralEventHooks
+from .neural_state_tracker import NeuralStateTracker
 
 class NeuralBridge:
 
     def __init__(self):
 
         self.hooks = NeuralEventHooks()
+        self.state = NeuralStateTracker()
 
     def process_perception(self, text):
 
@@ -29,7 +31,9 @@ class NeuralBridge:
 
         """
 
-        return self.hooks.on_perception(text)
+        embedding = self.hooks.on_perception(text)
+        self.state.update(embedding)
+        return embedding
 
     def process_reflection(self, thought):
 
@@ -39,7 +43,9 @@ class NeuralBridge:
 
         """
 
-        return self.hooks.on_reflection(thought)
+        embedding = self.hooks.on_reflection(thought)
+        self.state.update(embedding)
+        return embedding
 
     def compare(self, a, b):
 
@@ -54,4 +60,8 @@ class NeuralBridge:
     def status(self):
 
         return self.hooks.debug_status()
+
+    def neural_state(self):
+
+        return self.state.summary()
 
