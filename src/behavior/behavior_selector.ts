@@ -1,7 +1,19 @@
 // src/behavior/behavior_selector.ts
+// A124: Extended with uncertainty-aware behavior selection
 
 export class BehaviorSelector {
-  selectBehavior(smv: any) {
+  selectBehavior(smv: any, cognitiveState?: any) {
+    // A124: Check uncertainty and override behavior if needed
+    if (cognitiveState?.uncertaintyScore !== undefined) {
+      if (cognitiveState.uncertaintyScore > 0.75) {
+        console.log("[PRIME-BEHAVIOR] High uncertainty detected → shifting to 'seek_clarity' mode.");
+        return { type: "seek_clarity", reason: "High uncertainty detected" };
+      }
+      if (cognitiveState.uncertaintyScore > 0.55) {
+        console.log("[PRIME-BEHAVIOR] Moderate uncertainty detected → shifting to 'pause_and_reflect' mode.");
+        return { type: "pause_and_reflect", reason: "Moderate uncertainty" };
+      }
+    }
     const desire = smv.desireState || { recentValence: 0, cumulativeValence: 0 };
 
     const rv = desire.recentValence;

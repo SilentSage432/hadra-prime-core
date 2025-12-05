@@ -18,10 +18,12 @@ import { NeuralContextEncoder } from "../neural/context_encoder.ts";
 import { NeuralSymbolicCoherence } from "./neural_symbolic_coherence.ts";
 import { NeuralCausality } from "./neural_causality_engine.ts";
 import { NeuralEventSegmentation } from "./neural_event_segmentation.ts";
+import { UncertaintyEngine } from "./uncertainty/uncertainty_engine.ts";
 
 export class Cognition {
   private intentEngine = new IntentEngine();
   private router = new IntentRouter();
+  private uncertainty = new UncertaintyEngine();
 
   constructor() {
     // Register handlers
@@ -96,6 +98,28 @@ export class Cognition {
         cognitiveState.recall = recallSummary;
       }
     }
+
+    // A124: Compute uncertainty vector and score
+    cognitiveState.noiseLevel = cognitiveState.noiseLevel ?? 0.1;
+    cognitiveState.predictionVariance = cognitiveState.predictionVariance ?? 0;
+    cognitiveState.conceptDrift = cognitiveState.conceptDrift ?? 0;
+    cognitiveState.ambiguity = cognitiveState.ambiguity ?? 0;
+    cognitiveState.relationalUncertainty = cognitiveState.relationalUncertainty ?? 0;
+
+    cognitiveState.uncertaintyVector = this.uncertainty.compute({
+      noise: cognitiveState.noiseLevel,
+      variance: cognitiveState.predictionVariance,
+      conceptDrift: cognitiveState.conceptDrift,
+      situationalAmbiguity: cognitiveState.ambiguity,
+      trustFluctuation: cognitiveState.relationalUncertainty
+    });
+
+    cognitiveState.uncertaintyScore = this.uncertainty.summarize(cognitiveState.uncertaintyVector);
+
+    console.log("[PRIME-UNCERTAINTY]", {
+      vector: cognitiveState.uncertaintyVector,
+      score: cognitiveState.uncertaintyScore.toFixed(3)
+    });
 
     // A42/A75: Generate plans for each goal (with recall-informed and concept-informed cognitive state)
     // A75: Match concept before planning if embedding is available

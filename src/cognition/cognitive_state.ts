@@ -3,11 +3,13 @@
 // A120: Extended with attentional drift regulation fields
 // A121: Extended with adaptive attentional weight shifting
 // A123: Extended with multi-timescale awareness
+// A124: Extended with multi-layered uncertainty engine
 
 import type { ToneVector } from "../expression/tone/tone_detector.ts";
 import type { MetaState } from "../meta/meta_state.ts";
 import type { NeuralSignal, CoherenceResult } from "./neural_symbolic_coherence.ts";
 import type { TimescaleAwarenessState } from "./timescale_awareness.ts";
+import type { UncertaintyVector } from "./uncertainty/uncertainty_engine.ts";
 
 export interface CognitiveState {
   intent: any;                // interpreted intent packet
@@ -45,5 +47,13 @@ export interface CognitiveState {
   attentionMacro?: number;         // Macro-level attention weight (0-1)
   // A123: Multi-Timescale Awareness fields
   timescaleState?: TimescaleAwarenessState;  // Awareness of cognitive time evolution
+  // A124: Multi-Layered Uncertainty Engine fields
+  uncertaintyVector?: UncertaintyVector;      // Multi-dimensional uncertainty vector
+  uncertaintyScore?: number;                  // Aggregated uncertainty score (0-1)
+  noiseLevel?: number;                        // Cognitive noise level
+  predictionVariance?: number;                // Variance in predictions
+  conceptDrift?: number;                      // Concept instability/drift
+  ambiguity?: number;                          // Situational ambiguity
+  relationalUncertainty?: number;             // Uncertainty in operator/social intent
 }
 
