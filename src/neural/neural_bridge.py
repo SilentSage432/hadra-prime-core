@@ -18,6 +18,8 @@ from .neural_state_tracker import NeuralStateTracker
 from .dual_mind_sync import DualMindSync
 from .neural_coherence_engine import NeuralCoherenceEngine
 from .neural_attention_engine import NeuralAttentionEngine
+from .neural_context_fusion import NeuralContextFusion
+from .neural_thought_selector import NeuralThoughtSelector
 
 class NeuralBridge:
 
@@ -28,6 +30,8 @@ class NeuralBridge:
         self.dual = DualMindSync()
         self.coherence = NeuralCoherenceEngine()
         self.attention = NeuralAttentionEngine()
+        self.fusion = NeuralContextFusion()
+        self.selector = NeuralThoughtSelector()
 
     def process_perception(self, text):
 
@@ -47,6 +51,12 @@ class NeuralBridge:
         
         # Update attention focus vector using new updated timescales
         focus = self.attention.compute_attention_vector(self.state.timescales)
+        
+        # Create fusion vector
+        fusion = self.fusion.fuse(
+            self.attention.last_focus_vector,
+            self.state.timescales
+        )
         
         # Update dual-mind shared vectors using LT identity vector + ST summary
         lt_vec = self.state.timescales.identity_vector
@@ -74,6 +84,12 @@ class NeuralBridge:
         
         # Update attention focus vector using new updated timescales
         focus = self.attention.compute_attention_vector(self.state.timescales)
+        
+        # Create fusion vector
+        fusion = self.fusion.fuse(
+            self.attention.last_focus_vector,
+            self.state.timescales
+        )
         
         # Update dual-mind shared vectors using LT identity vector + ST summary
         lt_vec = self.state.timescales.identity_vector
@@ -118,4 +134,24 @@ class NeuralBridge:
     def attention_status(self):
 
         return self.attention.status()
+
+    def fusion_status(self):
+
+        return self.fusion.status()
+
+    def select_thought(self, candidate_embeddings):
+
+        fusion = self.fusion.last_fusion_vector
+
+        return self.selector.select(
+
+            candidate_embeddings,
+
+            fusion,
+
+            self.attention,
+
+            self.state.memory_manager if hasattr(self.state, "memory_manager") else None
+
+        )
 
