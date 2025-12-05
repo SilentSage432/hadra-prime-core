@@ -56,6 +56,7 @@ import { Hierarchy } from "../cognition/concepts/concept_hierarchy.ts";
 import { Knowledge } from "../cognition/knowledge/knowledge_graph.ts";
 import { Inference } from "../cognition/inference/inference_engine.ts";
 import { Foresight } from "../cognition/prediction/foresight_engine.ts";
+import { MetaSelf } from "../cognition/self/meta_self_engine.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -74,6 +75,9 @@ console.log("[PRIME-INFERENCE] Inference Engine initialized.");
 
 // A79: Initialize foresight/predictive model
 console.log("[PRIME-FORESIGHT] Predictive model initialized.");
+
+// A81: Initialize Meta-Self Awareness Engine
+console.log("[PRIME-SELF] Meta-Self Awareness Engine online.");
 
 console.log("[PRIME] Initializing cognitive threads...");
 // ThreadPool will be initialized with default instances

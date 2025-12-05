@@ -5,12 +5,14 @@
 // A77: Knowledge Graph Integration
 // A78: Inference Engine Integration
 // A79: Long-Range Predictive Model
+// A81: Meta-Self Awareness Engine Integration
 
 import { Concepts } from "./concepts/concept_engine.ts";
 import { Hierarchy } from "./concepts/concept_hierarchy.ts";
 import { Knowledge } from "./knowledge/knowledge_graph.ts";
 import { Inference } from "./inference/inference_engine.ts";
 import { Foresight } from "./prediction/foresight_engine.ts";
+import { MetaSelf } from "./self/meta_self_engine.ts";
 
 export class ReflectionEngine {
   reflect(cognitiveState: any, selState: any) {
@@ -199,6 +201,46 @@ export class ReflectionEngine {
       } catch (error) {
         console.warn("[PRIME-FORESIGHT] Error during prediction:", error);
       }
+    }
+
+    // A81: Update Meta-Self Awareness Engine during reflection
+    if (cognitiveState.motivation && selState) {
+      const state = cognitiveState.motivation;
+      
+      // Update internal state with motivation values
+      MetaSelf.updateInternalState("motivation.consolidation", state.consolidation || 0);
+      MetaSelf.updateInternalState("motivation.curiosity", state.curiosity || 0);
+      MetaSelf.updateInternalState("motivation.claritySeeking", state.claritySeeking || 0);
+      
+      // Update cognitive capabilities
+      // Estimate reflection depth from SEL coherence and tension
+      const reflectionDepth = (selState.coherence || 0) * (1 - (selState.tension || 0));
+      MetaSelf.updateCapability("reflectionDepth", reflectionDepth);
+      
+      // Estimate prediction depth from foresight availability
+      const predictionDepth = (reflection as any).foresight ? 0.7 : 0.3;
+      MetaSelf.updateCapability("predictionDepth", predictionDepth);
+      
+      // Update emotional profile from SEL state
+      // Map SEL coherence to stability, curiosity to exploration, consolidation to consolidation
+      const stability = selState.coherence || 0.5;
+      const exploration = state.curiosity || 0.5;
+      const consolidation = state.consolidation || 0.5;
+      MetaSelf.updateEmotionalProfile(stability, exploration, consolidation);
+      
+      // Adjust growth trajectory
+      MetaSelf.adjustGrowth("selfReflection", 0.001);
+      
+      // Compute and update stability score
+      const stabilityScore = MetaSelf.computeStabilityScore();
+      
+      // Update last reflection timestamp
+      const selfModel = MetaSelf.exportModel();
+      selfModel.lastReflection = reflection.timestamp;
+      
+      this.logReflection(
+        `[SELF] Updated internal self-model (stability=${stabilityScore.toFixed(3)})`
+      );
     }
 
     return reflection;
