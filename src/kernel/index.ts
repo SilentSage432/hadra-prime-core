@@ -52,6 +52,9 @@ import { DualMindSyncManager } from "../dual_mind/sync_manager.ts";
 import { JointSituationModeler } from "../situation_model/joint_situation_modeler.ts";
 import { PRIME_TEMPORAL } from "../temporal/reasoner.ts";
 import { EventSegmentationEngine } from "../neural/event_segmentation_engine.ts";
+import { CrossMindAlignmentEngine } from "../cognition/prediction/cross_mind_alignment_engine.ts";
+import { ForesightEngine } from "../cognition/prediction/foresight_engine.ts";
+import { KnowledgeGraph } from "../cognition/knowledge/knowledge_graph.ts";
 import { EventCapture } from "../memory/episodic/event_capture.ts";
 import { EpisodeBuilder } from "../memory/episodic/episode_builder.ts";
 import { EpisodicArchive } from "../memory/episodic/episodic_archive.ts";
@@ -852,6 +855,45 @@ setInterval(() => {
   const goals = ProtoGoalEngine.computeGoals();
   if (goals.length) {
     console.log("[PRIME-HEARTBEAT] top-goal:", goals[0]);
+  }
+
+  // A117: Update PRIME state in cross-mind alignment engine
+  const alignment = (globalThis as any).__PRIME_CROSS_MIND_ALIGNMENT__ as CrossMindAlignmentEngine;
+  if (alignment) {
+    const selState = SEL.getState();
+    const stabilitySnapshot = StabilityMatrix.getSnapshot();
+    const stability = stabilitySnapshot?.score || (stabilitySnapshot as any)?.stabilityScore || 0.7;
+    
+    // Get intent direction from current goal or planning
+    const intentDirection = goals.length > 0 ? goals[0].type : "neutral";
+    
+    alignment.updatePrimeState({
+      motivation: m,
+      stability: stability,
+      intentDirection: intentDirection,
+      emotion: selState,
+      coherence: selState.coherence,
+      cognitiveLoad: (stabilitySnapshot as any)?.load || 0.5
+    });
+
+    // A117: Log predictive alignment
+    const alignVector = alignment.computeAlignmentVector();
+    if (alignVector) {
+      console.log("[PRIME-ALIGNMENT]", {
+        divergence: alignVector.divergence.toFixed(3),
+        expected_coherence: alignVector.expected_coherence.toFixed(3)
+      });
+    }
+
+    // A117: Auto-realignment trigger
+    const alignmentRec = alignment.recommendRealignment();
+    if (alignmentRec?.type === "realign") {
+      console.log("[PRIME-ALIGNMENT] Realignment recommended:", alignmentRec.reason);
+      // Apply alignment adjustments if StabilityMatrix supports it
+      if (alignmentRec.adjustments && (StabilityMatrix as any).applyAlignmentAdjustment) {
+        (StabilityMatrix as any).applyAlignmentAdjustment(alignmentRec.adjustments);
+      }
+    }
   }
 
   // A116: Generate situation snapshot during heartbeat

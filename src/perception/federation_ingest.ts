@@ -3,6 +3,7 @@
 // Enables cross-mind neural synchronization
 
 import type { DualMindSyncManager } from "../dual_mind/sync_manager.ts";
+import type { CrossMindAlignmentEngine } from "../cognition/prediction/cross_mind_alignment_engine.ts";
 
 export interface FederationPacket {
   type: string;
@@ -55,6 +56,23 @@ export function ingestFederationPacket(packet: FederationPacket): void {
       // Update JSM with SAGE situation data
       JSM.update(primeContext, packet.data || packet);
       console.log("[PRIME-JSM] Updated from SAGE situation packet");
+    }
+    return;
+  }
+
+  // A117: Handle SAGE state updates for cross-mind alignment
+  if (packet.type === "sage_state_update" || packet.type === "sage_state") {
+    const alignment = (globalThis as any).__PRIME_CROSS_MIND_ALIGNMENT__ as CrossMindAlignmentEngine;
+    if (alignment) {
+      const sageState = packet.data || packet;
+      alignment.updateSageState({
+        stability: sageState.stability || sageState.health || 0.7,
+        motivation: sageState.motivation || 0.5,
+        intentDirection: sageState.intentDirection || sageState.currentObjective || "neutral",
+        cognitiveLoad: sageState.cognitiveLoad || sageState.load || 0.5,
+        clusterState: sageState.clusterState || sageState
+      });
+      console.log("[PRIME-ALIGNMENT] Updated SAGE state for predictive alignment");
     }
     return;
   }

@@ -42,4 +42,7 @@ export { JointSituationModeler, type JointSituationSnapshot } from "./situation_
 // A115: Export Neural Event Segmentation Engine
 export { EventSegmentationEngine } from "./neural/event_segmentation_engine.ts";
 export type { EventBoundary } from "./memory/episodic/event_capture.ts";
+// A117: Export Cross-Mind Predictive Alignment Engine
+export { CrossMindAlignmentEngine } from "./cognition/prediction/cross_mind_alignment_engine.ts";
+export type { AlignmentVector, RealignmentRecommendation } from "./cognition/prediction/cross_mind_alignment_engine.ts";
 
