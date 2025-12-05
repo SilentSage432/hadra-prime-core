@@ -47,6 +47,8 @@ import { StrategicResonanceEngine } from "../strategy/strategic_resonance_engine
 import { MemoryStore } from "../memory/memory_store.ts";
 import { MemoryLayer } from "../memory/memory.ts";
 import { PRIME_SITUATION, SituationModelGenerator } from "../situation_model/index.ts";
+import { DualMindSyncManager } from "../dual_mind/sync_manager.ts";
+import { JointSituationModeler } from "../situation_model/joint_situation_modeler.ts";
 import { PRIME_TEMPORAL } from "../temporal/reasoner.ts";
 import { EventCapture } from "../memory/episodic/event_capture.ts";
 import { EpisodeBuilder } from "../memory/episodic/episode_builder.ts";
@@ -811,6 +813,28 @@ intentRouter.setKernel(kernelInstance);
 
 // Start event-driven cognitive loop
 cognitiveLoop.start();
+
+// A114: PRIME cognitive pulse (100 Hz for neural sync)
+setInterval(() => {
+  const sync = (globalThis as any).__PRIME_SYNC__ as DualMindSyncManager;
+  if (sync) {
+    sync.syncPrimePulse();
+  }
+}, 10); // 100 Hz cognitive pulse
+
+// A116: Unified JSM log pulse
+setInterval(() => {
+  const JSM = (globalThis as any).__PRIME_JSM__;
+  if (JSM) {
+    const snapshot = JSM.getCurrent();
+    if (snapshot) {
+      console.log(`[PRIME-JSM] Coherence=${snapshot.coherence.toFixed(3)} :: ${snapshot.narrative}`);
+      if (snapshot.disagreements && snapshot.disagreements.length > 0) {
+        console.log(`[PRIME-JSM] Disagreements: ${snapshot.disagreements.join("; ")}`);
+      }
+    }
+  }
+}, 4000); // Log every 4 seconds
 
 // A39: PRIME's motivation heartbeat
 // A108b: Hardware-adaptive heartbeat interval

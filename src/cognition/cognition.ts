@@ -142,6 +142,24 @@ export class Cognition {
     // A35: Post-cognition normalization
     this.finalizeCognition(routed, intent);
 
+    // A116: Update Joint Situation Modeler with PRIME context
+    const JSM = (globalThis as any).__PRIME_JSM__;
+    if (JSM) {
+      const primeContext = {
+        timestamp: Date.now(),
+        activeGoal: cognitiveState.activeGoal,
+        recommendedFocus: cognitiveState.activeGoal?.type,
+        coherenceScore: intent.confidence,
+        stability: intent.confidence,
+        salience: [], // Can be populated from situation model
+        summary: `Processing intent: ${intent.intent}`
+      };
+      
+      // Get SAGE state from federation (if available)
+      const sageState = (globalThis as any).__SAGE_STATE__ || null;
+      JSM.update(primeContext, sageState);
+    }
+
     return routed;
   }
 

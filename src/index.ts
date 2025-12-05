@@ -33,4 +33,10 @@ export { NeuralConvergenceContract, type NeuralPacket } from "./neural/contract/
 export { primeEmbeddingAdapter } from "./neural/embedding/prime_embedding_adapter.ts";
 export { sageEmbeddingParser } from "./neural/embedding/sage_embedding_parser.ts";
 export type { SharedEmbedding } from "./shared/embedding.ts";
+// A114: Export Cross-Mind Neural Synchronization
+export { DualMindSyncManager } from "./dual_mind/sync_manager.ts";
+export { NeuralSyncEngine } from "./dual_mind/synchronization_engine.ts";
+export { ingestFederationPacket, createSagePulsePacket } from "./perception/federation_ingest.ts";
+// A116: Export Joint Situation Modeler
+export { JointSituationModeler, type JointSituationSnapshot } from "./situation_model/joint_situation_modeler.ts";
 
