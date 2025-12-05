@@ -1,5 +1,6 @@
 // src/situation_model/index.ts
 // A65: Multi-Scale Situation Model Manager
+// A116: Neural Situation Model Generator Integration
 
 import { MicroSituationModel } from "./micro.ts";
 import { MesoSituationModel } from "./meso.ts";
@@ -20,4 +21,10 @@ export class SituationModel {
 }
 
 export const PRIME_SITUATION = new SituationModel();
+
+// A116: Export generator
+export * from "./generator.ts";
+export * from "./micro.ts";
+export * from "./meso.ts";
+export * from "./macro.ts";
 

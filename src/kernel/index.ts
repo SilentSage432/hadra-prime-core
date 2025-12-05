@@ -46,7 +46,7 @@ import { StrategicAutonomyEngine } from "../strategy/strategic_autonomy_engine.t
 import { StrategicResonanceEngine } from "../strategy/strategic_resonance_engine.ts";
 import { MemoryStore } from "../memory/memory_store.ts";
 import { MemoryLayer } from "../memory/memory.ts";
-import { PRIME_SITUATION } from "../situation_model/index.ts";
+import { PRIME_SITUATION, SituationModelGenerator } from "../situation_model/index.ts";
 import { PRIME_TEMPORAL } from "../temporal/reasoner.ts";
 import { EventCapture } from "../memory/episodic/event_capture.ts";
 import { EpisodeBuilder } from "../memory/episodic/episode_builder.ts";
@@ -246,6 +246,11 @@ console.log("[PRIME-NEURAL] Causality engine online.");
 // A115: Initialize Neural Event Segmentation Engine
 console.log("[PRIME-KERNEL] Neural Event Segmentation Engine online.");
 console.log("[PRIME-NEURAL] Neural Event Segmentation online.");
+
+// A116: Initialize Neural Situation Model Generator
+const situationModelGenerator = new SituationModelGenerator();
+console.log("[PRIME-KERNEL] Neural Situation Model Generator online.");
+console.log("[PRIME-SITUATION] Neural-dynamic situation awareness enabled.");
 
 // A52: Initialize Learning Engine
 const learningEngine = new LearningEngine();
@@ -811,6 +816,16 @@ setInterval(() => {
   if (goals.length) {
     console.log("[PRIME-HEARTBEAT] top-goal:", goals[0]);
   }
+
+  // A116: Generate situation snapshot during heartbeat
+  const situationSnapshot = situationModelGenerator.generateSituationSnapshot();
+  eventBus.emit("situation:update", situationSnapshot);
+  console.log("[PRIME-SITUATION] snapshot:", {
+    recommendedFocus: situationSnapshot.recommendedFocus,
+    coherence: situationSnapshot.coherenceScore.toFixed(3),
+    uncertainty: situationSnapshot.uncertaintyScore.toFixed(3),
+    salience: situationSnapshot.salience.slice(0, 3)
+  });
 
   // A65: Update micro situation with current state
   const selState = SEL.getState();
