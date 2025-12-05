@@ -49,6 +49,7 @@ import { EpisodicReinforcementEngine } from "../memory/episodic/reinforcement_en
 import { MetaMemory } from "../memory/episodic/meta_memory.ts";
 import { PatternGeneralizationEngine } from "../memory/episodic/pattern_generalization_engine.ts";
 import { StrategicPatternGraph } from "../memory/episodic/strategic_pattern_graph.ts";
+import { NeuralContextEncoder } from "../neural/context_encoder.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -120,6 +121,9 @@ const patternEngine = new PatternGeneralizationEngine();
 const strategicGraph = new StrategicPatternGraph();
 let lastClusterId: string | null = null;
 
+// A72: Initialize Neural Context Encoding Layer
+const ncel = new NeuralContextEncoder();
+
 // Start initial episode
 episodeBuilder.startEpisode("System Initialization & Calibration");
 console.log("[PRIME-EPISODE] Initial episode started: System Initialization & Calibration");
@@ -186,6 +190,26 @@ const kernelInstance = {
     episodeBuilder.addEvent(microEvent);
     console.log("[PRIME-EPISODE] micro-event captured: reflection update");
     console.log("[PRIME-EPISODE] micro-event recorded in active episode.");
+    
+    // A72: Neural Context Encoding
+    const cognitiveState = {
+      activeGoal: cognitiveSnapshot.topGoal ? { type: cognitiveSnapshot.topGoal.type || "unknown" } : undefined,
+      confidence: (cognitiveSnapshot.motivation as any)?.confidence ?? sel.certainty,
+      uncertainty: 1 - (sel.certainty ?? 0),
+      lastReflection: reflection.summary ? { 
+        reason: reflection.summary, 
+        pressure: sel.tension 
+      } : undefined
+    };
+    
+    const neuralContext = ncel.encodeContext(
+      cognitiveState,
+      motivationState,
+      stabilitySnapshot
+    );
+    
+    eventBus.emit("neuralContext", neuralContext);
+    console.log("[PRIME-NCEL] Encoded neural context vector:", neuralContext.vector.slice(0, 8), "...");
     
     // Check if stability has stabilized and close episode if needed
     const currentEpisode = episodeBuilder.getCurrent();
