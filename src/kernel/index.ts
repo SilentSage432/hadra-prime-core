@@ -73,6 +73,7 @@ import { ConceptMergeSplitEngine } from "../memory/concepts/concept_merge_split_
 import { SemanticCompressionEngine } from "../memory/concepts/semantic_compression_engine.ts";
 import { HierarchicalKnowledgeEngine } from "../memory/knowledge/hierarchical_knowledge_engine.ts";
 import { KnowledgeAttentionEngine } from "../cognition/attention/knowledge_attention_engine.ts";
+import { NeuralBridge } from "../neural/neural_bridge.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -159,6 +160,10 @@ console.log("[PRIME-CONCEPTS] Hierarchical Knowledge Engine online.");
 // A100: Initialize Knowledge Attention Engine
 const attentionEngine = new KnowledgeAttentionEngine();
 console.log("[PRIME-CONCEPTS] Knowledge Attention Engine online.");
+
+// A101: Initialize Neural Slot #2 Bridge
+console.log("[PRIME-NEURAL] Neural Slot #2 Bridge initialized.");
+(globalThis as any).PRIME_NEURAL_BRIDGE = NeuralBridge;
 
 console.log("[PRIME] Initializing cognitive threads...");
 // ThreadPool will be initialized with default instances

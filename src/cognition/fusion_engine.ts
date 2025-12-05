@@ -17,6 +17,7 @@ import { NeuralBoundary } from "../neural/boundary_controller.ts";
 import { NeuralContextEncoder } from "../neural/context_encoder.ts";
 import { MotivationEngine } from "./motivation_engine.ts";
 import { NIC, type NeuralInputContract } from "../neural/contract/neural_interaction_contract.ts";
+import type { SymbolicPacket } from "../shared/symbolic_packet.ts";
 
 export class FusionEngine {
   private memory: MemoryStore;
@@ -25,7 +26,7 @@ export class FusionEngine {
     this.memory = memory;
   }
 
-  buildCognitiveState(intent: any, tone: ToneVector, contextSnapshot: any): CognitiveState {
+  async buildCognitiveState(intent: any, tone: ToneVector, contextSnapshot: any): Promise<CognitiveState> {
     const start = performance.now();
 
     // Attach temporal context to payload before fusion
@@ -195,6 +196,30 @@ export class FusionEngine {
             console.log("[NEURAL] Assistance rejected or unavailable.");
           }
         }
+      }
+    }
+
+    // A101: Neural Bridge Integration - Cross-Modal Embedding Bridge
+    if ((globalThis as any).PRIME_NEURAL_BRIDGE) {
+      try {
+        const packet: SymbolicPacket = {
+          type: "cognitive_state",
+          payload: {
+            intent: cognitiveState.intent,
+            priorityLevel: cognitiveState.priorityLevel,
+            riskLevel: cognitiveState.riskLevel,
+            operatorFocus: cognitiveState.operatorFocus
+          }
+        };
+
+        const encoded = (globalThis as any).PRIME_NEURAL_BRIDGE.encodeToTensor(packet);
+        const neuralOut = await (globalThis as any).PRIME_NEURAL_BRIDGE.runNeuralModel(encoded);
+        const decoded = (globalThis as any).PRIME_NEURAL_BRIDGE.decodeFromTensor(neuralOut);
+        
+        // Attach neural enhancement to cognitive state
+        (cognitiveState as any).neural_enhancement = decoded;
+      } catch (error) {
+        console.warn("[PRIME-NEURAL] Neural bridge processing failed:", error);
       }
     }
 

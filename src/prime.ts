@@ -177,7 +177,7 @@ class PrimeEngine extends EventEmitter {
     // DISABLED: Auto-looping tick removed to prevent recursion storms
     // PRIME now operates in event-driven mode via cognitive_loop.ts
     // this.updateTickRate(); // set initial adaptive tick
-    // this.loopInterval = setInterval(() => this.tick(), this.currentTick);
+    // this.loopInterval = setInterval(() => { this.tick().catch(err => console.error("Tick error:", err)); }, this.currentTick);
     this.log("PRIME tick loop disabled — operating in event-driven mode");
   }
 
@@ -193,7 +193,7 @@ class PrimeEngine extends EventEmitter {
   /**
    * Synchronous neural pulse: PRIME's thinking cycle.
    */
-  private tick() {
+  private async tick() {
     // Pre-cognition safety check
     if (!SafetyGuard.preCognitionCheck()) {
       this.log("⚠️ Cognition cycle skipped due to safety constraints.");
@@ -346,7 +346,7 @@ class PrimeEngine extends EventEmitter {
 
     // Build PRIME's unified cognitive state (with fusion stability)
     const fusionStart = performance.now();
-    const cognitiveState = this.fusion.buildCognitiveState(
+    const cognitiveState = await this.fusion.buildCognitiveState(
       intent,
       tone,
       contextSnapshot
