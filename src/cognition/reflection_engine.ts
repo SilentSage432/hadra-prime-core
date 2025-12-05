@@ -3,10 +3,12 @@
 // A75: Concept Formation Integration
 // A76: Hierarchical Concept Networks
 // A77: Knowledge Graph Integration
+// A78: Inference Engine Integration
 
 import { Concepts } from "./concepts/concept_engine.ts";
 import { Hierarchy } from "./concepts/concept_hierarchy.ts";
 import { Knowledge } from "./knowledge/knowledge_graph.ts";
+import { Inference } from "./inference/inference_engine.ts";
 
 export class ReflectionEngine {
   reflect(cognitiveState: any, selState: any) {
@@ -88,6 +90,42 @@ export class ReflectionEngine {
     if (cognitiveState.embedding) {
       // Link to related memories via embedding similarity
       // (This will be handled by the memory bank's similarity links)
+    }
+
+    // A78: Perform inference operations
+    if (cognitiveState.embedding) {
+      // Infer latent graph links
+      const latent = Inference.deriveLatentLinks();
+      if (latent.length > 0) {
+        this.logReflection(`Latent conceptual relationships detected: ${latent.length}`);
+        console.log("[PRIME-INFERENCE] Latent links derived:", latent.length);
+      }
+
+      // Infer active domain
+      const domainGuess = Inference.inferActiveDomain(cognitiveState.embedding);
+      if (domainGuess.domain && domainGuess.confidence > 0.5) {
+        this.logReflection(
+          `Inference: Current state aligns with domain ${domainGuess.domain.id} (conf=${domainGuess.confidence.toFixed(2)})`
+        );
+        console.log("[PRIME-INFERENCE] Active domain inferred:", {
+          domainId: domainGuess.domain.id,
+          confidence: domainGuess.confidence.toFixed(3)
+        });
+      }
+
+      // Suggest strategy
+      const strategy = Inference.inferStrategy(cognitiveState.embedding);
+      if (strategy && strategy.confidence > 0.3) {
+        this.logReflection(
+          `Inference: Recommended strategy — ${strategy.strategy} (conf=${strategy.confidence.toFixed(2)})`
+        );
+        console.log("[PRIME-INFERENCE] Strategy inferred:", {
+          strategy: strategy.strategy,
+          confidence: strategy.confidence.toFixed(3)
+        });
+        // Attach strategy to reflection for planning use
+        (reflection as any).inferredStrategy = strategy;
+      }
     }
 
     return reflection;

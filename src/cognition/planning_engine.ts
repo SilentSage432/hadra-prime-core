@@ -2,9 +2,11 @@
 // A74: Neural Recall Integration
 // A76: Hierarchical Concept Networks
 // A77: Knowledge Graph Integration
+// A78: Inference Engine Integration
 
 import type { ProtoGoal } from "./proto_goal_engine.ts";
 import { Knowledge } from "./knowledge/knowledge_graph.ts";
+import { Inference } from "./inference/inference_engine.ts";
 import { ActionSelectionEngine } from "./action_selection_engine.ts";
 import { SEL } from "../emotion/sel.ts";
 import { StabilityMatrix } from "../stability/stability_matrix.ts";
@@ -73,6 +75,23 @@ export class PlanningEngine {
         strength: cognitiveState.domain.strength,
         weight: domainWeight.toFixed(3)
       });
+    }
+
+    // A78: Use inference engine for strategy recommendations
+    if (cognitiveState?.embedding) {
+      const inferred = Inference.inferStrategy(cognitiveState.embedding);
+      if (inferred && inferred.confidence > 0.3) {
+        intentModifiers.push({
+          type: "inference_strategy",
+          weight: inferred.confidence,
+          note: inferred.strategy,
+        });
+        console.log("[PRIME-INFERENCE] Planning influenced by inferred strategy:", {
+          strategy: inferred.strategy,
+          confidence: inferred.confidence.toFixed(3),
+          weight: inferred.confidence.toFixed(3)
+        });
+      }
     }
 
     // A77: Reference knowledge graph for planning influence

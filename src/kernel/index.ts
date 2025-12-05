@@ -54,6 +54,7 @@ import { NeuralMemory } from "../cognition/neural/neural_memory_bank.ts";
 import { Concepts } from "../cognition/concepts/concept_engine.ts";
 import { Hierarchy } from "../cognition/concepts/concept_hierarchy.ts";
 import { Knowledge } from "../cognition/knowledge/knowledge_graph.ts";
+import { Inference } from "../cognition/inference/inference_engine.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -66,6 +67,9 @@ console.log("[PRIME-CONCEPT] Concept Formation Engine initialized.");
 
 // A77: Initialize knowledge graph
 console.log("[PRIME-KNOWLEDGE] Knowledge Graph Engine initialized.");
+
+// A78: Initialize inference engine
+console.log("[PRIME-INFERENCE] Inference Engine initialized.");
 
 console.log("[PRIME] Initializing cognitive threads...");
 // ThreadPool will be initialized with default instances
