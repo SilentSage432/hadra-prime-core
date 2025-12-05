@@ -79,12 +79,25 @@ import { DualMind } from "../dual_core/dual_mind_activation.ts";
 import { DualMindSafetyGate } from "../safety/dual_mind_safety_gate.ts";
 import { JointIntentHarmonizer } from "../intent_engine/joint_intent_harmonizer.ts";
 import { DualMindCoherenceEngine } from "../distributed/dual_mind_coherence_engine.ts";
+import { MultiAgentPredictiveAlignment } from "../distributed/multi_agent_predictive_alignment.ts";
+import { HardwareProfiler } from "../hardware/hardware_profile.ts";
+import { HardwareAdapter } from "../hardware/hardware_adapter.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
 StabilityMatrix.init();
 
 console.log("[PRIME] Cognitive Fusion Stability Layer active.");
+
+// A108b: Hardware Profiling Layer
+const hardware = HardwareProfiler.detect();
+console.log("[PRIME-HARDWARE] Detected:", hardware);
+(globalThis as any).__PRIME_HARDWARE__ = hardware;
+
+// A108b: Apply adaptive configuration based on hardware
+const hardwareAdapter = new HardwareAdapter(hardware);
+const adaptiveConfig = hardwareAdapter.configureForHardware();
+console.log("[PRIME-ADAPT] Configuration applied:", adaptiveConfig);
 
 // A75: Initialize concept engine
 console.log("[PRIME-CONCEPT] Concept Formation Engine initialized.");
@@ -186,6 +199,7 @@ if (typeof process !== "undefined") {
 console.log("[PRIME] Initializing cognitive threads...");
 // ThreadPool will be initialized with default instances
 // For full integration, it should be initialized with PRIME's actual instances
+// A108b: ThreadPool now respects hardware-adaptive limits
 ThreadPool.init();
 
 console.log("[KERNEL] HADRA-PRIME core boot sequence complete.");
@@ -260,6 +274,7 @@ const kernelInstance = {
   intentRouter,
   planEngine,
   strategyEngine,
+  learningEngine,
   async generateAndRunPlan(goal: string, highLevelAction: string, params?: any) {
     // Step decomposition (placeholder — later ML-driven)
     const steps: PlanStep[] = [
@@ -655,6 +670,9 @@ intentRouter.setKernel(kernelInstance);
 cognitiveLoop.start();
 
 // A39: PRIME's motivation heartbeat
+// A108b: Hardware-adaptive heartbeat interval
+const heartbeatConfig = (globalThis as any).__PRIME_ADAPTIVE_CONFIG__;
+const heartbeatInterval = heartbeatConfig?.reflectionFrequency || 7000;
 setInterval(() => {
   const m = MotivationEngine.compute();
   console.log("[PRIME-HEARTBEAT] motivation:", m);
@@ -715,7 +733,7 @@ setInterval(() => {
       console.log("[KERNEL] PRIME self-regulated cognitive landscape.");
     }
   }
-}, 7000); // every 7 seconds — slow and intentional
+}, heartbeatInterval); // A108b: Hardware-adaptive interval
 
 // A75: Concept derivation on memory updates
 let conceptDerivationCounter = 0;
@@ -754,6 +772,19 @@ eventBus.on("dual_mind:input", (sagePacket: any) => {
 
   // Compute coherence weights
   const weights = DualMindCoherenceEngine.computeWeights(primeState, sageState);
+
+  // A108 — Predictive alignment pass
+  const forecast = MultiAgentPredictiveAlignment.forecast(
+    primeState,
+    sageState,
+    weights
+  );
+  console.log("[PRIME-DUAL] Forecast:", forecast);
+
+  // PRIME uses forecast to adjust internal modulation
+  if (PRIME && (PRIME as any).applyForecast) {
+    (PRIME as any).applyForecast(forecast);
+  }
 
   // Build intent proposals
   const primeIntent = {
@@ -961,4 +992,7 @@ export function getNeuralMemory() {
 
 // A48: Export kernel instance for operator command handling
 export { kernelInstance };
+
+// A108: Expose kernelInstance globally for PRIME forecast access
+(globalThis as any).kernelInstance = kernelInstance;
 

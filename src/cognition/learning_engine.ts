@@ -48,5 +48,15 @@ export class LearningEngine {
     const delta = success ? +0.1 : -0.1;
     NeuralMemory.reinforce(embedding, delta);
   }
+
+  // A108: Adjust exploration bias based on predictive alignment forecast
+  private explorationBias: number = 0.1;
+
+  adjustExplorationBias(delta: number) {
+    this.explorationBias = (this.explorationBias ?? 0.1) + delta;
+    // Clamp between reasonable bounds
+    this.explorationBias = Math.max(0, Math.min(1, this.explorationBias));
+    console.log("[PRIME-LEARNING] Exploration bias adjusted to:", this.explorationBias.toFixed(3));
+  }
 }
 

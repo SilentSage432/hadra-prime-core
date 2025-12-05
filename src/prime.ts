@@ -579,6 +579,28 @@ class PrimeEngine extends EventEmitter {
       (this.reflector as any).logIntentConflict(h);
     }
   }
+
+  // A108: Apply predictive forecast to adjust internal cognitive modulation
+  applyForecast(forecast: any) {
+    console.log("[PRIME] Forecast integration:", forecast);
+
+    // PRIME gently adjusts curiosity, consolidation, or claritySeeking
+    // based on expected alignment with SAGE.
+    // Access learning engine through global kernel instance
+    const kernelInstance = (globalThis as any).kernelInstance;
+    const learningEngine = kernelInstance?.learningEngine;
+
+    if (forecast.divergenceRisk > 0.6) {
+      // PRIME becomes more introspective to avoid conflict
+      learningEngine?.adjustExplorationBias?.(-0.01);
+    } else {
+      // PRIME becomes more open to external guidance
+      learningEngine?.adjustExplorationBias?.(0.01);
+    }
+
+    // Store for reflection
+    (this as any).predictedJointIntent = forecast.predictedIntent;
+  }
 }
 
 const PRIME = new PrimeEngine();

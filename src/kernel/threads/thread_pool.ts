@@ -22,6 +22,13 @@ export class ThreadPool {
   static init(memoryStore?: MemoryStore, contextManager?: ContextManager) {
     this.threads = [];
 
+    // A108b: Adjust thread limit based on hardware
+    const adaptiveConfig = (globalThis as any).__PRIME_ADAPTIVE_CONFIG__;
+    if (adaptiveConfig) {
+      this.maxThreads = adaptiveConfig.threadLimit;
+      console.log(`[PRIME-THREADS] Hardware-adaptive thread limit: ${this.maxThreads}`);
+    }
+
     // Create shared memory store and context manager if not provided
     if (!memoryStore) {
       const memoryLayer = new MemoryLayer();
