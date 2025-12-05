@@ -31,6 +31,7 @@ import { IntentRouter } from "../interpretation/intent_router.ts";
 import { CommandProtocol, type OperatorCommand } from "../operator/command_protocol.ts";
 import { PlanEngine, type Plan, type PlanStep } from "../planning/plan_engine.ts";
 import { ReflectionEngine } from "../cognition/reflection_engine.ts";
+import { InternalMonologueEngine } from "../cognition/self/internal_monologue_engine.ts";
 import { LearningEngine } from "../cognition/learning_engine.ts";
 import { MetaReasoningMonitor } from "../cognition/meta_reasoning_monitor.ts";
 import { MetaReflectionEngine } from "../meta/meta_reflection_engine.ts";
@@ -38,6 +39,8 @@ import { SelfModelVector } from "../meta/self_model_vector.ts";
 import { MetaLearningLayer } from "../meta/meta_learning_layer.ts";
 import { DriftPredictor } from "../meta/drift_predictor.ts";
 import { StrategyEngine } from "../strategy/strategy_engine.ts";
+import { StrategicAutonomyEngine } from "../strategy/strategic_autonomy_engine.ts";
+import { StrategicResonanceEngine } from "../strategy/strategic_resonance_engine.ts";
 import { MemoryStore } from "../memory/memory_store.ts";
 import { MemoryLayer } from "../memory/memory.ts";
 import { PRIME_SITUATION } from "../situation_model/index.ts";
@@ -54,6 +57,7 @@ import { NeuralMemory } from "../cognition/neural/neural_memory_bank.ts";
 import { Concepts } from "../cognition/concepts/concept_engine.ts";
 import { Hierarchy } from "../cognition/concepts/concept_hierarchy.ts";
 import { Knowledge } from "../cognition/knowledge/knowledge_graph.ts";
+import { Recall } from "../cognition/recall_engine.ts";
 import { Inference } from "../cognition/inference/inference_engine.ts";
 import { Foresight } from "../cognition/prediction/foresight_engine.ts";
 import { MetaSelf } from "../cognition/self/meta_self_engine.ts";
@@ -220,6 +224,11 @@ console.log("[PRIME-KERNEL] Plan Engine active.");
 const reflectionEngine = new ReflectionEngine();
 console.log("[PRIME-KERNEL] Reflection Engine active.");
 
+// A111: Initialize Internal Monologue Engine
+const internalMonologueEngine = new InternalMonologueEngine();
+console.log("[PRIME-KERNEL] Internal Monologue Engine online.");
+console.log("[PRIME-MONOLOGUE] Structured self-dialogue enabled.");
+
 // A52: Initialize Learning Engine
 const learningEngine = new LearningEngine();
 console.log("[PRIME-KERNEL] Learning Engine active.");
@@ -241,6 +250,24 @@ const strategyMemoryStore = new MemoryStore(strategyMemoryLayer);
 const strategyEngine = new StrategyEngine(strategyMemoryStore);
 console.log("[PRIME-KERNEL] Strategy Engine online (operator-gated).");
 console.log("[PRIME-STRATEGY] Engine loaded. Awaiting operator directives.");
+
+// A109: Initialize Strategic Autonomy Engine
+const strategicAutonomyEngine = new StrategicAutonomyEngine(
+  Knowledge,
+  Recall,
+  metaReflectionEngine
+);
+console.log("[PRIME-KERNEL] Strategic Autonomy Engine online.");
+console.log("[PRIME-STRATEGY] Level-1 autonomous reasoning enabled.");
+
+// A110: Initialize Strategic Resonance Engine
+const strategicResonanceEngine = new StrategicResonanceEngine(
+  SEL,
+  MetaSelf,
+  Recall
+);
+console.log("[PRIME-KERNEL] Strategic Resonance Engine online.");
+console.log("[PRIME-RESONANCE] Strategy ↔ Emotion ↔ Memory ↔ Identity fusion enabled.");
 
 // A65: Initialize Situation Model
 console.log("[PRIME] Situation Model initialized.");
@@ -345,6 +372,32 @@ const kernelInstance = {
     // A76: Domain may have been attached during reflection, ensure it's in cognitive state
     if ((reflection as any).domain) {
       cognitiveState.domain = (reflection as any).domain;
+    }
+    
+    // A111: Internal monologue after reflection
+    const monologueState: any = {
+      activeGoal: cognitiveSnapshot.topGoal ? { type: cognitiveSnapshot.topGoal.type || cognitiveSnapshot.topGoal } : undefined,
+      confidence: cognitiveSnapshot.motivation?.confidence ?? sel.certainty,
+      uncertainty: 1 - (sel.certainty ?? 0)
+    };
+    
+    const monologue = internalMonologueEngine.runDialogue(monologueState);
+    if (monologue && monologue.turns.length > 0) {
+      console.log("[PRIME-MONOLOGUE] Internal dialogue completed:", {
+        turns: monologue.turns.length,
+        finalClarity: monologue.finalClarity.toFixed(3),
+        clarityImproved: monologue.clarityImproved,
+        halted: monologue.halted,
+        reason: monologue.reason
+      });
+      
+      monologue.turns.forEach((turn, idx) => {
+        console.log(`[PRIME-DIALOGUE] turn ${idx + 1}:`, {
+          thought: turn.thought,
+          response: turn.response,
+          clarityDelta: turn.clarityDelta.toFixed(3)
+        });
+      });
     }
     
     // Update cognitive state with reflection info
@@ -706,6 +759,31 @@ setInterval(() => {
       motivation: m,
       topGoal: goals[0]
     });
+
+    // A109: Strategic autonomy reasoning after reflection
+    const goalType = goals[0].type || "unknown";
+    const strategic = strategicAutonomyEngine.reasonAbout(goalType);
+    if (strategic.length > 0) {
+      console.log("[PRIME-STRATEGY] Strategic pathways evaluated:", {
+        goal: goalType,
+        bestSubgoal: strategic[0].subgoal,
+        score: strategic[0].score.toFixed(3),
+        totalPathways: strategic.length
+      });
+
+      // A110: Compute resonance for strategic outcomes
+      const resonant = strategicResonanceEngine.selectResonantStrategy(strategic);
+      console.log("[PRIME-RESONANCE] Selected resonant strategy:", {
+        goal: goalType,
+        subgoal: resonant.subgoal,
+        resonance: resonant.resonance.toFixed(3),
+        components: {
+          emotional: resonant.components.emotional.toFixed(3),
+          memory: resonant.components.memory.toFixed(3),
+          identity: resonant.components.identity.toFixed(3)
+        }
+      });
+    }
   }
 
   // A54: Run meta-reflection cycle
