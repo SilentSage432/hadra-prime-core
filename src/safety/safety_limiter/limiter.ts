@@ -1,5 +1,7 @@
 // src/safety/safety_limiter/limiter.ts
 
+import { RecursionGuard } from "../recursion_guard.ts";
+
 export class SafetyLimiter {
   private recursionCount = 0;
   private recursionLimit = 20;
@@ -13,7 +15,8 @@ export class SafetyLimiter {
   recordRecursion(): boolean {
     this.recursionCount++;
 
-    if (this.recursionCount > this.recursionLimit) {
+    // Use predictive recursion guard for intelligent halting
+    if (RecursionGuard.shouldHalt(this.recursionCount)) {
       console.warn("[PRIME-SAFETY] Recursion limit exceeded. Halting branch.");
       return false;
     }

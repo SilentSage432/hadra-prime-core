@@ -1,8 +1,17 @@
 import { StabilityMatrix } from "../stability/stability_matrix.ts";
 import { SafetyGuard } from "../safety/safety_guard.ts";
+import { ThreadPool } from "./threads/thread_pool.ts";
+import { TemporalRing } from "../memory/temporal_ring.ts";
+import { DistributedState } from "../distributed/state_snapshot.ts";
+import { ClusterBus } from "../distributed/cluster_bus.ts";
 
 export function startRuntime(modules: any) {
   console.log("⏱️ HADRA-PRIME Runtime Scheduler Activated");
+
+  // Initialize thread pool if not already initialized
+  if (ThreadPool.threads.length === 0) {
+    ThreadPool.init();
+  }
 
   setInterval(() => {
     // Heartbeat loop — future logic goes here
@@ -22,7 +31,39 @@ export function startRuntime(modules: any) {
     if (StabilityMatrix.unstable()) {
       console.warn("[PRIME] Stability degradation detected in runtime scheduler.");
     }
+
+    // Broadcast distributed snapshot for future cluster sync
+    const distributedSnapshot = DistributedState.getSnapshot();
+    ClusterBus.broadcast(distributedSnapshot);
   }, 3000);
+}
+
+/**
+ * Dispatch a cognitive task to the thread pool
+ */
+export async function dispatchCognitiveTask(eventPayload: any) {
+  const result = await ThreadPool.dispatch(eventPayload);
+  if (result) {
+    // Write temporal event after cognition cycle produces output
+    const snapshot = StabilityMatrix.getSnapshot();
+    TemporalRing.push({
+      ts: Date.now(),
+      input: eventPayload,
+      fused: result.fused,
+      intent: result.intent,
+      output: result.output,
+      stabilityScore: snapshot?.score,
+    });
+
+    // Broadcast distributed snapshot after thread processing
+    const distributedSnapshot = DistributedState.getSnapshot();
+    ClusterBus.broadcast(distributedSnapshot);
+
+    // Emit result for downstream processing
+    // Future: integrate with event system
+    return result;
+  }
+  return null;
 }
 
 /**

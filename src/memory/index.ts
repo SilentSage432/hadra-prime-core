@@ -1,6 +1,10 @@
 import ShortTermMemory from "./short_term.ts";
 import LongTermMemory from "./long_term.ts";
 
+// Export memory anchor and resonance bus modules
+export * from "./anchors.ts";
+export * from "./resonance_bus.ts";
+
 export default class MemoryBroker {
   public stm: ShortTermMemory;
   public ltm: LongTermMemory;

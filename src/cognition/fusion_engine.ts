@@ -5,6 +5,10 @@ import type { CognitiveState } from "./cognitive_state.ts";
 import { MemoryStore } from "../memory/memory_store.ts";
 import { CognitiveStabilizer } from "./stability/cognitive_stabilizer.ts";
 import { ReasoningIntegrity } from "./bias/integrity_layer.ts";
+import { TemporalEngine } from "./temporal_engine.ts";
+import { PredictiveCoherence } from "./predictive_coherence.ts";
+import { ClusterBus } from "../distributed/cluster_bus.ts";
+import { PredictiveConsensus } from "../distributed/predictive_consensus.ts";
 
 export class FusionEngine {
   private memory: MemoryStore;
@@ -16,11 +20,25 @@ export class FusionEngine {
   buildCognitiveState(intent: any, tone: ToneVector, contextSnapshot: any): CognitiveState {
     const start = performance.now();
 
+    // Attach temporal context to payload before fusion
+    const payload = { intent, tone, contextSnapshot };
+    const payloadWithTemporal = TemporalEngine.attachTemporalContext(payload);
+    
+    // Inject consensus prediction into the fusion payload (uses combined intelligence of all threads)
+    payload.prediction = PredictiveCoherence.computeConsensus();
+    
+    // Merge temporal context and prediction into contextSnapshot for downstream use
+    const enrichedContext = {
+      ...contextSnapshot,
+      temporal: payloadWithTemporal.temporal,
+      prediction: payload.prediction,
+    };
+
     const memoryRecall = this.memory.retrieveRelevant(intent?.type || "general");
 
-    const priorityLevel = this.computePriority(intent, contextSnapshot);
+    const priorityLevel = this.computePriority(intent, enrichedContext);
     const riskLevel = this.computeRisk(intent);
-    const operatorFocus = this.inferOperatorFocus(intent, contextSnapshot, tone);
+    const operatorFocus = this.inferOperatorFocus(intent, enrichedContext, tone);
     const recommendedResponseMode = this.determineResponseMode(
       operatorFocus,
       tone,
@@ -38,7 +56,7 @@ export class FusionEngine {
         memoryRecall,
       },
       intent,
-      context: contextSnapshot,
+      context: enrichedContext,
     };
 
     // Measure fusion latency
@@ -52,7 +70,7 @@ export class FusionEngine {
       return {
         intent: stabilized?.intent || intent,
         tone,
-        context: stabilized?.context || contextSnapshot,
+        context: stabilized?.context || enrichedContext,
         memory: memoryRecall,
         priorityLevel: stabilized?.meaning?.priorityLevel || priorityLevel,
         riskLevel: stabilized?.meaning?.riskLevel || riskLevel,
@@ -126,4 +144,13 @@ export class FusionEngine {
     return "direct";
   }
 }
+
+// Fusion Engine learns from neighbor nodes (passive only)
+ClusterBus.onSnapshot((snapshot) => {
+  PredictiveConsensus.registerSnapshot(snapshot);
+  const result = PredictiveConsensus.computeConsensus();
+  console.log(
+    `[PRIME-DIST][Consensus] agreement=${result.agreement.toFixed(2)} samples=${result.samples}`
+  );
+});
 

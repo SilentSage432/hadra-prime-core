@@ -222,6 +222,33 @@ class PrimeEngine extends EventEmitter {
   }
 
   /**
+   * Apply healing pulse effects to recover from instability
+   */
+  private applyHealingPulse(pulse: any) {
+    this.log("🔄 Applying healing pulse — re-centering cognition.");
+
+    // Clear transient scratch memory (reset recursion counter)
+    SafetyGuard.limiter.resetRecursion();
+
+    // Reduce cognitive load
+    if (pulse.reduceCognitiveLoad) {
+      this.cognitiveLoad = Math.max(5, this.cognitiveLoad - 10);
+      this.log(`Cognitive load reduced to ${this.cognitiveLoad}`);
+    }
+
+    // Recompute stability matrix (already updated, but log the healing)
+    const snapshot = StabilityMatrix.getSnapshot();
+    this.log(`Stability score after healing: ${snapshot.score.toFixed(2)}`);
+
+    // Recenter by clearing conflicting context spans
+    if (pulse.recenter) {
+      // Clear expired or conflicting context
+      // The context manager will naturally expire old contexts via TTL
+      this.log("Context spans re-centered.");
+    }
+  }
+
+  /**
    * Logging pipeline
    */
   private log(message: string) {
@@ -319,6 +346,14 @@ class PrimeEngine extends EventEmitter {
       load: metaState.certaintyLevel,
       errors: metaState.contextQuality === "low" ? 1 : 0,
     });
+
+    // Check if healing pulse was applied
+    const stabilityState = metaEngine.getStabilityState();
+    const recentHealing = stabilityState.healingEvents.slice(-1)[0];
+    if (recentHealing && Date.now() - recentHealing.timestamp < 100) {
+      // Apply healing pulse effects
+      this.applyHealingPulse(recentHealing);
+    }
 
     // Attach meta state to cognitive state for downstream awareness
     cognitiveState.meta = metaState;

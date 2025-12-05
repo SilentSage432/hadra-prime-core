@@ -1,6 +1,7 @@
 // src/stability/stability_matrix.ts
 
 import { StabilityMonitor } from "./stability_monitor.ts";
+import { PredictiveHorizon } from "../cognition/predictive_horizon.ts";
 
 export class StabilityMatrix {
   static monitor = new StabilityMonitor();
@@ -21,7 +22,13 @@ export class StabilityMatrix {
   }
 
   static getSnapshot() {
-    return this.monitor.snapshot();
+    const snapshot = this.monitor.snapshot();
+    
+    // After computing stability, log predictions
+    const prediction = PredictiveHorizon.analyze();
+    console.log("[PRIME-PREDICT]", prediction);
+    
+    return snapshot;
   }
 
   static unstable() {
