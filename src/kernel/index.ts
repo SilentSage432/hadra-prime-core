@@ -69,6 +69,7 @@ import { NeuralRegistry } from "../neural/cortex/registry.ts";
 import { EmbeddingAdapter } from "../neural/embedding/embedding_adapter.ts";
 import { NeuralMemoryStore } from "../memory/neural/neural_memory_store.ts";
 import { ConceptDriftEngine } from "../memory/concepts/concept_drift_engine.ts";
+import { ConceptMergeSplitEngine } from "../memory/concepts/concept_merge_split_engine.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -139,6 +140,10 @@ console.log("[PRIME-MEMORY] Neural Memory Store online.");
 // A96: Initialize Concept Drift Engine
 const conceptDrift = new ConceptDriftEngine();
 console.log("[PRIME-CONCEPTS] Concept Drift Engine online.");
+
+// A97: Initialize Concept Merge/Split Engine
+const conceptMergeSplit = new ConceptMergeSplitEngine();
+console.log("[PRIME-CONCEPTS] Concept Merge/Split Engine online.");
 
 console.log("[PRIME] Initializing cognitive threads...");
 // ThreadPool will be initialized with default instances
@@ -419,6 +424,9 @@ const kernelInstance = {
     
     // A96: Apply concept drift after reflection
     conceptDrift.tick();
+    
+    // A97: Apply concept merge/split after drift
+    conceptMergeSplit.tick();
     
     // Optionally store reflection in memory (future enhancement)
     // PRIME.remember({ type: "reflection", data: reflection });

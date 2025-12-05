@@ -40,5 +40,9 @@ export class NeuralMemoryStore {
   getAll() {
     return this.store;
   }
+
+  getById(id: string) {
+    return this.store.find(m => m.id === id);
+  }
 }
 
