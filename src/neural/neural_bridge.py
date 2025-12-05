@@ -20,6 +20,8 @@ from .neural_coherence_engine import NeuralCoherenceEngine
 from .neural_attention_engine import NeuralAttentionEngine
 from .neural_context_fusion import NeuralContextFusion
 from .neural_thought_selector import NeuralThoughtSelector
+from .candidate_thought_generator import CandidateThoughtGenerator
+from ..cognition.cognitive_action_engine import CognitiveActionEngine
 
 class NeuralBridge:
 
@@ -32,6 +34,8 @@ class NeuralBridge:
         self.attention = NeuralAttentionEngine()
         self.fusion = NeuralContextFusion()
         self.selector = NeuralThoughtSelector()
+        self.generator = CandidateThoughtGenerator()
+        self.action_engine = CognitiveActionEngine()
 
     def process_perception(self, text):
 
@@ -154,4 +158,22 @@ class NeuralBridge:
             self.state.memory_manager if hasattr(self.state, "memory_manager") else None
 
         )
+
+    def choose_cognitive_action(self):
+
+        return self.action_engine.choose_action()
+
+    def perform_action(self, action):
+
+        return self.action_engine.execute(action, self)
+
+    def propose_thoughts(self):
+        """
+        Generate candidate thought embeddings for A144 to evaluate.
+        """
+        fusion = self.fusion.last_fusion_vector
+        attention = self.attention.last_focus_vector
+        identity = self.state.timescales.identity_vector
+
+        return self.generator.propose(fusion, attention, identity)
 
