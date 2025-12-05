@@ -20,6 +20,7 @@ Aggregates:
 """
 
 from .neural_drift_engine import NeuralDriftEngine
+from .neural_timescales import NeuralTimescales
 
 from .torch_utils import is_tensor
 
@@ -30,6 +31,7 @@ class NeuralStateTracker:
         self.last_embedding = None
 
         self.drift = NeuralDriftEngine()
+        self.timescales = NeuralTimescales()
 
     def update(self, embedding):
 
@@ -46,6 +48,7 @@ class NeuralStateTracker:
         self.last_embedding = embedding
 
         self.drift.record(embedding)
+        self.timescales.update(embedding)
 
     def summary(self):
 
@@ -55,7 +58,9 @@ class NeuralStateTracker:
 
             "last_embedding_dim": emb.numel() if emb is not None and is_tensor(emb) else None,
 
-            "drift": self.drift.get_status()
+            "drift": self.drift.get_status(),
+
+            "timescales": self.timescales.summary()
 
         }
 

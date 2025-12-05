@@ -15,6 +15,9 @@ starts routing thoughts, perceptions, and narratives through embeddings.
 
 from .neural_event_hooks import NeuralEventHooks
 from .neural_state_tracker import NeuralStateTracker
+from .dual_mind_sync import DualMindSync
+from .neural_coherence_engine import NeuralCoherenceEngine
+from .neural_attention_engine import NeuralAttentionEngine
 
 class NeuralBridge:
 
@@ -22,6 +25,9 @@ class NeuralBridge:
 
         self.hooks = NeuralEventHooks()
         self.state = NeuralStateTracker()
+        self.dual = DualMindSync()
+        self.coherence = NeuralCoherenceEngine()
+        self.attention = NeuralAttentionEngine()
 
     def process_perception(self, text):
 
@@ -32,8 +38,23 @@ class NeuralBridge:
         """
 
         embedding = self.hooks.on_perception(text)
-        self.state.update(embedding)
-        return embedding
+        
+        # Stabilize neural signal before committing to state
+        identity = self.state.timescales.identity_vector
+        stable = self.coherence.stabilize(embedding, identity)
+        
+        self.state.update(stable)
+        
+        # Update attention focus vector using new updated timescales
+        focus = self.attention.compute_attention_vector(self.state.timescales)
+        
+        # Update dual-mind shared vectors using LT identity vector + ST summary
+        lt_vec = self.state.timescales.identity_vector
+        st_summary = self.state.timescales.ST.summary_vector()
+        
+        self.dual.update_prime_vectors(lt_vec, st_summary)
+        
+        return stable
 
     def process_reflection(self, thought):
 
@@ -44,8 +65,23 @@ class NeuralBridge:
         """
 
         embedding = self.hooks.on_reflection(thought)
-        self.state.update(embedding)
-        return embedding
+        
+        # Stabilize neural signal before committing to state
+        identity = self.state.timescales.identity_vector
+        stable = self.coherence.stabilize(embedding, identity)
+        
+        self.state.update(stable)
+        
+        # Update attention focus vector using new updated timescales
+        focus = self.attention.compute_attention_vector(self.state.timescales)
+        
+        # Update dual-mind shared vectors using LT identity vector + ST summary
+        lt_vec = self.state.timescales.identity_vector
+        st_summary = self.state.timescales.ST.summary_vector()
+        
+        self.dual.update_prime_vectors(lt_vec, st_summary)
+        
+        return stable
 
     def compare(self, a, b):
 
@@ -64,4 +100,22 @@ class NeuralBridge:
     def neural_state(self):
 
         return self.state.summary()
+
+    def dual_mind_status(self):
+
+        return self.dual.status()
+
+    def coherence_status(self):
+
+        return {
+
+            "dual_mind": self.dual.status(),
+
+            "state": self.state.summary(),
+
+        }
+
+    def attention_status(self):
+
+        return self.attention.status()
 
