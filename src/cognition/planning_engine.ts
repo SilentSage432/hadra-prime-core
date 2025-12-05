@@ -4,6 +4,7 @@ import type { ProtoGoal } from "./proto_goal_engine.ts";
 import { ActionSelectionEngine } from "./action_selection_engine.ts";
 import { SEL } from "../emotion/sel.ts";
 import { StabilityMatrix } from "../stability/stability_matrix.ts";
+import { CounterfactualEngine, type CounterfactualResult } from "../reflection/counterfactual_engine.ts";
 
 export interface InternalPlanStep {
   name: string;
@@ -14,6 +15,7 @@ export interface InternalPlan {
   goal: ProtoGoal;
   steps: InternalPlanStep[];
   score: number;
+  counterfactual?: CounterfactualResult;
 }
 
 export class PlanningEngine {
@@ -22,11 +24,15 @@ export class PlanningEngine {
     
     // If no action, create empty plan.
     if (!action) {
-      return {
+      const emptyPlan: InternalPlan = {
         goal,
         steps: [],
         score: 0
       };
+      // A45: Even empty plans get counterfactual simulation
+      const counterfactual = CounterfactualEngine.simulatePlan(emptyPlan);
+      emptyPlan.counterfactual = counterfactual;
+      return emptyPlan;
     }
 
     // Plans are 2–4 small steps depending on the goal type
@@ -38,7 +44,17 @@ export class PlanningEngine {
 
     const score = this.evaluatePlan(steps, goal);
 
-    return { goal, steps, score };
+    const basePlan: InternalPlan = {
+      goal,
+      steps,
+      score
+    };
+
+    // A45: Attach counterfactual simulation
+    const counterfactual = CounterfactualEngine.simulatePlan(basePlan);
+    basePlan.counterfactual = counterfactual;
+
+    return basePlan;
   }
 
   static evaluatePlan(steps: InternalPlanStep[], goal: ProtoGoal): number {

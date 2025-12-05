@@ -19,6 +19,7 @@ import { triggerCognition, triggerInput } from "./kernel/event_bus.ts";
 import { PRIMEConfig } from "./shared/config.ts";
 import { cognition } from "./cognition/cognition.ts";
 import { HierarchicalPlanner } from "./planning/hierarchical_planner.ts";
+import { SelfConsistencyEngine } from "./reflection/self_consistency.ts";
 
 export type PrimeLifecycleState = "initializing" | "online" | "degraded" | "offline";
 
@@ -55,6 +56,7 @@ class PrimeEngine extends EventEmitter {
   private fusion: FusionEngine; // Cognitive fusion engine
   private toneEngine: ToneEngine; // Tone analysis for cognitive state
   planner: HierarchicalPlanner; // A43: Hierarchical planning engine
+  reflector: SelfConsistencyEngine; // A44: Reflective self-consistency engine
 
   // Module placeholders (wired in later phases)
   private modules: Record<string, any> = {
@@ -85,6 +87,7 @@ class PrimeEngine extends EventEmitter {
     this.toneEngine = new ToneEngine(); // Tone analysis for cognitive fusion
     this.fusion = new FusionEngine(this.memoryStore); // Cognitive fusion engine
     this.planner = new HierarchicalPlanner(); // A43: Hierarchical planning engine
+    this.reflector = new SelfConsistencyEngine(); // A44: Reflective self-consistency engine
 
     // Initialize Stability Matrix
     StabilityMatrix.init();
@@ -494,7 +497,21 @@ class PrimeEngine extends EventEmitter {
    */
   async buildPlan(intent: string) {
     const context = this.contextSnapshot();
-    return this.planner.buildPlan(intent, context);
+    const plan = this.planner.buildPlan(intent, context);
+    
+    // A44: Run self-consistency review
+    console.log("[PRIME-REFLECT] Running self-consistency review...");
+    const reflection = await this.evaluatePlan(plan);
+    console.log("[PRIME-REFLECT-RESULT]", reflection);
+    
+    return plan;
+  }
+
+  /**
+   * A44: Evaluate plan for self-consistency
+   */
+  async evaluatePlan(plan: any) {
+    return this.reflector.review(plan);
   }
 
   /**

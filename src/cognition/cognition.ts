@@ -63,7 +63,8 @@ export class Cognition {
       console.log("[PRIME-PLAN] Selected plan:", {
         goal: best.goal.type,
         score: best.score,
-        steps: best.steps.map((s) => s.name)
+        steps: best.steps.map((s) => s.name),
+        counterfactual: best.counterfactual
       });
       // Execute plan steps one-by-one
       for (const step of best.steps) {
