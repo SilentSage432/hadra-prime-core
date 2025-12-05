@@ -7,6 +7,8 @@ import { StabilityMatrix } from "../stability/stability_matrix.ts";
 import { SEL } from "../emotion/sel.ts";
 import { MotivationEngine } from "./motivation_engine.ts";
 import { ProtoGoalEngine } from "./proto_goal_engine.ts";
+import { ActionSelectionEngine } from "./action_selection_engine.ts";
+import { PlanningEngine } from "./planning_engine.ts";
 import { GreetingHandler } from "../handlers/greeting.ts";
 import { SystemStatusHandler } from "../handlers/system_status.ts";
 import { UnknownHandler } from "../handlers/unknown.ts";
@@ -50,6 +52,30 @@ export class Cognition {
     // A40: Compute proto-goals
     const goals = ProtoGoalEngine.computeGoals();
     console.log("[PRIME-GOALS]", goals);
+
+    // A42: Generate plans for each goal
+    const plans = goals.map((g) => PlanningEngine.generatePlan(g));
+    console.log("[PRIME-PLANS]", plans);
+
+    // A42: Choose best plan by score
+    const best = plans.sort((a, b) => b.score - a.score)[0] || null;
+    if (best && best.steps.length > 0) {
+      console.log("[PRIME-PLAN] Selected plan:", {
+        goal: best.goal.type,
+        score: best.score,
+        steps: best.steps.map((s) => s.name)
+      });
+      // Execute plan steps one-by-one
+      for (const step of best.steps) {
+        console.log("[PRIME-PLAN-STEP] Executing:", step.name);
+        try {
+          step.fn();
+        } catch (err) {
+          console.error("[PRIME-PLAN-ERROR]", err);
+          break;
+        }
+      }
+    }
 
     // Update stability metrics
     StabilityMatrix.update("cognition", {

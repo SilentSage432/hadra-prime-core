@@ -113,6 +113,19 @@ export class SyntheticEmotionLayer {
     );
   }
 
+  // A41: Nudge coherence for clarity adjustment
+  nudgeCoherence(delta: number) {
+    this.state.coherence = this.clamp(this.state.coherence + delta);
+  }
+
+  // A41: Normalize SEL state toward baseline
+  normalize() {
+    // Apply drift to normalize toward baseline
+    this.applyDrift();
+    // Cool tension if elevated
+    this.coolTension();
+  }
+
   applyDrift() {
     // A37: Drift state gently toward driftBaseline (which shifts over time)
     const keys: (keyof SyntheticEmotionState)[] = ["valence", "arousal", "coherence", "affinity", "certainty", "tension"];
