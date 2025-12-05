@@ -1,5 +1,6 @@
 // src/cognition/cognitive_state.ts
 // A113: Extended with neural signal support
+// A120: Extended with attentional drift regulation fields
 
 import type { ToneVector } from "../expression/tone/tone_detector.ts";
 import type { MetaState } from "../meta/meta_state.ts";
@@ -28,5 +29,12 @@ export interface CognitiveState {
   neuralSignals?: NeuralSignal[];  // Array of neural signals
   neuralCoherence?: CoherenceResult | null;  // Interpreted coherence result
   temporalVector?: number[];  // A112: Temporal embedding vector
+  // A120: Attention Drift Regulator fields
+  focusBias?: number;              // Micro-level focus reinforcement
+  distractionFilterStrength?: number;  // Resistance to distraction
+  taskCommitment?: number;         // Meso-level task adherence
+  contextAlignment?: number;       // Contextual coherence
+  missionAlignment?: number;       // Macro-level mission alignment
+  longHorizonFocus?: number;       // Long-term goal focus
 }
 

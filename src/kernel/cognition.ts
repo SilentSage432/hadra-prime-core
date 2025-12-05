@@ -3,6 +3,8 @@
 import { PRIMEConfig } from "../shared/config.ts";
 import { MultiTimescaleSituationModel } from "../situation_model/multi_timescale_model.ts";
 import { PRIME_SITUATION } from "../situation_model/index.ts";
+import { AttentionDriftRegulator } from "../cognition/attention/attention_drift_regulator.ts";
+import type { CognitiveState } from "../cognition/cognitive_state.ts";
 
 let lastCycle = Date.now();
 let cooldownActive = false;
@@ -36,8 +38,18 @@ export function triggerCooldown(intensity = 1) {
 }
 
 // A118: PrimeCognition class for multi-timescale situation modeling
+// A120: Extended with Attention Drift Regulator
 export class PrimeCognition {
   private timescaleModel = new MultiTimescaleSituationModel();
+  private attentionRegulator = new AttentionDriftRegulator();
+  private cognitiveState: Partial<CognitiveState> = {
+    focusBias: 0,
+    distractionFilterStrength: 0,
+    taskCommitment: 0,
+    contextAlignment: 0,
+    missionAlignment: 0,
+    longHorizonFocus: 0
+  };
 
   constructor() {
     // Initialize with existing situation models from PRIME_SITUATION
@@ -62,7 +74,7 @@ export class PrimeCognition {
     return this.timescaleModel.summarize();
   }
 
-  // A119: Check for drift across all timescales
+  // A119/A120: Check for drift across all timescales and apply ADR correction
   driftCheck() {
     const report = this.timescaleModel.analyzeDrift();
     if (report.needsCorrection) {
@@ -72,7 +84,11 @@ export class PrimeCognition {
         macro: report.macroDrift.toFixed(3),
         dominant: report.dominantDrift
       });
-      // corrective behavior: re-anchor cognitive focus
+      
+      // A120: Apply Attention Drift Regulator correction
+      this.attentionRegulator.applyCorrection(report, this.cognitiveState);
+      
+      // Legacy realignment logging (kept for compatibility)
       this.realignToSituation(report.dominantDrift);
     }
   }
