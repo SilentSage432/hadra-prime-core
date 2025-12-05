@@ -1,5 +1,6 @@
 // src/memory/concepts/concept_store.ts
 // A95: Concept Store
+// A96: Concept Drift Tracking
 // A structure where concepts live, grow, get refined, and merge.
 
 export interface ConceptNode {
@@ -11,6 +12,8 @@ export interface ConceptNode {
   confidence: number;    // 0–1
   drift: number;         // how fast centroid adjusts
   createdAt: number;
+  lastUpdated: number;
+  decayRate: number;     // how fast stability fades when unused
 }
 
 export const ConceptGraph: ConceptNode[] = [];
@@ -24,7 +27,9 @@ export function createConcept(label: string, vec: number[], memoryId: string): C
     stability: 0.1,
     confidence: 0.2,
     drift: 0.15,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    lastUpdated: Date.now(),
+    decayRate: 0.0005
   };
 
   ConceptGraph.push(node);
@@ -36,9 +41,17 @@ export function updateConcept(node: ConceptNode, vec: number[], memoryId: string
   node.centroid = node.centroid.map((c, i) => c + (vec[i] - c) * node.drift);
   node.members.push(memoryId);
   
+  // Update timestamp
+  node.lastUpdated = Date.now();
+  
   // Increase confidence with exposure
   node.confidence = Math.min(1, node.confidence + 0.02);
+  
+  // Increase stability over time
   node.stability = Math.min(1, node.stability + 0.01);
+  
+  // Slightly reduce decay rate as concept stabilizes
+  node.decayRate = Math.max(0.0001, node.decayRate * 0.98);
   
   return node;
 }
