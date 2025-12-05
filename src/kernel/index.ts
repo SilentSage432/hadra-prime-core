@@ -40,6 +40,9 @@ ThreadPool.init();
 
 console.log("[KERNEL] HADRA-PRIME core boot sequence complete.");
 
+// A46: Multimodal Perception Layer active
+console.log("[PRIME-KERNEL] Multimodal Perception Layer active.");
+
 // Start event-driven cognitive loop
 cognitiveLoop.start();
 

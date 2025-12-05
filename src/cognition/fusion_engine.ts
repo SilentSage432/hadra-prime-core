@@ -49,6 +49,14 @@ export class FusionEngine {
 
     const memoryRecall = this.memory.retrieveRelevant(intent?.type || "general");
 
+    // A46: Extract multimodal events from recent events
+    const recentEvents = enrichedContext.recentEvents || [];
+    const multimodal = {
+      vision: recentEvents.filter((e: any) => e.type === "vision"),
+      audio: recentEvents.filter((e: any) => e.type === "audio"),
+      symbolic: recentEvents.filter((e: any) => e.type === "symbolic"),
+    };
+
     const priorityLevel = this.computePriority(intent, enrichedContext);
     const riskLevel = this.computeRisk(intent);
     const operatorFocus = this.inferOperatorFocus(intent, enrichedContext, tone);
@@ -117,6 +125,9 @@ export class FusionEngine {
 
     // Attach integrity result for downstream use
     (cognitiveState as any).integrity = integrityResult;
+
+    // A46: Attach multimodal data to cognitive state
+    (cognitiveState as any).multimodal = multimodal;
 
     // Synthetic Emotion Integration
     this.finalizeFusion(cognitiveState);

@@ -13,6 +13,11 @@ export class SafetyGuard {
   static limiter = new SafetyLimiter();
   static maxRecursionDepth = 35;
   static maxBranching = 4;
+  static flags = {
+    allowVision: true,
+    allowAudio: true,
+    allowSymbolic: true,
+  };
 
   /**
    * Filter and sanitize output text
@@ -96,7 +101,23 @@ export class SafetyGuard {
    * Pre-perception safety check
    * Returns false if perception event should be dropped
    */
-  static prePerceptionCheck(): boolean {
+  static prePerceptionCheck(event?: any): boolean {
+    // A46: Multimodal safety guards
+    if (event) {
+      if (event.type === "vision" && !this.flags.allowVision) {
+        console.warn("[PRIME-SAFETY] Vision channel disabled.");
+        return false;
+      }
+      if (event.type === "audio" && !this.flags.allowAudio) {
+        console.warn("[PRIME-SAFETY] Audio channel disabled.");
+        return false;
+      }
+      if (event.type === "symbolic" && !this.flags.allowSymbolic) {
+        console.warn("[PRIME-SAFETY] Symbolic channel disabled.");
+        return false;
+      }
+    }
+
     if (!this.limiter.perceptionAllowed()) {
       console.warn("[PRIME-SAFETY] Perception rate limit exceeded.");
       return false;

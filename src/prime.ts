@@ -20,6 +20,8 @@ import { PRIMEConfig } from "./shared/config.ts";
 import { cognition } from "./cognition/cognition.ts";
 import { HierarchicalPlanner } from "./planning/hierarchical_planner.ts";
 import { SelfConsistencyEngine } from "./reflection/self_consistency.ts";
+import { PerceptionHub } from "./perception/perception_hub.ts";
+import { MultimodalPerception } from "./perception/multimodal.ts";
 
 export type PrimeLifecycleState = "initializing" | "online" | "degraded" | "offline";
 
@@ -57,6 +59,8 @@ class PrimeEngine extends EventEmitter {
   private toneEngine: ToneEngine; // Tone analysis for cognitive state
   planner: HierarchicalPlanner; // A43: Hierarchical planning engine
   reflector: SelfConsistencyEngine; // A44: Reflective self-consistency engine
+  perceptionHub: PerceptionHub; // A46: Perception hub for multimodal signals
+  multimodal: MultimodalPerception; // A46: Multimodal perception layer
 
   // Module placeholders (wired in later phases)
   private modules: Record<string, any> = {
@@ -88,6 +92,8 @@ class PrimeEngine extends EventEmitter {
     this.fusion = new FusionEngine(this.memoryStore); // Cognitive fusion engine
     this.planner = new HierarchicalPlanner(); // A43: Hierarchical planning engine
     this.reflector = new SelfConsistencyEngine(); // A44: Reflective self-consistency engine
+    this.perceptionHub = new PerceptionHub(); // A46: Perception hub for multimodal signals
+    this.multimodal = new MultimodalPerception(this.perceptionHub); // A46: Multimodal perception layer
 
     // Initialize Stability Matrix
     StabilityMatrix.init();
@@ -329,9 +335,11 @@ class PrimeEngine extends EventEmitter {
     const tone = this.toneEngine.analyze(input || "");
 
     // Build context snapshot
+    const recentEvents = this.perceptionHub.getRecentEvents(20);
     const contextSnapshot = {
       latestSession: this.context.latest("session"),
       latestEmotion: this.context.latest("emotion"),
+      recentEvents, // A46: Include recent events for multimodal fusion
     };
 
     // Build PRIME's unified cognitive state (with fusion stability)
