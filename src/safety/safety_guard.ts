@@ -44,8 +44,9 @@ export class SafetyGuard {
   /**
    * Pre-cognition safety check
    * Returns false if cognition should be blocked
+   * A74: Now checks neural recall for dangerous patterns
    */
-  static preCognitionCheck(): boolean {
+  static preCognitionCheck(cognitiveState?: any): boolean {
     // Safety rate limiter - throttle safety checks
     const now = Date.now();
     if (now - lastSafetyRun < SAFETY_MIN_INTERVAL) {
@@ -75,6 +76,19 @@ export class SafetyGuard {
     if (emotion.coherence < 0.3) {
       console.warn("[PRIME-SAFETY] Low coherence detected — caution mode enabled.");
       // Continue processing but with caution flag
+    }
+
+    // A74: Check neural recall for high-risk patterns
+    if (cognitiveState?.recall?.intuition && cognitiveState.recall.intuition > 0.8) {
+      console.warn("[PRIME-SAFETY] High similarity to past patterns detected — applying stricter gating.");
+      // Apply stricter safety thresholds for similar high-risk patterns
+      if (!cognitiveState.safetyFlags) {
+        cognitiveState.safetyFlags = [];
+      }
+      cognitiveState.safetyFlags.push("similar_high_risk_pattern");
+      // Tighten recursion limits when similar to high-risk patterns
+      this.maxRecursionDepth = Math.min(this.maxRecursionDepth, 25);
+      this.maxBranching = Math.min(this.maxBranching, 3);
     }
 
     if (emotion.tension > 0.7) {

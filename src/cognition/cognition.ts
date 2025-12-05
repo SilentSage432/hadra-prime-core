@@ -12,6 +12,9 @@ import { PlanningEngine } from "./planning_engine.ts";
 import { GreetingHandler } from "../handlers/greeting.ts";
 import { SystemStatusHandler } from "../handlers/system_status.ts";
 import { UnknownHandler } from "../handlers/unknown.ts";
+import { Recall } from "./recall_engine.ts";
+import type { CognitiveState } from "../shared/types.ts";
+import { NeuralContextEncoder } from "../neural/context_encoder.ts";
 
 export class Cognition {
   private intentEngine = new IntentEngine();
@@ -53,8 +56,43 @@ export class Cognition {
     const goals = ProtoGoalEngine.computeGoals();
     console.log("[PRIME-GOALS]", goals);
 
-    // A42: Generate plans for each goal
-    const plans = goals.map((g) => PlanningEngine.generatePlan(g));
+    // A74: Create cognitive state and perform recall before planning
+    const topGoal = goals[0] || null;
+    const cognitiveState: CognitiveState = {
+      activeGoal: topGoal ? { type: topGoal.type } : undefined,
+      confidence: intent.confidence,
+      uncertainty: 1 - intent.confidence
+    };
+
+    // A74: Perform preliminary recall lookup for planning
+    if (topGoal) {
+      // Build a simple embedding for recall lookup
+      const ncel = new NeuralContextEncoder();
+      const baseFeatures = [
+        motivation.urgency,
+        motivation.curiosity,
+        motivation.claritySeeking,
+        motivation.consolidation,
+        intent.confidence,
+        1 - intent.confidence
+      ];
+      // Create a simple lookup vector (pad to 64 for similarity search)
+      const lookupVector = new Array(64).fill(0);
+      baseFeatures.forEach((v, i) => {
+        if (i < lookupVector.length) {
+          lookupVector[i] = Math.max(-1, Math.min(1, v));
+        }
+      });
+
+      const recallResults = Recall.recall(lookupVector, 3);
+      const recallSummary = Recall.summarizeRecall(recallResults);
+      if (recallSummary) {
+        cognitiveState.recall = recallSummary;
+      }
+    }
+
+    // A42: Generate plans for each goal (with recall-informed cognitive state)
+    const plans = goals.map((g) => PlanningEngine.generatePlan(g, cognitiveState));
     console.log("[PRIME-PLANS]", plans);
 
     // A42: Choose best plan by score

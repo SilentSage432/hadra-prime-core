@@ -1,4 +1,5 @@
 // src/cognition/reflection_engine.ts
+// A74: Neural Recall Integration
 
 export class ReflectionEngine {
   reflect(cognitiveState: any, selState: any) {
@@ -10,9 +11,24 @@ export class ReflectionEngine {
       summary: this.generateSummary(cognitiveState, selState)
     };
 
+    // A74: Log recall information if available
+    if (cognitiveState.recall?.reference) {
+      this.logReflection(
+        `Recalling prior experience: ${JSON.stringify(cognitiveState.recall.reference)}`
+      );
+      console.log("[PRIME-RECALL] Reflection informed by past experience:", {
+        intuition: cognitiveState.recall.intuition.toFixed(3),
+        reference: cognitiveState.recall.reference
+      });
+    }
+
     console.log("[PRIME-REFLECTION]", reflection.summary);
 
     return reflection;
+  }
+  
+  private logReflection(message: string) {
+    console.log("[PRIME-REFLECTION-RECALL]", message);
   }
 
   private generateSummary(cog: any, sel: any): string {

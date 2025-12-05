@@ -3,6 +3,7 @@
 
 import type { CognitiveState, MotivationState } from "../shared/types.ts";
 import { NeuralMemory } from "../cognition/neural/neural_memory_bank.ts";
+import { Recall } from "../cognition/recall_engine.ts";
 
 export interface NeuralContextVector {
   vector: number[];
@@ -27,6 +28,33 @@ export class NeuralContextEncoder {
     motivation: MotivationState,
     stability: StabilitySnapshot
   ): NeuralContextVector {
+    // A74: Query neural memory for similar past states BEFORE encoding
+    // This allows the encoding to be influenced by recall
+    const baseEmbedding: number[] = [];
+    
+    // Build a preliminary embedding for recall lookup
+    baseEmbedding.push(
+      this.normalize(motivation.urgency),
+      this.normalize(motivation.curiosity),
+      this.normalize(motivation.claritySeeking),
+      this.normalize(motivation.consolidation),
+      this.normalize(motivation.goalBias),
+      this.normalize(motivation.stabilityPressure),
+      this.hash(cognitive.activeGoal?.type),
+      this.normalize(cognitive.confidence ?? 0),
+      this.normalize(cognitive.uncertainty ?? 0)
+    );
+    
+    // Expand to vector size for similarity search
+    const lookupVector = this.stabilizeVector(baseEmbedding);
+    const recallResults = Recall.recall(lookupVector, 3);
+    const recallSummary = Recall.summarizeRecall(recallResults);
+    
+    // Attach recall to cognitive state for other components to use
+    if (recallSummary) {
+      cognitive.recall = recallSummary;
+    }
+
     const features: number[] = [];
 
     // ---- 1) Encode Motivation ----
@@ -64,7 +92,17 @@ export class NeuralContextEncoder {
       this.normalize(cognitive.lastReflection?.pressure ?? 0)
     );
 
-    // ---- 5) Pad or trim vector for model compatibility ----
+    // ---- 5) Encode Recall Intuition (A74) ----
+    if (recallSummary) {
+      features.push(
+        this.normalize(recallSummary.intuition),
+        this.bool(recallSummary.reference !== null)
+      );
+    } else {
+      features.push(0, 0); // No recall data
+    }
+
+    // ---- 6) Pad or trim vector for model compatibility ----
     const vector = this.stabilizeVector(features);
 
     const neuralContext: NeuralContextVector = {
@@ -74,7 +112,8 @@ export class NeuralContextEncoder {
       metadata: {
         goal: cognitive.activeGoal?.type ?? null,
         uncertainty: cognitive.uncertainty,
-        stability: stabilityScore
+        stability: stabilityScore,
+        recallIntuition: recallSummary?.intuition ?? 0
       }
     };
 

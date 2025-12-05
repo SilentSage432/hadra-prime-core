@@ -7,6 +7,16 @@ export interface CognitiveState {
   confidence?: number;
   uncertainty?: number;
   lastReflection?: { reason: string; pressure: number };
+  recall?: {
+    intuition: number;
+    reference: any | null;
+  };
+  intentModifiers?: Array<{
+    type: string;
+    weight: number;
+    note?: string;
+  }>;
+  safetyFlags?: string[];
 }
 
 export interface MotivationState {

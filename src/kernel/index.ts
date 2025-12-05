@@ -152,7 +152,37 @@ const kernelInstance = {
   },
   runReflection(cognitiveSnapshot: any) {
     const sel = SEL.getState();
-    const reflection = reflectionEngine.reflect(cognitiveSnapshot, sel);
+    // A72/A74: Create cognitive state early for recall lookup
+    const stabilitySnapshot = StabilityMatrix.getSnapshot();
+    const motivationState = MotivationEngine.compute();
+    
+    const cognitiveState: any = {
+      activeGoal: cognitiveSnapshot.topGoal ? { type: cognitiveSnapshot.topGoal.type || "unknown" } : undefined,
+      confidence: (cognitiveSnapshot.motivation as any)?.confidence ?? sel.certainty,
+      uncertainty: 1 - (sel.certainty ?? 0)
+    };
+    
+    // A74: NCEL encode (which does recall lookup and attaches recall to cognitiveState)
+    const neuralContext = ncel.encodeContext(
+      cognitiveState,
+      motivationState,
+      stabilitySnapshot
+    );
+    
+    // A74: Now cognitiveState has recall information, use it for reflection
+    cognitiveState.lastReflection = null; // Will be set after reflection
+    
+    // A74: Reflection with recall-informed cognitive state
+    const reflection = reflectionEngine.reflect(
+      { ...cognitiveSnapshot, recall: cognitiveState.recall },
+      sel
+    );
+    
+    // Update cognitive state with reflection info
+    cognitiveState.lastReflection = reflection.summary ? { 
+      reason: reflection.summary, 
+      pressure: sel.tension 
+    } : undefined;
     
     // A52: Apply learning from reflection
     const adjustments = learningEngine.adjustFromReflection(reflection, sel);
@@ -163,7 +193,6 @@ const kernelInstance = {
     SEL.applyMetaAdjustments(meta.flags);
     
     // A65: Update meso situation with reflection data
-    const stabilitySnapshot = StabilityMatrix.getSnapshot();
     PRIME_SITUATION.meso.update({
       trends: {
         clarityTrend: sel.coherence, // Use coherence as clarity proxy
@@ -179,7 +208,6 @@ const kernelInstance = {
     PRIME_TEMPORAL.record();
     
     // A67: Capture reflection micro-event
-    const motivationState = MotivationEngine.compute();
     const microEvent = eventCapture.capture({
       type: "reflection",
       stability: stabilitySnapshot,
@@ -191,23 +219,6 @@ const kernelInstance = {
     episodeBuilder.addEvent(microEvent);
     console.log("[PRIME-EPISODE] micro-event captured: reflection update");
     console.log("[PRIME-EPISODE] micro-event recorded in active episode.");
-    
-    // A72: Neural Context Encoding
-    const cognitiveState = {
-      activeGoal: cognitiveSnapshot.topGoal ? { type: cognitiveSnapshot.topGoal.type || "unknown" } : undefined,
-      confidence: (cognitiveSnapshot.motivation as any)?.confidence ?? sel.certainty,
-      uncertainty: 1 - (sel.certainty ?? 0),
-      lastReflection: reflection.summary ? { 
-        reason: reflection.summary, 
-        pressure: sel.tension 
-      } : undefined
-    };
-    
-    const neuralContext = ncel.encodeContext(
-      cognitiveState,
-      motivationState,
-      stabilitySnapshot
-    );
     
     eventBus.emit("neuralContext", neuralContext);
     console.log("[PRIME-NCEL] Encoded neural context vector:", neuralContext.vector.slice(0, 8), "...");

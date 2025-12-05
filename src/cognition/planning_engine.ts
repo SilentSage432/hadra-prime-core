@@ -1,10 +1,12 @@
 // src/cognition/planning_engine.ts
+// A74: Neural Recall Integration
 
 import type { ProtoGoal } from "./proto_goal_engine.ts";
 import { ActionSelectionEngine } from "./action_selection_engine.ts";
 import { SEL } from "../emotion/sel.ts";
 import { StabilityMatrix } from "../stability/stability_matrix.ts";
 import { CounterfactualEngine, type CounterfactualResult } from "../reflection/counterfactual_engine.ts";
+import type { CognitiveState } from "../shared/types.ts";
 
 export interface InternalPlanStep {
   name: string;
@@ -16,10 +18,30 @@ export interface InternalPlan {
   steps: InternalPlanStep[];
   score: number;
   counterfactual?: CounterfactualResult;
+  intentModifiers?: Array<{
+    type: string;
+    weight: number;
+    note?: string;
+  }>;
 }
 
 export class PlanningEngine {
-  static generatePlan(goal: ProtoGoal): InternalPlan {
+  static generatePlan(goal: ProtoGoal, cognitiveState?: CognitiveState): InternalPlan {
+    // A74: Check for recall-based intuition and apply to planning
+    const intentModifiers: Array<{ type: string; weight: number; note?: string }> = [];
+    
+    if (cognitiveState?.recall && cognitiveState.recall.intuition > 0.2) {
+      intentModifiers.push({
+        type: "recall_intuition",
+        weight: cognitiveState.recall.intuition,
+        note: "Past similar states influenced planning."
+      });
+      console.log("[PRIME-RECALL] Planning influenced by past experience:", {
+        intuition: cognitiveState.recall.intuition.toFixed(3),
+        reference: cognitiveState.recall.reference
+      });
+    }
+    
     const action = ActionSelectionEngine.selectAction(goal);
     
     // If no action, create empty plan.
@@ -47,7 +69,8 @@ export class PlanningEngine {
     const basePlan: InternalPlan = {
       goal,
       steps,
-      score
+      score,
+      intentModifiers: intentModifiers.length > 0 ? intentModifiers : undefined
     };
 
     // A45: Attach counterfactual simulation
