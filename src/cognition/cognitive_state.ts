@@ -2,10 +2,12 @@
 // A113: Extended with neural signal support
 // A120: Extended with attentional drift regulation fields
 // A121: Extended with adaptive attentional weight shifting
+// A123: Extended with multi-timescale awareness
 
 import type { ToneVector } from "../expression/tone/tone_detector.ts";
 import type { MetaState } from "../meta/meta_state.ts";
 import type { NeuralSignal, CoherenceResult } from "./neural_symbolic_coherence.ts";
+import type { TimescaleAwarenessState } from "./timescale_awareness.ts";
 
 export interface CognitiveState {
   intent: any;                // interpreted intent packet
@@ -41,5 +43,7 @@ export interface CognitiveState {
   attentionMicro?: number;         // Micro-level attention weight (0-1)
   attentionMeso?: number;          // Meso-level attention weight (0-1)
   attentionMacro?: number;         // Macro-level attention weight (0-1)
+  // A123: Multi-Timescale Awareness fields
+  timescaleState?: TimescaleAwarenessState;  // Awareness of cognitive time evolution
 }
 

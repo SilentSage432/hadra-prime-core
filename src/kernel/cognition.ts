@@ -5,6 +5,7 @@ import { MultiTimescaleSituationModel } from "../situation_model/multi_timescale
 import { PRIME_SITUATION } from "../situation_model/index.ts";
 import { AttentionDriftRegulator } from "../cognition/attention/attention_drift_regulator.ts";
 import { AttentionalWeightEngine } from "../cognition/attention/attentional_weight_engine.ts";
+import { TimescaleAwareness } from "../cognition/timescale_awareness.ts";
 import type { CognitiveState } from "../cognition/cognitive_state.ts";
 
 let lastCycle = Date.now();
@@ -41,10 +42,12 @@ export function triggerCooldown(intensity = 1) {
 // A118: PrimeCognition class for multi-timescale situation modeling
 // A120: Extended with Attention Drift Regulator
 // A121: Extended with Adaptive Attentional Weight Shifting Engine
+// A123: Extended with Multi-Timescale Awareness Layer
 export class PrimeCognition {
   private timescaleModel = new MultiTimescaleSituationModel();
   private attentionRegulator = new AttentionDriftRegulator();
   private attentionalWeighter = new AttentionalWeightEngine();
+  private timescale = new TimescaleAwareness();
   private cognitiveState: Partial<CognitiveState> = {
     focusBias: 0,
     distractionFilterStrength: 0,
@@ -55,7 +58,9 @@ export class PrimeCognition {
     // A121: Initialize attention weights
     attentionMicro: 0.33,
     attentionMeso: 0.33,
-    attentionMacro: 0.33
+    attentionMacro: 0.33,
+    // A123: Initialize timescale awareness state
+    timescaleState: { micro: 0, meso: 0, macro: 0 }
   };
 
   constructor() {
@@ -132,6 +137,33 @@ export class PrimeCognition {
     this.cognitiveState.attentionMacro = newWeights.macro;
     
     console.log("[PRIME-AWE] attentional state updated.");
+  }
+
+  // A123: Update timescale awareness and check for saturation
+  updateTimescaleAwareness() {
+    this.timescale.update();
+    this.cognitiveState.timescaleState = this.timescale.getState();
+    
+    // Check for saturation and log narrative events
+    if (this.timescale.isMicroSaturated()) {
+      console.log("[PRIME-NARRATIVE] Micro-focus saturated → initiating meso-level reasoning.");
+      this.timescale.resetMicro();
+    }
+    
+    if (this.timescale.isMesoSaturated()) {
+      console.log("[PRIME-NARRATIVE] Meso-level reasoning stagnating → switching to macro-perspective.");
+      this.timescale.resetMeso();
+    }
+    
+    if (this.timescale.isMacroSaturated()) {
+      console.log("[PRIME-NARRATIVE] Long-horizon drift detected. Escalating to macro perspective.");
+      this.timescale.resetMacro();
+    }
+  }
+
+  // A123: Get current timescale awareness state
+  getTimescaleState() {
+    return this.timescale.getState();
   }
 }
 

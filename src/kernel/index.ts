@@ -926,6 +926,15 @@ setInterval(() => {
   // A121: Update attentional state based on drift and compute optimal weight shifts
   primeCognition.updateAttentionalState();
 
+  // A123: Update timescale awareness and check for saturation
+  primeCognition.updateTimescaleAwareness();
+  const timescaleState = primeCognition.getTimescaleState();
+  console.log("[PRIME-TIMESCALE]", {
+    micro: timescaleState.micro.toFixed(3),
+    meso: timescaleState.meso.toFixed(3),
+    macro: timescaleState.macro.toFixed(3)
+  });
+
   // A65: Update micro situation with current state
   const selState = SEL.getState();
   PRIME_SITUATION.micro.update({
