@@ -24,6 +24,7 @@ import { cognitiveLoop } from "./cognitive_loop.ts";
 import { eventBus, triggerInput } from "./event_bus.ts";
 import { cognition } from "../cognition/cognition.ts";
 import { SEL } from "../emotion/sel.ts";
+import { MotivationEngine } from "../cognition/motivation_engine.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -40,6 +41,12 @@ console.log("[KERNEL] HADRA-PRIME core boot sequence complete.");
 
 // Start event-driven cognitive loop
 cognitiveLoop.start();
+
+// A39: PRIME's motivation heartbeat
+setInterval(() => {
+  const m = MotivationEngine.compute();
+  console.log("[PRIME-HEARTBEAT] motivation:", m);
+}, 7000); // every 7 seconds — slow and intentional
 
 // Handle input events - PRIME's intent classification and routing system
 eventBus.on("prime.input", async (payload: { text: string }) => {
@@ -162,10 +169,18 @@ async function cognitiveTick() {
 // Remove auto-looping cognitive tick - cognition is now event-driven
 // setInterval(cognitiveTick, 250); // REMOVED - no more auto-looping
 
-// Clean no-op heartbeat for visibility
+// Clean no-op heartbeat for visibility with emotion drift
 setInterval(() => {
   console.log("[PRIME-KERNEL] Standing by.");
+  // A35: emotional drift & recovery layer
+  SEL.applyDrift();
+  SEL.coolTension();
 }, 2500);
+
+// A37: Long-term SEL drift applied every few cycles (very lightweight)
+setInterval(() => {
+  SEL.applyDrift();
+}, 5000); // once every 5 seconds — slow, stable drift
 
 /**
  * Get recent interaction memory

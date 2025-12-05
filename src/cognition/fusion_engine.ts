@@ -10,6 +10,7 @@ import { PredictiveCoherence } from "./predictive_coherence.ts";
 import { ClusterBus } from "../distributed/cluster_bus.ts";
 import { PredictiveConsensus } from "../distributed/predictive_consensus.ts";
 import { SEL } from "../emotion/sel.ts";
+import type { IntentResult } from "../intent/intent_engine.ts";
 
 export class FusionEngine {
   private memory: MemoryStore;
@@ -69,7 +70,11 @@ export class FusionEngine {
       },
       intent,
       context: enrichedContext,
+      stabilityScore: 0.6, // Default stability score
     };
+
+    // Emotion-influenced fusion weighting
+    this.applyEmotionToFusion(fusion);
 
     // Measure fusion latency
     const latency = performance.now() - start;
@@ -117,6 +122,42 @@ export class FusionEngine {
     this.finalizeFusion(cognitiveState);
 
     return cognitiveState;
+  }
+
+  // A38: Compute consensus from multiple intents using gravitation
+  static computeConsensus(intents: IntentResult[]): IntentResult | null {
+    if (!intents.length) return null;
+
+    // Apply gravitation boost to each intent
+    const weighted = intents.map((i) => {
+      const g = (i as any).gravity || 0;
+      return { ...i, weight: (i.confidence || 0.5) + g };
+    });
+
+    // Sort by combined confidence + gravity
+    weighted.sort((a, b) => (b.weight || 0) - (a.weight || 0));
+
+    // WINNER: the intent PRIME is "pulled" toward
+    const winner = weighted[0];
+    return winner;
+  }
+
+  private applyEmotionToFusion(fusion: any) {
+    const emotion = SEL.getState();
+
+    // Modify fusion weighting based on coherence / tension:
+    const coherenceBoost = emotion.coherence * 0.15;
+    const tensionPenalty = emotion.tension * 0.25;
+
+    fusion.stabilityScore = Math.max(
+      0,
+      Math.min(
+        1,
+        (fusion.stabilityScore ?? 0.6)
+        + coherenceBoost
+        - tensionPenalty
+      )
+    );
   }
 
   private finalizeFusion(fusion: any) {

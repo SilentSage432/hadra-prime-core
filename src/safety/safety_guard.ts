@@ -11,6 +11,8 @@ const SAFETY_MIN_INTERVAL = 250; // ms
 
 export class SafetyGuard {
   static limiter = new SafetyLimiter();
+  static maxRecursionDepth = 35;
+  static maxBranching = 4;
 
   /**
    * Filter and sanitize output text
@@ -43,12 +45,39 @@ export class SafetyGuard {
 
     // Emotion-aware safety check
     const emotion = SEL.getState();
-    if (emotion.tension > 0.7) {
-      console.warn("[PRIME-SAFETY] Elevated tension detected — caution mode enabled.");
+    
+    // If tension is high, tighten safety thresholds
+    if (emotion.tension > 0.6) {
+      this.maxRecursionDepth = 20;
+      this.maxBranching = 2;
+      console.warn("[PRIME-SAFETY] High tension detected — tightened safety thresholds.");
+    } else if (emotion.tension <= 0.2) {
+      // If drift has normalized tension, restore full thresholds
+      this.maxRecursionDepth = 35;
+      this.maxBranching = 4;
+    } else {
+      // Default thresholds for moderate tension
+      this.maxRecursionDepth = 35;
+      this.maxBranching = 4;
+    }
+
+    // If coherence is low, enable caution mode
+    if (emotion.coherence < 0.3) {
+      console.warn("[PRIME-SAFETY] Low coherence detected — caution mode enabled.");
       // Continue processing but with caution flag
     }
 
-    if (!this.limiter.recordRecursion()) return false;
+    if (emotion.tension > 0.7) {
+      console.warn("[PRIME-SAFETY] Elevated tension detected — caution mode enabled.");
+      // A36: Recursion spikes train PRIME away from instability
+      SEL.reinforce("failure");
+    }
+
+    if (!this.limiter.recordRecursion()) {
+      // A36: Recursion limit exceeded - reinforce failure to avoid instability
+      SEL.reinforce("failure");
+      return false;
+    }
 
     if (!this.limiter.memoryAllowed()) {
       console.warn("[PRIME-SAFETY] Memory pressure too high.");
