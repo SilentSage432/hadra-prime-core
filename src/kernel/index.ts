@@ -45,6 +45,10 @@ import { PRIME_TEMPORAL } from "../temporal/reasoner.ts";
 import { EventCapture } from "../memory/episodic/event_capture.ts";
 import { EpisodeBuilder } from "../memory/episodic/episode_builder.ts";
 import { EpisodicArchive } from "../memory/episodic/episodic_archive.ts";
+import { EpisodicReinforcementEngine } from "../memory/episodic/reinforcement_engine.ts";
+import { MetaMemory } from "../memory/episodic/meta_memory.ts";
+import { PatternGeneralizationEngine } from "../memory/episodic/pattern_generalization_engine.ts";
+import { StrategicPatternGraph } from "../memory/episodic/strategic_pattern_graph.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -104,6 +108,17 @@ console.log("[PRIME] Situation Model initialized.");
 const eventCapture = new EventCapture();
 const episodeBuilder = new EpisodeBuilder();
 const episodicArchive = new EpisodicArchive();
+
+// A68: Initialize Episodic Reinforcement and Meta-Memory
+const reinforcementEngine = new EpisodicReinforcementEngine();
+const metaMemory = new MetaMemory();
+
+// A69: Initialize Pattern Generalization Engine
+const patternEngine = new PatternGeneralizationEngine();
+
+// A70: Initialize Strategic Pattern Graph
+const strategicGraph = new StrategicPatternGraph();
+let lastClusterId: string | null = null;
 
 // Start initial episode
 episodeBuilder.startEpisode("System Initialization & Calibration");
@@ -170,6 +185,7 @@ const kernelInstance = {
     // Add event to current episode
     episodeBuilder.addEvent(microEvent);
     console.log("[PRIME-EPISODE] micro-event captured: reflection update");
+    console.log("[PRIME-EPISODE] micro-event recorded in active episode.");
     
     // Check if stability has stabilized and close episode if needed
     const currentEpisode = episodeBuilder.getCurrent();
@@ -177,11 +193,69 @@ const kernelInstance = {
       const finished = episodeBuilder.closeEpisode("Stability cycle completed.");
       if (finished) {
         episodicArchive.store(finished);
+        
+        // A68: Generate reinforcement signal
+        const reinforcement = reinforcementEngine.computeReinforcement(finished);
+        
+        // A68: Create embedding & store in meta-memory
+        const embedding = metaMemory.createEmbedding(finished, reinforcement);
+        
+        // A69: Feed into pattern generalization engine
+        const clusterInfo = patternEngine.addEmbedding(embedding);
+        console.log("[PRIME-PATTERN] Embedding assigned:", clusterInfo);
+        if (!clusterInfo.createdNewCluster) {
+          console.log("[PRIME-PATTERN] Cluster signature updated.");
+        }
+        
+        // A70: Record transition if we have a previous cluster
+        if (lastClusterId) {
+          const edge = strategicGraph.recordTransition(
+            lastClusterId,
+            clusterInfo.clusterId
+          );
+          console.log("[PRIME-STRATEGY] Transition:", edge);
+          
+          // A70: Stability check - high transition density detection
+          const edges = strategicGraph.getEdges();
+          if (edges.length > 50) {
+            console.log("[PRIME-STRATEGY] High transition density detected.");
+          }
+        }
+        lastClusterId = clusterInfo.clusterId;
+        
         console.log("[PRIME-EPISODE] Episode stored:", finished.title, `(${finished.events.length} events)`);
+        console.log("[PRIME-REINFORCE] Reinforcement computed:", {
+          clarityDelta: reinforcement.clarityDelta.toFixed(3),
+          consolidationDelta: reinforcement.consolidationDelta.toFixed(3),
+          stabilityDelta: reinforcement.stabilityDelta.toFixed(3),
+          predictionSuppressionScore: reinforcement.predictionSuppressionScore.toFixed(3)
+        });
+        console.log("[PRIME-META] Episode embedded:", {
+          title: finished.title,
+          reinforcement
+        });
+        console.log("[PRIME-META] Embeddings:", metaMemory.getEmbeddings().length, "total");
         
         // Start new episode
         episodeBuilder.startEpisode("Stable operation phase");
         console.log("[PRIME-EPISODE] New episode started: Stable operation phase");
+        
+        // A69: Pattern hinting for new episode
+        const embeddings = metaMemory.getEmbeddings();
+        if (embeddings.length > 0) {
+          const last = embeddings[embeddings.length - 1];
+          const clusters = patternEngine.listClusters();
+          for (const c of clusters) {
+            const sim = patternEngine.similarity(c.signature, last.vector);
+            if (sim >= 0.75) {
+              console.log("[PRIME-PATTERN] New episode resembles cluster:", {
+                clusterId: c.id,
+                similarity: sim.toFixed(3)
+              });
+              break;
+            }
+          }
+        }
       }
     } else if (currentEpisode) {
       // Log episode progress periodically
@@ -240,15 +314,101 @@ const kernelInstance = {
   createEpisode(title: string) {
     const episode = episodeBuilder.startEpisode(title);
     console.log("[PRIME-EPISODE] New episode started:", title);
+    
+    // A69: Pattern hinting for new episode
+    const embeddings = metaMemory.getEmbeddings();
+    if (embeddings.length > 0) {
+      const last = embeddings[embeddings.length - 1];
+      const clusters = patternEngine.listClusters();
+      for (const c of clusters) {
+        const sim = patternEngine.similarity(c.signature, last.vector);
+        if (sim >= 0.75) {
+          console.log("[PRIME-PATTERN] New episode resembles cluster:", {
+            clusterId: c.id,
+            similarity: sim.toFixed(3)
+          });
+          break;
+        }
+      }
+    }
+    
     return episode;
   },
   closeEpisode(summary?: string) {
     const finished = episodeBuilder.closeEpisode(summary);
     if (finished) {
       episodicArchive.store(finished);
+      
+      // A68: Generate reinforcement signal
+      const reinforcement = reinforcementEngine.computeReinforcement(finished);
+      
+      // A68: Create embedding & store in meta-memory
+      const embedding = metaMemory.createEmbedding(finished, reinforcement);
+      
+      // A69: Feed into pattern generalization engine
+      const clusterInfo = patternEngine.addEmbedding(embedding);
+      console.log("[PRIME-PATTERN] Embedding assigned:", clusterInfo);
+      if (!clusterInfo.createdNewCluster) {
+        console.log("[PRIME-PATTERN] Cluster signature updated.");
+      }
+      
+      // A70: Record transition if we have a previous cluster
+      if (lastClusterId) {
+        const edge = strategicGraph.recordTransition(
+          lastClusterId,
+          clusterInfo.clusterId
+        );
+        console.log("[PRIME-STRATEGY] Transition:", edge);
+        
+        // A70: Stability check - high transition density detection
+        const edges = strategicGraph.getEdges();
+        if (edges.length > 50) {
+          console.log("[PRIME-STRATEGY] High transition density detected.");
+        }
+      }
+      lastClusterId = clusterInfo.clusterId;
+      
       console.log("[PRIME-EPISODE] Episode stored:", finished.title);
+      console.log("[PRIME-REINFORCE] Reinforcement computed:", {
+        clarityDelta: reinforcement.clarityDelta.toFixed(3),
+        consolidationDelta: reinforcement.consolidationDelta.toFixed(3),
+        stabilityDelta: reinforcement.stabilityDelta.toFixed(3),
+        predictionSuppressionScore: reinforcement.predictionSuppressionScore.toFixed(3)
+      });
+      console.log("[PRIME-META] Episode embedded:", {
+        title: finished.title,
+        reinforcement
+      });
+      console.log("[PRIME-META] Embeddings:", metaMemory.getEmbeddings().length, "total");
     }
     return finished;
+  },
+  // A68: Meta-Memory API
+  getEpisodeEmbeddings() {
+    return metaMemory.getEmbeddings();
+  },
+  findSimilarEpisodes(vector: number[]) {
+    return metaMemory.findSimilar(vector);
+  },
+  // A69: Pattern Generalization API
+  listPatternClusters() {
+    return patternEngine.listClusters();
+  },
+  getClusterSignature(clusterId: string) {
+    return patternEngine.getClusterSignature(clusterId);
+  },
+  getClusterDetails(clusterId: string) {
+    return patternEngine.getCluster(clusterId);
+  },
+  // A70: Strategic Pattern Graph API
+  getStrategicGraph() {
+    return strategicGraph.getGraphSnapshot();
+  },
+  getForwardLinks(clusterId: string) {
+    return strategicGraph.getForwardLinks(clusterId);
+  },
+  getBackLinks(clusterId: string) {
+    return strategicGraph.getBackLinks(clusterId);
   }
 };
 
