@@ -33,6 +33,8 @@ import { recallSimilar } from "../memory/memory_router.ts";
 import { ConceptGraph } from "../memory/concepts/concept_store.ts";
 
 export class ReflectionEngine {
+  lastReflection: any = null; // A100: Track last reflection for attention engine
+
   // A93: Neural recall integration method
   async integrateNeuralRecall(embedding: number[]) {
     const similar = await recallSimilar(embedding, 3);
@@ -390,6 +392,7 @@ export class ReflectionEngine {
     }
 
     // A95: Show concepts if available in cognitive state or memory
+    // A100: Track active concept for attention engine
     if (cognitiveState.concept) {
       const conceptId = cognitiveState.concept;
       const concept = ConceptGraph.find(c => c.id === conceptId);
@@ -401,8 +404,20 @@ export class ReflectionEngine {
           stability: concept.stability.toFixed(3),
           members: concept.members.length
         });
+        
+        // A100: Set active concept for attention engine
+        (reflection as any).activeConcept = concept;
+      }
+    } else {
+      // A100: Find focused concepts if no active concept
+      const focused = ConceptGraph.filter(c => c.isFocused).sort((a, b) => (b.attentionScore || 0) - (a.attentionScore || 0));
+      if (focused.length > 0) {
+        (reflection as any).activeConcept = focused[0];
       }
     }
+
+    // A100: Store last reflection for attention engine
+    this.lastReflection = reflection;
 
     return reflection;
   }

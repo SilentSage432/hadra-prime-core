@@ -72,6 +72,7 @@ import { ConceptDriftEngine } from "../memory/concepts/concept_drift_engine.ts";
 import { ConceptMergeSplitEngine } from "../memory/concepts/concept_merge_split_engine.ts";
 import { SemanticCompressionEngine } from "../memory/concepts/semantic_compression_engine.ts";
 import { HierarchicalKnowledgeEngine } from "../memory/knowledge/hierarchical_knowledge_engine.ts";
+import { KnowledgeAttentionEngine } from "../cognition/attention/knowledge_attention_engine.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -154,6 +155,10 @@ console.log("[PRIME-CONCEPTS] Semantic Compression Engine online.");
 // A99: Initialize Hierarchical Knowledge Engine
 const hierarchyEngine = new HierarchicalKnowledgeEngine();
 console.log("[PRIME-CONCEPTS] Hierarchical Knowledge Engine online.");
+
+// A100: Initialize Knowledge Attention Engine
+const attentionEngine = new KnowledgeAttentionEngine();
+console.log("[PRIME-CONCEPTS] Knowledge Attention Engine online.");
 
 console.log("[PRIME] Initializing cognitive threads...");
 // ThreadPool will be initialized with default instances
@@ -443,6 +448,21 @@ const kernelInstance = {
     
     // A99: Apply hierarchical knowledge organization after compression
     hierarchyEngine.tick();
+    
+    // A100: Apply knowledge attention after hierarchy organization
+    // Reuse motivationState already computed at the start of this function
+    const selfModel = MetaSelf.exportModel();
+    const currentPlan = planEngine.getCurrentPlan ? planEngine.getCurrentPlan() : null;
+    
+    attentionEngine.tick({
+      motivation: {
+        ...motivationState,
+        topGoal: cognitiveSnapshot.topGoal
+      },
+      selfModel: selfModel,
+      plan: currentPlan,
+      reflection: reflection
+    });
     
     // Optionally store reflection in memory (future enhancement)
     // PRIME.remember({ type: "reflection", data: reflection });

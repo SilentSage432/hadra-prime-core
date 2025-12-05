@@ -20,6 +20,10 @@ export interface ConceptNode {
   children?: string[];   // A99: lower-layer concept IDs
   importanceScore?: number;  // A99: computed importance
   hierarchyConfidence?: number;  // A99: confidence in hierarchy placement
+  attentionScore?: number;  // A100: computed attention score
+  isFocused?: boolean;  // A100: whether concept is in focus
+  isSuppressed?: boolean;  // A100: whether concept is suppressed
+  predictionWeight?: number;  // A100: predictive relevance weight
 }
 
 export const ConceptGraph: ConceptNode[] = [];
