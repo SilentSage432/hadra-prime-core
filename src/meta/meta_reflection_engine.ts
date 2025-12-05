@@ -6,6 +6,7 @@ import { DriftPredictor } from "./drift_predictor.ts";
 import { PredictiveMetaLearner } from "./predictive_meta_learner.ts";
 import { SelfHealingEngine } from "../stability/self_healing_engine.ts";
 import { AdaptiveReconfigEngine } from "../architecture/adaptive_reconfig_engine.ts";
+import { SCELExpansionEngine } from "../expansion/scel_engine.ts";
 
 export class MetaReflectionEngine {
   private smv: SelfModelVector;
@@ -14,6 +15,8 @@ export class MetaReflectionEngine {
   private predictive: PredictiveMetaLearner;
   private healer: SelfHealingEngine;
   private aire: AdaptiveReconfigEngine;
+  private scel: SCELExpansionEngine;
+  private cognitiveModules: any[] = [];
 
   constructor(smv: SelfModelVector, metaLearner: MetaLearningLayer, driftPredictor: DriftPredictor) {
     this.smv = smv;
@@ -22,6 +25,7 @@ export class MetaReflectionEngine {
     this.predictive = new PredictiveMetaLearner();
     this.healer = new SelfHealingEngine();
     this.aire = new AdaptiveReconfigEngine();
+    this.scel = new SCELExpansionEngine();
   }
 
   runMetaCycle(goalSummary: any, motivation: any) {
@@ -75,6 +79,46 @@ export class MetaReflectionEngine {
     // Fallback regeneration
     if (this.smv.stabilityIndex < 0.42) {
       this.aire.regeneratePathway("stability-coherence");
+    }
+
+    // --- A58: SCEL: SELF-DIRECTED COGNITIVE EXPANSION ---
+    const need = this.scel.detectNeed(this.smv);
+    if (Object.values(need).some(v => v === true)) {
+      console.log("[SCEL] Cognitive expansion opportunity detected.");
+
+      let type =
+        need.needsClarityModule ? "clarity" :
+        need.needsDriftCorrector ? "drift" :
+        need.needsFusionEnhancer ? "fusion" :
+        "intent";
+
+      const blueprint = this.scel.generateBlueprint(type);
+      const before = {
+        clarityIndex: this.smv.clarityIndex,
+        driftRisk: this.smv.driftRisk,
+        consolidationTension: this.smv.consolidationTension
+      };
+
+      blueprint.compute(this.smv);
+
+      const after = {
+        clarityIndex: this.smv.clarityIndex,
+        driftRisk: this.smv.driftRisk,
+        consolidationTension: this.smv.consolidationTension
+      };
+
+      const ok = this.scel.evaluateImpact(before, after);
+
+      if (ok) {
+        this.scel.installBlueprint(blueprint, this.cognitiveModules);
+        console.log(`[SCEL] '${type}' module approved and installed.`);
+      } else {
+        // Rollback changes if improvement insufficient
+        this.smv.clarityIndex = before.clarityIndex;
+        this.smv.driftRisk = before.driftRisk;
+        this.smv.consolidationTension = before.consolidationTension;
+        console.log("[SCEL] Expansion rejected (insufficient improvement).");
+      }
     }
 
     console.log(
