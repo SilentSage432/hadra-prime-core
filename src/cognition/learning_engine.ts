@@ -1,4 +1,7 @@
 // src/cognition/learning_engine.ts
+// A73: Neural Memory Reinforcement Hooks
+
+import { NeuralMemory } from "./neural/neural_memory_bank.ts";
 
 export class LearningEngine {
   adjustFromReflection(reflection: any, selState: any) {
@@ -38,6 +41,12 @@ export class LearningEngine {
     }
 
     return adjustments;
+  }
+
+  // A73: Reinforcement learning from outcomes
+  reinforceFromOutcome(embedding: number[], success: boolean) {
+    const delta = success ? +0.1 : -0.1;
+    NeuralMemory.reinforce(embedding, delta);
   }
 }
 

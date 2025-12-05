@@ -2,6 +2,7 @@
 // A72: Neural Context Encoding Layer (NCEL)
 
 import type { CognitiveState, MotivationState } from "../shared/types.ts";
+import { NeuralMemory } from "../cognition/neural/neural_memory_bank.ts";
 
 export interface NeuralContextVector {
   vector: number[];
@@ -66,7 +67,7 @@ export class NeuralContextEncoder {
     // ---- 5) Pad or trim vector for model compatibility ----
     const vector = this.stabilizeVector(features);
 
-    return {
+    const neuralContext: NeuralContextVector = {
       vector,
       confidence: 1.0, // PRIME is confident in its own state representation
       timestamp: Date.now(),
@@ -76,6 +77,22 @@ export class NeuralContextEncoder {
         stability: stabilityScore
       }
     };
+
+    // A73: Write to neural memory bank
+    NeuralMemory.addMemory({
+      embedding: vector,
+      tag: "context",
+      timestamp: neuralContext.timestamp,
+      weight: 1.0,
+      metadata: { 
+        stateSummary: cognitive.activeGoal?.type ?? "unknown",
+        goal: cognitive.activeGoal?.type ?? null,
+        uncertainty: cognitive.uncertainty,
+        stability: stabilityScore
+      }
+    });
+
+    return neuralContext;
   }
 
   // -------------------------- Utilities --------------------------

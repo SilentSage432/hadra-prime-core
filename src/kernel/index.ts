@@ -50,6 +50,7 @@ import { MetaMemory } from "../memory/episodic/meta_memory.ts";
 import { PatternGeneralizationEngine } from "../memory/episodic/pattern_generalization_engine.ts";
 import { StrategicPatternGraph } from "../memory/episodic/strategic_pattern_graph.ts";
 import { NeuralContextEncoder } from "../neural/context_encoder.ts";
+import { NeuralMemory } from "../cognition/neural/neural_memory_bank.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -658,6 +659,11 @@ setInterval(() => {
 setInterval(() => {
   SEL.applyDrift();
 }, 5000); // once every 5 seconds — slow, stable drift
+
+// A73: Neural memory decay (event-driven, does NOT trigger cognition)
+setInterval(() => {
+  NeuralMemory.decay();
+}, 60000); // decay every 1 minute
 
 /**
  * Get recent interaction memory
