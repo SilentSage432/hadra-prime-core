@@ -42,6 +42,9 @@ import { MemoryStore } from "../memory/memory_store.ts";
 import { MemoryLayer } from "../memory/memory.ts";
 import { PRIME_SITUATION } from "../situation_model/index.ts";
 import { PRIME_TEMPORAL } from "../temporal/reasoner.ts";
+import { EventCapture } from "../memory/episodic/event_capture.ts";
+import { EpisodeBuilder } from "../memory/episodic/episode_builder.ts";
+import { EpisodicArchive } from "../memory/episodic/episodic_archive.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -97,6 +100,15 @@ console.log("[PRIME-STRATEGY] Engine loaded. Awaiting operator directives.");
 // A65: Initialize Situation Model
 console.log("[PRIME] Situation Model initialized.");
 
+// A67: Initialize Episodic Memory System
+const eventCapture = new EventCapture();
+const episodeBuilder = new EpisodeBuilder();
+const episodicArchive = new EpisodicArchive();
+
+// Start initial episode
+episodeBuilder.startEpisode("System Initialization & Calibration");
+console.log("[PRIME-EPISODE] Initial episode started: System Initialization & Calibration");
+
 // A48: Kernel instance for operator command handling
 const kernelInstance = {
   actionEngine,
@@ -146,6 +158,38 @@ const kernelInstance = {
     // A66: Temporal reasoning capture (passive)
     PRIME_TEMPORAL.record();
     
+    // A67: Capture reflection micro-event
+    const motivationState = MotivationEngine.compute();
+    const microEvent = eventCapture.capture({
+      type: "reflection",
+      stability: stabilitySnapshot,
+      motivation: motivationState,
+      reflection: reflection
+    });
+    
+    // Add event to current episode
+    episodeBuilder.addEvent(microEvent);
+    console.log("[PRIME-EPISODE] micro-event captured: reflection update");
+    
+    // Check if stability has stabilized and close episode if needed
+    const currentEpisode = episodeBuilder.getCurrent();
+    if (stabilitySnapshot.score > 0.8 && currentEpisode && currentEpisode.events.length > 5) {
+      const finished = episodeBuilder.closeEpisode("Stability cycle completed.");
+      if (finished) {
+        episodicArchive.store(finished);
+        console.log("[PRIME-EPISODE] Episode stored:", finished.title, `(${finished.events.length} events)`);
+        
+        // Start new episode
+        episodeBuilder.startEpisode("Stable operation phase");
+        console.log("[PRIME-EPISODE] New episode started: Stable operation phase");
+      }
+    } else if (currentEpisode) {
+      // Log episode progress periodically
+      if (currentEpisode.events.length % 10 === 0) {
+        console.log("[PRIME-EPISODE] current episode:", currentEpisode.title, `(${currentEpisode.events.length} events)`);
+      }
+    }
+    
     // Attach meta evaluation to reflection for future use
     reflection.meta = meta;
     
@@ -185,6 +229,26 @@ const kernelInstance = {
       status: "processed",
       result,
     };
+  },
+  // A67: Episodic Memory API
+  getEpisodes() {
+    return episodicArchive.list();
+  },
+  getCurrentEpisode() {
+    return episodeBuilder.getCurrent();
+  },
+  createEpisode(title: string) {
+    const episode = episodeBuilder.startEpisode(title);
+    console.log("[PRIME-EPISODE] New episode started:", title);
+    return episode;
+  },
+  closeEpisode(summary?: string) {
+    const finished = episodeBuilder.closeEpisode(summary);
+    if (finished) {
+      episodicArchive.store(finished);
+      console.log("[PRIME-EPISODE] Episode stored:", finished.title);
+    }
+    return finished;
   }
 };
 
