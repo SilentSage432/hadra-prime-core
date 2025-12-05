@@ -2,9 +2,11 @@
 // A74: Neural Recall Integration
 // A75: Concept Formation Integration
 // A76: Hierarchical Concept Networks
+// A77: Knowledge Graph Integration
 
 import { Concepts } from "./concepts/concept_engine.ts";
 import { Hierarchy } from "./concepts/concept_hierarchy.ts";
+import { Knowledge } from "./knowledge/knowledge_graph.ts";
 
 export class ReflectionEngine {
   reflect(cognitiveState: any, selState: any) {
@@ -63,6 +65,30 @@ export class ReflectionEngine {
     }
 
     console.log("[PRIME-REFLECTION]", reflection.summary);
+
+    // A77: Add reflection to knowledge graph
+    const reflectionId = `reflection_${reflection.timestamp}`;
+    Knowledge.addNode(reflectionId, "reflection", {
+      summary: reflection.summary,
+      state: {
+        motivation: reflection.motivation,
+        topGoal: reflection.topGoal,
+        sel: reflection.sel
+      },
+      timestamp: reflection.timestamp,
+    }, 1.0);
+
+    // A77: Link reflection to related concepts and domains
+    if (cognitiveState.concept) {
+      Knowledge.linkContainment(cognitiveState.concept.id, reflectionId);
+    }
+    if (cognitiveState.domain) {
+      Knowledge.linkContainment(cognitiveState.domain.id, reflectionId);
+    }
+    if (cognitiveState.embedding) {
+      // Link to related memories via embedding similarity
+      // (This will be handled by the memory bank's similarity links)
+    }
 
     return reflection;
   }

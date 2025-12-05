@@ -1,8 +1,10 @@
 // src/cognition/planning_engine.ts
 // A74: Neural Recall Integration
 // A76: Hierarchical Concept Networks
+// A77: Knowledge Graph Integration
 
 import type { ProtoGoal } from "./proto_goal_engine.ts";
+import { Knowledge } from "./knowledge/knowledge_graph.ts";
 import { ActionSelectionEngine } from "./action_selection_engine.ts";
 import { SEL } from "../emotion/sel.ts";
 import { StabilityMatrix } from "../stability/stability_matrix.ts";
@@ -70,6 +72,21 @@ export class PlanningEngine {
         domainId: cognitiveState.domain.id,
         strength: cognitiveState.domain.strength,
         weight: domainWeight.toFixed(3)
+      });
+    }
+
+    // A77: Reference knowledge graph for planning influence
+    const graphStats = Knowledge.getStats();
+    if (graphStats.nodeCount > 0) {
+      // Lightweight graph reference for planning (stats only, not full graph)
+      (cognitiveState as any).knowledgeInfluence = {
+        nodeCount: graphStats.nodeCount,
+        edgeCount: graphStats.edgeCount,
+        nodesByType: graphStats.nodesByType
+      };
+      console.log("[PRIME-KNOWLEDGE] Planning with knowledge graph context:", {
+        nodes: graphStats.nodeCount,
+        edges: graphStats.edgeCount
       });
     }
     

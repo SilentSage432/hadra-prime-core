@@ -1,7 +1,9 @@
 // src/cognition/neural/neural_memory_bank.ts
 // A73: Neural Memory Bank
+// A77: Knowledge Graph Integration
 
 import { cosineSimilarity } from "./similarity.ts";
+import { Knowledge } from "../knowledge/knowledge_graph.ts";
 
 export interface NeuralMemoryEntry {
   id?: string; // A75: Unique identifier for concept clustering
@@ -27,6 +29,20 @@ export class NeuralMemoryBank {
 
     this.memory.push(entry);
     this.enforceSizeLimit();
+
+    // A77: Add memory to knowledge graph
+    Knowledge.addNode(entry.id, "memory", entry, entry.weight);
+
+    // A77: Link similar memories (check against recent memories for performance)
+    const recentMemories = this.memory.slice(-50); // Check last 50 memories
+    for (const other of recentMemories) {
+      if (other.id === entry.id) continue; // Skip self
+      
+      const sim = cosineSimilarity(entry.embedding, other.embedding);
+      if (sim > 0.5) {
+        Knowledge.linkSimilar(entry.id, other.id, sim);
+      }
+    }
   }
 
   private enforceSizeLimit() {

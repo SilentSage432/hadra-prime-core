@@ -31,6 +31,11 @@ export interface CognitiveState {
     metaConcepts: string[];
     strength: number;
   }; // A76: Domain awareness
+  knowledgeInfluence?: {
+    nodeCount: number;
+    edgeCount: number;
+    nodesByType: Record<string, number>;
+  }; // A77: Knowledge graph context
 }
 
 export interface MotivationState {

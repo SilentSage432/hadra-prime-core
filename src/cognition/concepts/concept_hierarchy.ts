@@ -1,8 +1,10 @@
 // src/cognition/concepts/concept_hierarchy.ts
 // A76: Hierarchical Concept Networks
+// A77: Knowledge Graph Integration
 
 import type { Concept } from "./concept_engine.ts";
 import { cosineSimilarity } from "../neural/similarity.ts";
+import { Knowledge } from "../knowledge/knowledge_graph.ts";
 import crypto from "crypto";
 
 export interface MetaConcept {
@@ -71,6 +73,14 @@ export class ConceptHierarchy {
 
     this.metaConcepts = newMetaConcepts;
     console.log(`[PRIME-META] Total meta-concepts: ${this.metaConcepts.length}`);
+
+    // A77: Add meta-concepts to knowledge graph and link containment
+    this.metaConcepts.forEach((mc) => {
+      Knowledge.addNode(mc.id, "meta", mc, mc.strength);
+      mc.members.forEach((child) => {
+        Knowledge.linkContainment(mc.id, child);
+      });
+    });
   }
 
   /** Build domains by clustering meta-concepts */
@@ -120,6 +130,14 @@ export class ConceptHierarchy {
 
     this.domains = newDomains;
     console.log(`[PRIME-DOMAIN] Total domains: ${this.domains.length}`);
+
+    // A77: Add domains to knowledge graph and link containment
+    this.domains.forEach((d) => {
+      Knowledge.addNode(d.id, "domain", d, d.strength);
+      d.metaConcepts.forEach((mc) => {
+        Knowledge.linkContainment(d.id, mc);
+      });
+    });
   }
 
   combinePrototypes(concepts: Concept[]): number[] {

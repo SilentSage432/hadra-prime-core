@@ -1,10 +1,12 @@
 // src/cognition/concepts/concept_engine.ts
 // A75: Neural Abstraction Layer (Concept Formation Engine)
 // A76: Hierarchical Concept Networks
+// A77: Knowledge Graph Integration
 
 import { NeuralMemory } from "../neural/neural_memory_bank.ts";
 import { cosineSimilarity } from "../neural/similarity.ts";
 import { Hierarchy } from "./concept_hierarchy.ts";
+import { Knowledge } from "../knowledge/knowledge_graph.ts";
 import crypto from "crypto";
 
 export interface Concept {
@@ -62,11 +64,34 @@ export class ConceptEngine {
         });
 
         console.log(`[PRIME-CONCEPT] Derived concept ${conceptId}: ${clusterMembers.length} members`);
+
+        // A77: Add concept to knowledge graph
+        Knowledge.addNode(conceptId, "concept", {
+          prototype,
+          members: clusterMembers.map((m) => m.id),
+          strength: clusterMembers.length,
+        }, clusterMembers.length);
+
+        // A77: Link concept to its member memories
+        clusterMembers.forEach((member) => {
+          Knowledge.linkContainment(conceptId, member.id);
+        });
       }
     }
 
     this.concepts = newConcepts;
     console.log(`[PRIME-CONCEPT] Total concepts: ${this.concepts.length}`);
+
+    // A77: Link similar concepts in knowledge graph
+    for (let i = 0; i < newConcepts.length; i++) {
+      for (let j = i + 1; j < newConcepts.length; j++) {
+        const sim = cosineSimilarity(
+          newConcepts[i].prototype,
+          newConcepts[j].prototype
+        );
+        Knowledge.linkSimilar(newConcepts[i].id, newConcepts[j].id, sim);
+      }
+    }
 
     // A76: Build meta-concepts and domains after concepts form
     if (this.concepts.length > 1) {
