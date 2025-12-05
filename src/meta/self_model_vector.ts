@@ -6,6 +6,8 @@ export class SelfModelVector {
   explorationBias: number = 0.30;
   consolidationTension: number = 0.70;
   driftRisk: number = 0.10;
+  activeIntentions?: any[];
+  longHorizonIntentions?: any[];
 
   updateFromCycle(goalSummary: any, motivation: any) {
     // Update from consolidation vs curiosity tension
