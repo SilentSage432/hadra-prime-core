@@ -435,5 +435,14 @@ export class ReflectionEngine {
            `curiosity=${(motivation.curiosity || 0).toFixed(3)}, ` +
            `claritySeeking=${(motivation.claritySeeking || 0).toFixed(3)}.`;
   }
+
+  // A107: Log intent conflict for meta-reflection learning
+  logIntentConflict(h: any) {
+    // Placeholder for meta-reflection learning
+    console.log("[PRIME-REFLECTION] Intent conflict logged:", {
+      conflictScore: h.conflictScore,
+      reasoning: h.reasoning
+    });
+  }
 }
 

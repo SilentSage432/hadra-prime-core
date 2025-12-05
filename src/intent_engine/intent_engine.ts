@@ -4,6 +4,8 @@ import { semanticScore } from "./semantic.ts";
 import { fuseScores } from "./fusion.ts";
 
 export class IntentEngine {
+  private currentIntent: string | null = null; // A107: Track current intent
+
   process(raw: string): IntentPacket {
     const rule = ruleMatch(raw);
     const semantic = semanticScore(raw);
@@ -19,6 +21,11 @@ export class IntentEngine {
       timestamp: new Date(),
       payload: {},
     };
+  }
+
+  // A107: Set top intent from harmonized resolution
+  setTopIntent(intent: string) {
+    this.currentIntent = intent;
   }
 }
 

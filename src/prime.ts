@@ -562,6 +562,23 @@ class PrimeEngine extends EventEmitter {
   isDualMindActive() {
     return this.dualMindActive;
   }
+
+  // A107: Apply harmonized intent from dual-mind collaboration
+  applyHarmonizedIntent(h: any) {
+    if (!this.dualMindActive) return;
+
+    console.log("[PRIME] Applying harmonized intent:", h.finalIntent);
+
+    // Apply intent through intent engine if method exists
+    if (this.intentEngine && (this.intentEngine as any).setTopIntent) {
+      (this.intentEngine as any).setTopIntent(h.finalIntent);
+    }
+
+    // Reflection learns from disagreement
+    if (h.conflictScore > 0 && this.reflector && (this.reflector as any).logIntentConflict) {
+      (this.reflector as any).logIntentConflict(h);
+    }
+  }
 }
 
 const PRIME = new PrimeEngine();

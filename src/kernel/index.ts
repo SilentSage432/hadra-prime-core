@@ -77,6 +77,8 @@ import { NeuralBridge } from "../neural/neural_bridge.ts";
 import { AttentionEstimator } from "../neural/attention_estimator.ts";
 import { DualMind } from "../dual_core/dual_mind_activation.ts";
 import { DualMindSafetyGate } from "../safety/dual_mind_safety_gate.ts";
+import { JointIntentHarmonizer } from "../intent_engine/joint_intent_harmonizer.ts";
+import { DualMindCoherenceEngine } from "../distributed/dual_mind_coherence_engine.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -634,6 +636,15 @@ const kernelInstance = {
   },
   disableDualMind() {
     DualMind.deactivate();
+  },
+  // A107: Apply harmonized intent from dual-mind collaboration
+  applyHarmonizedIntent(h: any) {
+    if (!DualMind.isActive()) return;
+    console.log("[PRIME] Applying harmonized intent:", h.finalIntent);
+    // Apply through PRIME instance
+    if (PRIME && (PRIME as any).applyHarmonizedIntent) {
+      (PRIME as any).applyHarmonizedIntent(h);
+    }
   }
 };
 
@@ -716,6 +727,60 @@ eventBus.on("memory-updated", () => {
     Concepts.deriveConcepts();
     console.log("[PRIME-CONCEPT] Concept derivation triggered by memory update");
   }
+});
+
+// A107: Handle dual-mind input events - PRIME/SAGE intent harmonization
+eventBus.on("dual_mind:input", (sagePacket: any) => {
+  if (!DualMind.isActive()) return;
+
+  // Get PRIME's current state
+  const primeState: any = {
+    topGoal: null,
+    confidence: 0.8
+  };
+
+  // Try to get actual state from motivation engine if available
+  try {
+    const motivation = MotivationEngine.compute();
+    const goals = ProtoGoalEngine.computeGoals(motivation);
+    if (goals.length > 0) {
+      primeState.topGoal = goals[0].type || "none";
+    }
+  } catch (e) {
+    // Fallback to default
+  }
+
+  const sageState = sagePacket.state ?? {};
+
+  // Compute coherence weights
+  const weights = DualMindCoherenceEngine.computeWeights(primeState, sageState);
+
+  // Build intent proposals
+  const primeIntent = {
+    source: "PRIME" as const,
+    intent: primeState.topGoal ?? "none",
+    confidence: primeState.confidence ?? 0.8
+  };
+
+  const sageIntent = sagePacket.intent
+    ? {
+        source: "SAGE" as const,
+        intent: sagePacket.intent,
+        confidence: sagePacket.confidence ?? 0.8
+      }
+    : null;
+
+  // Harmonize intents
+  const harmonized = JointIntentHarmonizer.harmonize(
+    primeIntent,
+    sageIntent,
+    weights
+  );
+
+  console.log("[PRIME-DUAL] Harmonized Intent:", harmonized);
+
+  // Apply harmonized intent through kernel instance
+  kernelInstance.applyHarmonizedIntent(harmonized);
 });
 
 // Handle input events - PRIME's intent classification and routing system
