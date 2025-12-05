@@ -9,6 +9,7 @@
 // A82: Temporal Identity Engine Integration
 // A83: Proto-Narrative Engine Integration
 // A84: Internal Dialogue Engine Integration
+// A85: Multi-Voice Deliberation Engine Integration
 
 import { Concepts } from "./concepts/concept_engine.ts";
 import { Hierarchy } from "./concepts/concept_hierarchy.ts";
@@ -19,6 +20,7 @@ import { MetaSelf } from "./self/meta_self_engine.ts";
 import { TemporalIdentity } from "./self/temporal_identity_engine.ts";
 import { Narrative } from "./self/narrative_engine.ts";
 import { InternalDialogue } from "./self/internal_dialogue_engine.ts";
+import { MultiVoices } from "./self/multivoice_engine.ts";
 
 export class ReflectionEngine {
   reflect(cognitiveState: any, selState: any) {
@@ -284,6 +286,18 @@ export class ReflectionEngine {
       });
       
       this.logReflection(dialogueTurn);
+
+      // A85: Multi-voice deliberation
+      const uncertainty = 1 - (selState.certainty || 0);
+      const deliberation = MultiVoices.deliberate({
+        goal: topGoal?.type || "none",
+        clarity: state.claritySeeking || 0,
+        curiosity: state.curiosity || 0,
+        uncertainty: uncertainty,
+        stabilityPressure: state.stabilityPressure || 0
+      });
+      
+      this.logReflection(deliberation.conclusion);
     }
 
     return reflection;
