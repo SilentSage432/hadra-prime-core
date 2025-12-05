@@ -64,6 +64,8 @@ import { MultiVoices } from "../cognition/self/multivoice_engine.ts";
 import { ConflictEngine } from "../cognition/self/conflict_resolver.ts";
 import { Realignment } from "../cognition/self/realignment_engine.ts";
 import { Homeostasis } from "../cognition/self/homeostasis_engine.ts";
+import { CortexManager } from "../neural/cortex/cortex_manager.ts";
+import { NeuralRegistry } from "../neural/cortex/registry.ts";
 import crypto from "crypto";
 
 console.log("[PRIME] Initializing Stability Matrix...");
@@ -109,6 +111,13 @@ console.log("[PRIME-SELF] Cognitive Homeostasis Engine active.");
 
 // A89: Initialize Neural Inference Boundary Controller
 console.log("[PRIME-NEURAL] Neural Boundary Controller online.");
+
+// A91: Initialize Neural Cortex
+console.log("[PRIME-CORTEX] Initializing neural cortex...");
+let Cortex: CortexManager | null = null;
+Cortex = new CortexManager(NeuralRegistry);
+console.log("[PRIME-CORTEX] Loaded neural registry.");
+console.log("[PRIME-CORTEX] Cortex online (no models loaded yet).");
 
 console.log("[PRIME] Initializing cognitive threads...");
 // ThreadPool will be initialized with default instances
