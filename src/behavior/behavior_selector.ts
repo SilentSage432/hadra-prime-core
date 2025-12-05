@@ -1,6 +1,7 @@
 // src/behavior/behavior_selector.ts
 // A124: Extended with uncertainty-aware behavior selection
 // A125: Extended with cognitive risk mitigation
+// A126: Extended with reflective safety loop integration
 
 export class BehaviorSelector {
   selectBehavior(smv: any, cognitiveState?: any) {
@@ -16,8 +17,8 @@ export class BehaviorSelector {
     }
 
     if (cognitiveState?.mitigationStrategy === "stabilize_and_pause") {
-      console.log("[PRIME-BEHAVIOR] Mitigation: stabilizing and pausing → shifting to 'stabilize' mode.");
-      return { type: "stabilize", reason: "Mitigation: stabilization required" };
+      console.log("[PRIME-BEHAVIOR] Mitigation: stabilizing and pausing → entering stabilization mode.");
+      return { type: "enter_stabilization", reason: "Reflective safety loop engaged" };
     }
 
     if (cognitiveState?.mitigationStrategy === "halt_and_request_operator") {

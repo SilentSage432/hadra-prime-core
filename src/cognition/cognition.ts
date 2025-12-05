@@ -20,12 +20,14 @@ import { NeuralCausality } from "./neural_causality_engine.ts";
 import { NeuralEventSegmentation } from "./neural_event_segmentation.ts";
 import { UncertaintyEngine } from "./uncertainty/uncertainty_engine.ts";
 import { RiskMitigationEngine } from "./risk/risk_mitigation_engine.ts";
+import { ReflectiveSafetyLoop } from "../safety/reflective_safety_loop.ts";
 
 export class Cognition {
   private intentEngine = new IntentEngine();
   private router = new IntentRouter();
   private uncertainty = new UncertaintyEngine();
   private risk = new RiskMitigationEngine();
+  private safetyLoop = new ReflectiveSafetyLoop();
 
   constructor() {
     // Register handlers
@@ -143,6 +145,34 @@ export class Cognition {
       riskScore: riskScore.toFixed(3),
       mitigation: mitigation
     });
+
+    // A126: Run reflective safety loop if stabilization is needed
+    if (mitigation === "stabilize_and_pause") {
+      console.log("[PRIME-SAFETY] Running reflective safety loop...");
+      
+      // Capture state before repair
+      const beforeFactors = this.safetyLoop.analyzeInstability(cognitiveState);
+      
+      // Run the safety loop (applies repairs)
+      const logs = this.safetyLoop.run(cognitiveState);
+      console.log("[PRIME-SAFETY-LOOP]", logs);
+      
+      // Check if stability improved after repair
+      const afterFactors = this.safetyLoop.analyzeInstability(cognitiveState);
+      const improved = this.safetyLoop.checkStabilityImprovement(beforeFactors, afterFactors);
+      
+      if (improved) {
+        console.log("[PRIME-KERNEL] Stability improving. Resuming normal cognition.");
+      } else {
+        console.log("[PRIME-KERNEL] Stability check: monitoring ongoing...");
+      }
+    }
+
+    // A126: Handle critical halt scenario
+    if (mitigation === "halt_and_request_operator") {
+      console.log("[PRIME-SAFETY] Mitigation: halt_and_request_operator");
+      console.log("[PRIME-SAFETY-LOOP] PRIME awaiting your guidance.");
+    }
 
     // A42/A75: Generate plans for each goal (with recall-informed and concept-informed cognitive state)
     // A75: Match concept before planning if embedding is available
