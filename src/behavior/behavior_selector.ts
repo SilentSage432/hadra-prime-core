@@ -1,8 +1,30 @@
 // src/behavior/behavior_selector.ts
 // A124: Extended with uncertainty-aware behavior selection
+// A125: Extended with cognitive risk mitigation
 
 export class BehaviorSelector {
   selectBehavior(smv: any, cognitiveState?: any) {
+    // A125: Check mitigation strategy first (highest priority)
+    if (cognitiveState?.mitigationStrategy === "increase_reflection_depth") {
+      console.log("[PRIME-BEHAVIOR] Mitigation: increasing reflection depth → shifting to 'deep_reflect' mode.");
+      return { type: "deep_reflect", reason: "Mitigation: reflective stabilization" };
+    }
+
+    if (cognitiveState?.mitigationStrategy === "slow_down_reasoning") {
+      console.log("[PRIME-BEHAVIOR] Mitigation: slowing down reasoning → shifting to 'slow_reasoning' mode.");
+      return { type: "slow_reasoning", reason: "Mitigation: cautious mode" };
+    }
+
+    if (cognitiveState?.mitigationStrategy === "stabilize_and_pause") {
+      console.log("[PRIME-BEHAVIOR] Mitigation: stabilizing and pausing → shifting to 'stabilize' mode.");
+      return { type: "stabilize", reason: "Mitigation: stabilization required" };
+    }
+
+    if (cognitiveState?.mitigationStrategy === "halt_and_request_operator") {
+      console.log("[PRIME-BEHAVIOR] Mitigation: critical risk → shifting to 'halt' mode.");
+      return { type: "halt", reason: "Mitigation: operator intervention required" };
+    }
+
     // A124: Check uncertainty and override behavior if needed
     if (cognitiveState?.uncertaintyScore !== undefined) {
       if (cognitiveState.uncertaintyScore > 0.75) {

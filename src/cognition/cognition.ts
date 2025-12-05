@@ -19,11 +19,13 @@ import { NeuralSymbolicCoherence } from "./neural_symbolic_coherence.ts";
 import { NeuralCausality } from "./neural_causality_engine.ts";
 import { NeuralEventSegmentation } from "./neural_event_segmentation.ts";
 import { UncertaintyEngine } from "./uncertainty/uncertainty_engine.ts";
+import { RiskMitigationEngine } from "./risk/risk_mitigation_engine.ts";
 
 export class Cognition {
   private intentEngine = new IntentEngine();
   private router = new IntentRouter();
   private uncertainty = new UncertaintyEngine();
+  private risk = new RiskMitigationEngine();
 
   constructor() {
     // Register handlers
@@ -119,6 +121,27 @@ export class Cognition {
     console.log("[PRIME-UNCERTAINTY]", {
       vector: cognitiveState.uncertaintyVector,
       score: cognitiveState.uncertaintyScore.toFixed(3)
+    });
+
+    // A125: Assess cognitive risk and choose mitigation strategy
+    cognitiveState.narrativeInstability = cognitiveState.narrativeInstability ?? 0;
+    cognitiveState.emotionDrift = cognitiveState.emotionDrift ?? 0;
+
+    const riskScore = this.risk.assess({
+      conceptDrift: cognitiveState.conceptDrift ?? 0,
+      predictionVariance: cognitiveState.predictionVariance ?? 0,
+      uncertainty: cognitiveState.uncertaintyScore ?? 0,
+      narrativeInstability: cognitiveState.narrativeInstability,
+      emotionalDrift: cognitiveState.emotionDrift
+    });
+
+    cognitiveState.riskScore = riskScore;
+    const mitigation = this.risk.chooseMitigation(riskScore);
+    cognitiveState.mitigationStrategy = mitigation;
+
+    console.log("[PRIME-RISK]", {
+      riskScore: riskScore.toFixed(3),
+      mitigation: mitigation
     });
 
     // A42/A75: Generate plans for each goal (with recall-informed and concept-informed cognitive state)

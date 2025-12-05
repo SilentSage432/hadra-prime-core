@@ -4,12 +4,14 @@
 // A121: Extended with adaptive attentional weight shifting
 // A123: Extended with multi-timescale awareness
 // A124: Extended with multi-layered uncertainty engine
+// A125: Extended with cognitive risk mitigation engine
 
 import type { ToneVector } from "../expression/tone/tone_detector.ts";
 import type { MetaState } from "../meta/meta_state.ts";
 import type { NeuralSignal, CoherenceResult } from "./neural_symbolic_coherence.ts";
 import type { TimescaleAwarenessState } from "./timescale_awareness.ts";
 import type { UncertaintyVector } from "./uncertainty/uncertainty_engine.ts";
+import type { MitigationStrategy } from "./risk/risk_mitigation_engine.ts";
 
 export interface CognitiveState {
   intent: any;                // interpreted intent packet
@@ -55,5 +57,10 @@ export interface CognitiveState {
   conceptDrift?: number;                      // Concept instability/drift
   ambiguity?: number;                          // Situational ambiguity
   relationalUncertainty?: number;             // Uncertainty in operator/social intent
+  // A125: Cognitive Risk Mitigation Engine fields
+  riskScore?: number;                         // Aggregated risk score (0-1)
+  mitigationStrategy?: MitigationStrategy;   // Current mitigation strategy
+  narrativeInstability?: number;              // Narrative fragmentation risk
+  emotionDrift?: number;                     // Emotional instability/drift
 }
 

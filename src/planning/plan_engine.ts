@@ -1,5 +1,6 @@
 // src/planning/plan_engine.ts
 // A124: Extended with uncertainty-aware planning
+// A125: Extended with cognitive risk mitigation
 
 import { DecompositionEngine, type SubGoal } from "./decomposition_engine.ts";
 
@@ -100,8 +101,27 @@ export class PlanEngine {
     return plan;
   }
 
-  /** A124: Generate plan with uncertainty awareness */
+  /** A124/A125: Generate plan with uncertainty and risk awareness */
   public generatePlan(goal: any, state: any): any {
+    // A125: Check mitigation strategy first (highest priority)
+    if (state?.mitigationStrategy === "halt_and_request_operator") {
+      console.log("[PRIME-PLANNING] Risk extremely high → requesting operator input.");
+      return {
+        goal: goal,
+        steps: [
+          { id: "step1", name: "Request operator guidance", action: "request_operator_guidance", params: {} }
+        ],
+        score: 0.3,
+        counterfactual: "Critical risk requires operator intervention",
+        isMitigation: true
+      };
+    }
+
+    if (state?.mitigationStrategy === "stabilize_and_pause") {
+      console.log("[PRIME-PLANNING] Risk high → generating stabilization plan.");
+      return this.generateStabilizationPlan(goal);
+    }
+
     // A124: Check uncertainty and generate fallback plan if needed
     if (state?.uncertaintyScore !== undefined && state.uncertaintyScore > 0.6) {
       console.log("[PRIME-PLANNING] High uncertainty → generating safer fallback plan.");
@@ -132,6 +152,21 @@ export class PlanEngine {
       score: 0.5,
       counterfactual: "High uncertainty requires conservative approach",
       isFallback: true
+    };
+  }
+
+  /** A125: Generate a stabilization plan when risk is high */
+  private generateStabilizationPlan(goal: any): any {
+    return {
+      goal: goal,
+      steps: [
+        { id: "step1", name: "Pause current reasoning", action: "pause_reasoning", params: {} },
+        { id: "step2", name: "Stabilize cognitive state", action: "stabilize_cognition", params: {} },
+        { id: "step3", name: "Reassess situation", action: "reassess_situation", params: {} }
+      ],
+      score: 0.4,
+      counterfactual: "High risk requires stabilization before proceeding",
+      isMitigation: true
     };
   }
 }
