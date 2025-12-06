@@ -71,6 +71,19 @@ class NeuralBridge:
         self.perception = PerceptionManager(self)
         self.tasks = TaskQueue()
         self.orchestrator = CognitiveLoopOrchestrator(self)
+        # A213 — Multi-Step Chain Memory Imprinting & Optimization Engine
+        from ..memory.chain_memory_manager import ChainMemoryManager
+        self.chain_memory = ChainMemoryManager()
+        # A214 — Procedural Reasoning Encoder (Skill Embedding Engine)
+        from ..memory.skill_embedding_encoder import SkillEmbeddingEncoder
+        self.skill_encoder = SkillEmbeddingEncoder(dim=128)
+        # Initialize skill embeddings in generator
+        self.generator.skill_embeddings = []
+        # A215 — Procedural Skill Generalization & Cross-Domain Transfer
+        from ..memory.skill_generalization_engine import SkillGeneralizationEngine
+        self.skill_generalizer = SkillGeneralizationEngine()
+        # Initialize generalized skill patterns in generator
+        self.generator.generalized_skill_patterns = []
         self.stability = SelfStabilityEngine()
         self.evolution = AdaptiveEvolutionEngine()
         self.evo_consolidator = EvolutionMemoryConsolidator()

@@ -98,6 +98,20 @@ class CandidateThoughtGenerator:
                         proposals.append(emb)
                 except Exception as e:
                     print("⚠️ Seed injection error in CandidateThoughtGenerator:", e)
+        
+        # A214 — Include procedural skills as thought seeds
+        if hasattr(self, "skill_embeddings") and self.skill_embeddings:
+            for skill_vec in self.skill_embeddings:
+                if skill_vec is not None:
+                    # Generate variants from skill embeddings
+                    proposals += self.generate_variants(skill_vec)
+        
+        # A215 — Use generalized skill patterns as new thought seeds
+        if hasattr(self, "generalized_skill_patterns") and self.generalized_skill_patterns:
+            for pattern in self.generalized_skill_patterns:
+                if pattern is not None:
+                    # Generate variants from generalized patterns
+                    proposals += self.generate_variants(pattern)
 
         # A187 — Low-salience items (weaker variants) go into subconscious
         if subconscious and proposals:

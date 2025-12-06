@@ -943,6 +943,105 @@ class CognitiveLoopOrchestrator:
         fusion_state = self.bridge.fusion.status()
         attention_state = self.bridge.attention.status()
         
+        # A213 — Store completed or rerouted chains (after drift/coherence computed)
+        if chain_update and chain_update.get("status") in ("chain_complete", "chain_rerouted"):
+            try:
+                result = {
+                    "status": chain_update.get("status"),
+                    "reroutes": self.chain_failures,
+                    "avg_drift": drift_state.get("avg_drift", 0.0) if isinstance(drift_state, dict) else 0.0,
+                    "coherence": fusion_state.get("coherence", 1.0) if isinstance(fusion_state, dict) else 1.0,
+                }
+                
+                # Get chain to store
+                chain_to_store = None
+                if chain_update.get("status") == "chain_complete":
+                    chain_to_store = chain_update.get("completed_chain")
+                elif chain_update.get("status") == "chain_rerouted":
+                    # Use current active chain if available
+                    chain_to_store = self.active_chain
+                
+                if chain_to_store:
+                    stored_entry = self.bridge.chain_memory.store_chain(chain_to_store, result)
+                    
+                    # A214 — Convert strong chains into reusable skills
+                    if stored_entry and stored_entry.get("score", 0.0) > 0.75:  # Threshold for expertise formation
+                        try:
+                            skill_entry = self.bridge.skill_encoder.encode_chain(
+                                stored_entry.get("chain", []),
+                                stored_entry
+                            )
+                            if skill_entry:
+                                # Update generator with skill embeddings
+                                if hasattr(self.bridge, 'generator'):
+                                    skill_embeddings = self.bridge.skill_encoder.get_skill_embeddings()
+                                    self.bridge.generator.skill_embeddings = skill_embeddings
+                                
+                                # A215 — Extract abstract skill pattern
+                                try:
+                                    pattern = self.bridge.skill_generalizer.extract_pattern(
+                                        skill_entry.get("skill_vector")
+                                    )
+                                    if pattern is not None:
+                                        # Store generalizable skill
+                                        self.bridge.skill_generalizer.register_generalized_skill(
+                                            pattern,
+                                            stored_entry
+                                        )
+                                        
+                                        # Update generator with generalized patterns
+                                        if hasattr(self.bridge, 'generator'):
+                                            generalized_patterns = [
+                                                g.get("pattern")
+                                                for g in self.bridge.skill_generalizer.get_generalized_skills()
+                                                if g.get("pattern") is not None
+                                            ]
+                                            self.bridge.generator.generalized_skill_patterns = generalized_patterns
+                                        
+                                        # Log generalization
+                                        if hasattr(self.bridge, 'logger'):
+                                            self.bridge.logger.write({
+                                                "skill_generalized": {
+                                                    "score": round(stored_entry.get("score", 0.0), 4),
+                                                    "total_generalized": len(self.bridge.skill_generalizer.generalized_skills)
+                                                }
+                                            })
+                                except Exception as gen_e:
+                                    # If generalization fails, continue without it
+                                    if hasattr(self.bridge, 'logger'):
+                                        self.bridge.logger.write({"skill_generalization_error": str(gen_e)})
+                                
+                                # Log skill encoding
+                                if hasattr(self.bridge, 'logger'):
+                                    self.bridge.logger.write({
+                                        "skill_encoded": {
+                                            "score": round(stored_entry.get("score", 0.0), 4),
+                                            "chain_length": len(stored_entry.get("chain", [])),
+                                            "total_skills": len(self.bridge.skill_encoder.skills)
+                                        }
+                                    })
+                        except Exception as e:
+                            # If skill encoding fails, continue without it
+                            if hasattr(self.bridge, 'logger'):
+                                self.bridge.logger.write({"skill_encoding_error": str(e)})
+                    
+                    # Optional: chain optimization pass (every 10 chains)
+                    if self.bridge.chain_memory.get_chain_count() % 10 == 0:
+                        opt_result = self.bridge.chain_memory.optimize()
+                        if opt_result and opt_result.get("pruned", 0) > 0:
+                            if hasattr(self.bridge, 'logger'):
+                                self.bridge.logger.write({
+                                    "chain_optimization": {
+                                        "pruned": opt_result["pruned"],
+                                        "remaining": opt_result["remaining"],
+                                        "threshold": round(opt_result["threshold"], 4)
+                                    }
+                                })
+            except Exception as e:
+                # If chain storage fails, continue without it
+                if hasattr(self.bridge, 'logger'):
+                    self.bridge.logger.write({"chain_storage_error": str(e)})
+        
         # ---------------------------------------------------
         # A185 — Sleep/Wake Identity Consolidation Trigger
         # ---------------------------------------------------
@@ -1168,6 +1267,9 @@ class CognitiveLoopOrchestrator:
             "multi_step_update": getattr(self, '_chain_update', None),  # A212 — Chain monitoring update
             "current_chain": [sg.get("id") for sg in self.active_chain] if self.active_chain else None,  # A212 — Current active chain
             "chain_step_index": self.chain_step_index,  # A212 — Current step in chain
+            "chain_memory": self.bridge.chain_memory.summary() if hasattr(self.bridge, 'chain_memory') else None,  # A213 — Chain memory
+            "skill_encoder": self.bridge.skill_encoder.summary() if hasattr(self.bridge, 'skill_encoder') else None,  # A214 — Skill encoder
+            "skill_generalizer": self.bridge.skill_generalizer.summary() if hasattr(self.bridge, 'skill_generalizer') else None,  # A215 — Skill generalization
             "self_model": self.bridge.self_model.summary(),
         }
 

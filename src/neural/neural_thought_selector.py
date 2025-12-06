@@ -119,10 +119,45 @@ class NeuralThoughtSelector:
         Choose the best thought among candidates.
 
         A204 — Now includes goal modulation influence on scoring.
+        A215 — Now includes cross-domain skill transfer.
 
         """
 
-        if not candidate_embeddings:
+        # A215 — Cross-domain transfer shaping
+        # Add transferred skills as additional candidates
+        shaped_candidates = list(candidate_embeddings) if candidate_embeddings else []
+        
+        if hasattr(attention_engine, 'bridge') and hasattr(attention_engine.bridge, 'skill_generalizer'):
+            try:
+                # Get current focus vector (attention or fusion)
+                focus = None
+                if hasattr(attention_engine, 'last_focus_vector') and attention_engine.last_focus_vector is not None:
+                    focus = attention_engine.last_focus_vector
+                elif fusion_vec is not None:
+                    focus = fusion_vec
+                
+                if focus is not None:
+                    # Find similar patterns and transfer them
+                    similar_patterns = attention_engine.bridge.skill_generalizer.find_similar_patterns(
+                        focus,
+                        top_k=2
+                    )
+                    
+                    for pattern_entry in similar_patterns:
+                        pattern = pattern_entry.get("pattern")
+                        if pattern is not None:
+                            # Transfer skill pattern to current context
+                            transferred = attention_engine.bridge.skill_generalizer.transfer_skill(
+                                pattern,
+                                focus
+                            )
+                            if transferred is not None:
+                                shaped_candidates.append(transferred)
+            except Exception as e:
+                # If transfer fails, continue without it
+                pass
+
+        if not shaped_candidates:
 
             return None, None
 
@@ -132,7 +167,7 @@ class NeuralThoughtSelector:
 
         best_debug = None
 
-        for emb in candidate_embeddings:
+        for emb in shaped_candidates:
 
             score, dbg = self.score_thought(emb, fusion_vec, attention_engine, memory_manager)
             
