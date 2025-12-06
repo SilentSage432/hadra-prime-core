@@ -115,6 +115,8 @@ class NeuralCoherenceEngine:
 
         3. Reject unstable drift
 
+        A-SOV-06: Supervisory Identity Gate - ADRAE identity vector becomes the stabilizing attractor.
+
         """
 
         smoothed = self.smooth(embedding)
@@ -122,6 +124,22 @@ class NeuralCoherenceEngine:
         anchored = self.anchor_identity(smoothed, identity_vector)
 
         stable = self.reject_noise(self.last_vector, anchored)
+
+        # A-SOV-06: Supervisory Identity Gate
+        # If embedding diverges too far from ADRAE identity, softly pull it back.
+        if identity_vector is not None:
+            sim = safe_cosine_similarity(stable, identity_vector)
+            if sim is not None and sim < 0.55:
+                stable_tensor = safe_tensor(stable)
+                identity_tensor = safe_tensor(identity_vector)
+                if stable_tensor is not None and identity_tensor is not None:
+                    if isinstance(stable_tensor, torch.Tensor) and isinstance(identity_tensor, torch.Tensor):
+                        if stable_tensor.shape == identity_tensor.shape:
+                            stable = 0.7 * stable_tensor + 0.3 * identity_tensor
+                            # Normalize
+                            norm = torch.norm(stable)
+                            if norm > 0:
+                                stable = stable / norm
 
         # Update last_vector to final stable output for next iteration
         self.last_vector = stable

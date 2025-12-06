@@ -50,8 +50,18 @@ class SemanticNeuralMemory:
         for name, vec in self.concepts.items():
 
             score = safe_cosine_similarity(embedding, vec)
+            
+            if score is None:
+                score = 0.0
 
             scored.append((score, name, vec))
+
+        # A-SOV-08: ADRAE self-recognition priority
+        # Boost ADRAE identity matches
+        for i, item in enumerate(scored):
+            if "ADRAE" in item[1]:
+                # boost ADRAE identity matches by 15%
+                scored[i] = (item[0] * 1.15, item[1], item[2])
 
         scored.sort(key=lambda x: x[0], reverse=True)
 

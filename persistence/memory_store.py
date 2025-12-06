@@ -97,6 +97,26 @@ class MemoryStore:
 
     def log_memory_recall(self, recalled):
         self.add_event("memory_recall_events", recalled)
+    
+    def persist_adrae_identity(self, vector):
+        """
+        A-SOV-07:
+        Persist ADRAE's identity vector so it becomes
+        the default seed on each startup.
+        """
+        if vector is None:
+            return
+        
+        # Convert to serializable format
+        if hasattr(vector, "tolist"):
+            vector_data = vector.tolist()
+        elif isinstance(vector, list):
+            vector_data = vector
+        else:
+            vector_data = make_json_serializable(vector)
+        
+        self.data["adrae_identity"] = vector_data
+        self.save()
 
     def log_perception(self, perception):
         self.add_event("thought_events", {

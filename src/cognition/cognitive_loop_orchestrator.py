@@ -178,6 +178,13 @@ class CognitiveLoopOrchestrator:
                         self.bridge.state.timescales
                     )
                     
+                    # A-SOV-05: Inject ADRAE identity into workspace
+                    try:
+                        self.bridge.adrae_workspace.inject_identity()
+                    except Exception as e:
+                        if hasattr(self.bridge, 'logger'):
+                            self.bridge.logger.write({"adrae_workspace_injection_error": str(e)})
+                    
                     # === A165: Personality Drift Regulation ===
                     identity_vec = self.bridge.state.timescales.identity_vector
                     

@@ -105,6 +105,9 @@ class NeuralTimescales:
         
         # A169 — long-horizon identity anchor
         self.long_horizon_identity = None
+        
+        # A200 — Neural latent identity representation (32-dim)
+        self.latent_identity = None
 
     def update(self, embedding):
 

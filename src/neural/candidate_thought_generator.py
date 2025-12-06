@@ -67,7 +67,7 @@ class CandidateThoughtGenerator:
 
         return candidates
 
-    def propose(self, fusion_vec, attention_vec, identity_vec):
+    def propose(self, fusion_vec, attention_vec, identity_vec, seed_embeddings=None, subconscious=None):
         """
         Combines signals to propose candidate thoughts:
 
@@ -75,7 +75,8 @@ class CandidateThoughtGenerator:
         2. Add attention-directed variant
         3. Add identity-directed variant
         4. Add random exploration variants
-        5. Include seed embeddings if available via bridge
+        5. Include seed embeddings if available
+        6. A187 — Feed low-salience items to subconscious
         """
         proposals = []
 
@@ -88,14 +89,7 @@ class CandidateThoughtGenerator:
         if identity_vec is not None:
             proposals += self.generate_variants(identity_vec)
 
-        # ----------------------------------------------------
-        # FINAL FIX: Inject seed embeddings as candidate thoughts
-        # ----------------------------------------------------
-        # Get seed embeddings from bridge if available
-        seed_embeddings = None
-        if self.bridge and hasattr(self.bridge.state, "seed_embeddings"):
-            seed_embeddings = self.bridge.state.seed_embeddings
-        
+        # Seed embeddings become idea starters
         if seed_embeddings:
             for item in seed_embeddings:
                 try:
@@ -104,6 +98,20 @@ class CandidateThoughtGenerator:
                         proposals.append(emb)
                 except Exception as e:
                     print("⚠️ Seed injection error in CandidateThoughtGenerator:", e)
+
+        # A187 — Low-salience items (weaker variants) go into subconscious
+        if subconscious and proposals:
+            for p in proposals:
+                try:
+                    subconscious.ingest(p)
+                except Exception:
+                    # If subconscious doesn't exist or ingest fails, continue
+                    pass
+
+        # A187 — Low-salience items (weaker variants) go into subconscious
+        if subconscious and proposals:
+            for p in proposals:
+                subconscious.ingest(p)
 
         # Safety: ensure at least something is returned
         if len(proposals) == 0:
