@@ -43,6 +43,8 @@ class CognitiveLoopOrchestrator:
         self.max_failures = 3  # Threshold before branch rewrite
         # A216 — Uncertainty tracking
         self._uncertainty_value = 0.0  # Initialize uncertainty value
+        # A218 — Competency clustering tracking
+        self._step_count = 0  # Track steps for periodic clustering
 
     def _monitor_and_reroute(self, action_result):
         """
@@ -1322,6 +1324,49 @@ class CognitiveLoopOrchestrator:
         # A164: Get actual coherence value for logging
         coherence_value_final = fusion_state.get("coherence", 1.0) if isinstance(fusion_state, dict) else 1.0
         drift_value_final = drift_state.get("latest_drift", 0.0) if drift_state else 0.0
+        
+        # A218 — Cluster skills into competencies periodically (every 5 steps)
+        self._step_count += 1
+        if hasattr(self.bridge, 'skills') and hasattr(self.bridge, 'competencies'):
+            try:
+                if self.bridge.skills.get_skill_count() > 0 and self._step_count % 5 == 0:
+                    # Get all skills as (name, vec) pairs
+                    skill_pairs = [(s.get("name", ""), s.get("vec")) for s in self.bridge.skills.skills if s.get("vec") is not None]
+                    
+                    if skill_pairs:
+                        # Cluster skills
+                        self.bridge.competencies.cluster_skills(skill_pairs)
+                        
+                        # Log competency update
+                        competency_status = self.bridge.competencies.status()
+                        if hasattr(self.bridge, 'memory_store') and self.bridge.memory_store is not None:
+                            try:
+                                if hasattr(self.bridge.memory_store, 'log_thought_event'):
+                                    self.bridge.memory_store.log_thought_event({
+                                        "type": "competency_update",
+                                        "clusters": competency_status
+                                    })
+                            except Exception:
+                                pass
+                        
+                        # Also log via logger if available
+                        if hasattr(self.bridge, 'logger'):
+                            try:
+                                self.bridge.logger.write({
+                                    "competency_update": {
+                                        "clusters": competency_status,
+                                        "cluster_count": self.bridge.competencies.get_cluster_count()
+                                    }
+                                })
+                            except Exception:
+                                pass
+            except Exception as e:
+                # If clustering fails, continue without it
+                if hasattr(self.bridge, 'logger'):
+                    try:
+                        self.bridge.logger.write({"competency_clustering_error": str(e)})
+                    except Exception:
+                        pass
 
         self.last_output = {
             "action": action,
@@ -1363,6 +1408,7 @@ class CognitiveLoopOrchestrator:
             "skill_encoder": self.bridge.skill_encoder.summary() if hasattr(self.bridge, 'skill_encoder') else None,  # A214 — Skill encoder
             "skill_generalizer": self.bridge.skill_generalizer.summary() if hasattr(self.bridge, 'skill_generalizer') else None,  # A215 — Skill generalization
             "skill_manager": self.bridge.skills.status() if hasattr(self.bridge, 'skills') else None,  # A217 — Skill manager
+            "competency_manager": self.bridge.competencies.status() if hasattr(self.bridge, 'competencies') else None,  # A218 — Competency clustering
             "self_model": self.bridge.self_model.summary(),
         }
 

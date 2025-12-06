@@ -175,6 +175,11 @@ class NeuralThoughtSelector:
         if hasattr(attention_engine, 'bridge') and hasattr(attention_engine.bridge, 'skills'):
             skill_vectors = attention_engine.bridge.skills.get_all_skill_vectors()
         
+        # A218 — Get competency centroids for biasing
+        competency_centroids = []
+        if hasattr(attention_engine, 'bridge') and hasattr(attention_engine.bridge, 'competencies'):
+            competency_centroids = attention_engine.bridge.competencies.get_centroids()
+        
         best = None
 
         best_score = -999
@@ -194,7 +199,23 @@ class NeuralThoughtSelector:
                 if sims:
                     skill_bias = sum(sims) / len(sims)
             
-            score, dbg = self.score_thought(emb, fusion_vec, attention_engine, memory_manager, skill_bias=skill_bias)
+            # A218 — Compute competency bias for this candidate
+            comp_bias = 0.0
+            if competency_centroids and fusion_vec is not None:
+                # Mean similarity to all competency centroids
+                comp_sims = []
+                for centroid in competency_centroids:
+                    if centroid is not None:
+                        sim = safe_cosine_similarity(emb, centroid)
+                        if sim is not None:
+                            comp_sims.append(sim)
+                if comp_sims:
+                    comp_bias = sum(comp_sims) / len(comp_sims)
+            
+            # Combine skill and competency bias (competency has slightly higher weight)
+            combined_bias = (skill_bias * 0.4) + (comp_bias * 0.6)
+            
+            score, dbg = self.score_thought(emb, fusion_vec, attention_engine, memory_manager, skill_bias=combined_bias)
             
             # === A204: Inject goal modulation influence ===
             if goal_modulation is not None:

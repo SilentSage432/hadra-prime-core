@@ -87,6 +87,9 @@ class NeuralBridge:
         # A217 — Skill Vector Expansion Through Uncertainty Minimization
         from .skill_manager import SkillManager
         self.skills = SkillManager()
+        # A218 — Skill Specialization & Competency Clustering
+        from .competency_manager import CompetencyManager
+        self.competencies = CompetencyManager()
         self.stability = SelfStabilityEngine()
         self.evolution = AdaptiveEvolutionEngine()
         self.evo_consolidator = EvolutionMemoryConsolidator()
