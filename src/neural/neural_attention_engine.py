@@ -34,6 +34,9 @@ class NeuralAttentionEngine:
         self.lt_weight = lt_weight
 
         self.last_focus_vector = None
+        
+        # A157: Mutation candidate - scaling factor
+        self.scaling = 1.0
 
     def compute_attention_vector(self, timescales):
 
@@ -93,6 +96,9 @@ class NeuralAttentionEngine:
 
             attention_vec += w * t
 
+        # A157: Apply scaling factor (mutation candidate)
+        attention_vec = attention_vec * self.scaling
+
         self.last_focus_vector = attention_vec
 
         return attention_vec
@@ -112,6 +118,13 @@ class NeuralAttentionEngine:
             return 0.0
 
         return safe_cosine_similarity(embedding, self.last_focus_vector)
+    
+    # A157: Mutation registry
+    def get_scaling(self):
+        return self.scaling
+    
+    def set_scaling(self, v):
+        self.scaling = max(0.1, min(2.0, v))  # Clamp to reasonable range
 
     def status(self):
 

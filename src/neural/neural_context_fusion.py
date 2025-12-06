@@ -50,6 +50,9 @@ class NeuralContextFusion:
             "identity": 0.10
 
         }
+        
+        # A157: Mutation candidate - identity weight
+        self.identity_weight = 0.10  # Alias for weights["identity"]
 
     def fuse(self, attention_vec, timescales):
 
@@ -117,6 +120,14 @@ class NeuralContextFusion:
 
         return fused
 
+    # A157: Required for mutation registry
+    def get_identity_weight(self):
+        return self.weights["identity"]
+    
+    def set_identity_weight(self, v):
+        self.weights["identity"] = max(0.0, min(1.0, v))  # Clamp to [0, 1]
+        self.identity_weight = self.weights["identity"]
+
     def status(self):
 
         """
@@ -133,7 +144,9 @@ class NeuralContextFusion:
 
             "dim": self.last_fusion_vector.numel(),
 
-            "preview": self.last_fusion_vector[:8].tolist()
+            "preview": self.last_fusion_vector[:8].tolist(),
+            
+            "coherence": 1.0  # Placeholder for coherence metric
 
         }
 

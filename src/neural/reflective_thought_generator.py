@@ -39,6 +39,27 @@ class ReflectiveThoughtGenerator:
             return None
 
         fusion_vec = safe_tensor(fusion_vec)
+        
+        # A158: Integrate evolution reflections into reflective layer
+        evo_memory = []
+        if memory_manager and hasattr(memory_manager, 'semantic'):
+            # Search for evolution-related concepts
+            try:
+                # Find concepts that start with "evolution_"
+                # This is a simplified approach - in a full implementation,
+                # we'd have a category system
+                evo_results = memory_manager.semantic.find_similar(fusion_vec, top_k=5)
+                evo_memory = [m for m in evo_results if m[1].startswith("evolution_")] if evo_results else []
+            except:
+                pass
+        
+        if evo_memory:
+            # Slightly bias reflection toward evolutionary understanding
+            # Reduce fusion influence slightly to make room for evolution context
+            if TORCH_AVAILABLE and isinstance(fusion_vec, torch.Tensor):
+                fusion_vec = fusion_vec * 0.85
+            else:
+                fusion_vec = [v * 0.85 for v in fusion_vec]
 
         # 1. Pull relevant semantic memories
         if memory_manager and hasattr(memory_manager, 'semantic'):

@@ -24,6 +24,7 @@ from .candidate_thought_generator import CandidateThoughtGenerator
 from .reflective_thought_generator import ReflectiveThoughtGenerator
 from .self_stability_engine import SelfStabilityEngine
 from .adaptive_evolution_engine import AdaptiveEvolutionEngine
+from .evolution_memory_consolidator import EvolutionMemoryConsolidator
 from ..memory.memory_interaction_engine import MemoryInteractionEngine
 from ..cognition.cognitive_action_engine import CognitiveActionEngine
 from ..cognition.cognitive_loop_orchestrator import CognitiveLoopOrchestrator
@@ -61,6 +62,7 @@ class NeuralBridge:
         self.orchestrator = CognitiveLoopOrchestrator(self)
         self.stability = SelfStabilityEngine()
         self.evolution = AdaptiveEvolutionEngine()
+        self.evo_consolidator = EvolutionMemoryConsolidator()
         self.ready_for_adaptive_evolution = False
         self.cycle_count = 0
         self.stability_report = None
@@ -77,6 +79,18 @@ class NeuralBridge:
         
         # Seed neural memory with initial concepts on first run
         self.seed_neural_memory()
+        
+        # A157: Register rewrite paths for evolution engine
+        self.evolution.register_mutation_point(
+            "attention",
+            self.attention.get_scaling,
+            self.attention.set_scaling
+        )
+        self.evolution.register_mutation_point(
+            "fusion",
+            self.fusion.get_identity_weight,
+            self.fusion.set_identity_weight
+        )
 
     def process_perception(self, text):
 

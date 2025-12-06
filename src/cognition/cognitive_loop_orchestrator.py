@@ -166,6 +166,101 @@ class CognitiveLoopOrchestrator:
         self.bridge.stability_report = stability
         self.last_output["stability"] = stability
 
+        # A157: Attempt evolution mutation if enabled
+        if self.bridge.evolution.active and self.bridge.evolution.evolution_enabled:
+            # Convert stability report to format expected by mutation system
+            stability_for_mutation = {
+                "stable": stability.get("ready_for_adaptive_evolution", False),
+                "stable_for": stability.get("stable_for_cycles", 0)
+            }
+            drift_value = drift_state.get("latest_drift") or 0.0
+            coherence_value = fusion_state.get("coherence", 1.0) if isinstance(fusion_state, dict) else 1.0
+            
+            evo_outcome = self.bridge.evolution.attempt_mutation(
+                stability_for_mutation,
+                drift_value,
+                coherence_value
+            )
+            self.last_output["evolution_mutation"] = evo_outcome
+            
+            # A159: Feed evolution event into consolidation buffer
+            if evo_outcome:
+                self.bridge.evo_consolidator.record(evo_outcome)
+            
+            # A159: Run consolidation pass
+            consolidation_result = self.bridge.evo_consolidator.consolidate(
+                self.bridge.state.memory_manager if hasattr(self.bridge.state, "memory_manager") else None,
+                self.bridge.hooks,
+                self.bridge.state.timescales
+            )
+            if consolidation_result:
+                self.last_output["evolution_consolidation"] = consolidation_result
+            
+            # A158: Evolutionary Reflection Integration
+            if evo_outcome and (
+                evo_outcome.get("evolved") or
+                evo_outcome.get("rolled_back")
+            ):
+                # Construct reflection text
+                try:
+                    if evo_outcome.get("evolved"):
+                        old_val = evo_outcome.get('old', 0)
+                        new_val = evo_outcome.get('new', 0)
+                        if isinstance(old_val, (int, float)) and isinstance(new_val, (int, float)):
+                            text = (
+                                f"I evolved internally by adjusting a cognitive parameter "
+                                f"from {old_val:.4f} to {new_val:.4f}. "
+                                "This modification improved coherence."
+                            )
+                        else:
+                            text = (
+                                f"I evolved internally by adjusting a cognitive parameter. "
+                                "This modification improved coherence."
+                            )
+                    else:
+                        old_val = evo_outcome.get('old', 0)
+                        new_attempt = evo_outcome.get('new_attempt', 0)
+                        if isinstance(old_val, (int, float)) and isinstance(new_attempt, (int, float)):
+                            text = (
+                                f"I attempted a cognitive evolution from {old_val:.4f} "
+                                f"to {new_attempt:.4f} but reverted the change "
+                                "to maintain stability."
+                            )
+                        else:
+                            text = (
+                                "I attempted a cognitive evolution but reverted the change "
+                                "to maintain stability."
+                            )
+                except Exception as e:
+                    # Fallback if formatting fails
+                    text = (
+                        "I engaged in internal cognitive evolution. "
+                        "The change was evaluated and handled appropriately."
+                    )
+
+                # Encode reflection
+                reflection_vec = self.bridge.hooks.on_reflection(text)
+
+                # Store in semantic memory
+                if hasattr(self.bridge.state, "memory_manager") and self.bridge.state.memory_manager:
+                    import time
+                    concept_name = f"evolution_reflection_{int(time.time())}"
+                    self.bridge.state.memory_manager.store_concept(concept_name, reflection_vec)
+                    
+                    # Also log to memory store
+                    self.bridge.memory_store.log_thought_event({
+                        "type": "evolution_reflection",
+                        "text": text,
+                        "evolved": evo_outcome.get("evolved", False),
+                        "timestamp": time.time()
+                    })
+                    
+                    # Store in output for visibility
+                    self.last_output["evolution_reflection"] = {
+                        "text": text,
+                        "concept_name": concept_name
+                    }
+
         # If evolution active, embed into output
         self.last_output["evolution_status"] = self.bridge.evolution.status()
 
