@@ -35,9 +35,10 @@ Output:
 
 """
 
-import torch
+from .torch_utils import safe_cosine_similarity, safe_tensor, is_tensor, TORCH_AVAILABLE
 
-from .torch_utils import safe_cosine_similarity, safe_tensor, is_tensor
+if TORCH_AVAILABLE:
+    import torch
 
 class NeuralThoughtSelector:
 

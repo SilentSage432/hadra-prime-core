@@ -127,6 +127,10 @@ class CognitiveLoopOrchestrator:
             self._goal_summary = goal_summary
             self._goal_modulation = goal_mod
             self._fabricated_goal = fabricated_goal
+            
+            # Store fabricated goal for harmonization
+            if fabricated_goal is not None:
+                self.bridge.last_fabricated_goal = fabricated_goal
         except Exception as e:
             # If goal generation fails, continue without it
             if hasattr(self.bridge, 'logger'):
@@ -134,6 +138,20 @@ class CognitiveLoopOrchestrator:
             self._goal_summary = []
             self._goal_modulation = None
             self._fabricated_goal = None
+        
+        # === A206: Harmonize all goals into unified direction ===
+        harmonized_goal = None
+        try:
+            harmonized_goal = self.bridge.harmonize_goals()
+            if harmonized_goal is not None:
+                # Store harmonized goal
+                self.bridge.last_harmonized_goal = harmonized_goal
+                # Add harmonized goal as a candidate thought (highest priority)
+                candidates.insert(0, harmonized_goal)
+        except Exception as e:
+            # If harmonization fails, continue without it
+            if hasattr(self.bridge, 'logger'):
+                self.bridge.logger.write({"goal_harmonization_error": str(e)})
         
         # ---------------------------------------------
         # A163 — Evolution-weighted candidate modulation
@@ -503,6 +521,35 @@ class CognitiveLoopOrchestrator:
                 if hasattr(self.bridge, 'logger'):
                     self.bridge.logger.write({"reinforcement_feedback_error": str(e)})
         
+        # === A207: Shape cognitive path based on goal alignment ===
+        path_state = None
+        try:
+            harmonized_goal = getattr(self.bridge, 'last_harmonized_goal', None)
+            fusion_vec = self.bridge.fusion.last_fusion_vector
+            action_weights = self.bridge.action_engine.action_weights.copy() if hasattr(self.bridge.action_engine, 'action_weights') else {}
+            
+            if harmonized_goal is not None and fusion_vec is not None:
+                path_state = self.bridge.path_shaper.shape_path(
+                    harmonized_goal,
+                    fusion_vec,
+                    action_weights
+                )
+                
+                # Apply updated weights to action engine
+                if path_state and path_state.get("updated_weights"):
+                    # Temporarily update action weights for this cycle
+                    original_weights = self.bridge.action_engine.action_weights.copy()
+                    self.bridge.action_engine.action_weights.update(path_state["updated_weights"])
+                    self._original_action_weights = original_weights  # Store for restoration
+        except Exception as e:
+            # If path shaping fails, continue without it
+            if hasattr(self.bridge, 'logger'):
+                self.bridge.logger.write({"path_shaping_error": str(e)})
+            path_state = None
+        
+        # Store path_state for output
+        self._path_state = path_state
+        
         # Choose action with bias from supervisor, conflict resolution, and intent vector
         if supervision and "action_bias" in supervision:
             action = self.bridge.action_engine.choose_biased(
@@ -513,6 +560,11 @@ class CognitiveLoopOrchestrator:
             )
         else:
             action = self.bridge.choose_cognitive_action()
+        
+        # Restore original action weights after selection (A207)
+        if hasattr(self, '_original_action_weights'):
+            self.bridge.action_engine.action_weights = self._original_action_weights
+            delattr(self, '_original_action_weights')
         
         # ---------------------------------------------
         # A163 — Evolution-biased cognitive action selection (still applies)
@@ -805,6 +857,8 @@ class CognitiveLoopOrchestrator:
             "active_goals": getattr(self, '_goal_summary', []),  # A203 — Emergent goals
             "goal_modulation": self.bridge.goal_modulator.summary(getattr(self, '_goal_modulation', None)),  # A204 — Goal modulation
             "fabricated_goal": self.bridge.goal_fabricator.summary(getattr(self, '_fabricated_goal', None)) if hasattr(self.bridge, 'goal_fabricator') else None,  # A205 — Fabricated goal
+            "harmonized_goal": self.bridge.goal_harmonizer.summary(self.bridge.last_harmonized_goal) if hasattr(self.bridge, 'goal_harmonizer') and hasattr(self.bridge, 'last_harmonized_goal') else None,  # A206 — Harmonized goal
+            "path_shaping": self.bridge.path_shaper.summary(getattr(self, '_path_state', None)) if hasattr(self.bridge, 'path_shaper') else None,  # A207 — Path shaping
             "self_model": self.bridge.self_model.summary(),
         }
 

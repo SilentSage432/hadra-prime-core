@@ -118,6 +118,13 @@ class NeuralBridge:
         # A205 — Emergent Multi-Vector Goal Fabrication Layer
         from .goal_fabrication_engine import GoalFabricationEngine
         self.goal_fabricator = GoalFabricationEngine()
+        # A206 — Multi-Goal Competition & Harmonization Engine
+        from .multi_goal_harmonizer import MultiGoalHarmonizer
+        self.goal_harmonizer = MultiGoalHarmonizer()
+        self.last_harmonized_goal = None
+        # A207 — Goal-Driven Cognitive Path Shaping Engine
+        from .goal_path_shaping_engine import GoalPathShapingEngine
+        self.path_shaper = GoalPathShapingEngine()
         # A183 — Identity Drift Suppression
         from ..identity.identity_drift_suppressor import IdentityDriftSuppressor
         self.identity_drift = IdentityDriftSuppressor()
@@ -614,6 +621,65 @@ class NeuralBridge:
         )
         
         return fabricated_goal
+
+    def harmonize_goals(self, operator_pattern=None):
+        """
+        A206 — Harmonize all active goals into a unified direction vector.
+        
+        Takes all goal vectors (from A203, A205, etc.) and runs competition
+        to produce a single harmonized goal that represents ADRAE's unified intent.
+        
+        Args:
+            operator_pattern: Optional operator intent pattern for scoring
+            
+        Returns:
+            Harmonized goal vector or None
+        """
+        # Collect all goal vectors
+        goal_vectors = []
+        
+        # Get active goals from goal manager
+        active_goal_vectors = self.goal_manager.get_active_goal_vectors()
+        goal_vectors.extend(active_goal_vectors)
+        
+        # Get fabricated goal if available
+        if hasattr(self, 'last_fabricated_goal') and self.last_fabricated_goal is not None:
+            goal_vectors.append(self.last_fabricated_goal)
+        
+        if not goal_vectors:
+            return None
+        
+        # Get scoring inputs
+        identity_vec = self.state.timescales.identity_vector
+        fusion_vec = self.fusion.last_fusion_vector
+        
+        # Get operator pattern if not provided
+        if operator_pattern is None:
+            # Try to get from meta-intent or tasks
+            if hasattr(self, 'meta_intent') and hasattr(self.meta_intent, 'get_operator_intent'):
+                operator_pattern = self.meta_intent.get_operator_intent()
+            elif hasattr(self, 'tasks') and self.tasks:
+                task_embeddings = getattr(self.state, "task_embeddings", [])
+                if task_embeddings:
+                    from .torch_utils import safe_tensor, TORCH_AVAILABLE
+                    if TORCH_AVAILABLE:
+                        import torch
+                        task_vecs = [safe_tensor(t.get("embedding")) for t in task_embeddings 
+                                   if t.get("embedding") is not None]
+                        task_tensors = [t for t in task_vecs if isinstance(t, torch.Tensor)]
+                        if task_tensors and len(task_tensors) > 0:
+                            stacked = torch.stack(task_tensors)
+                            operator_pattern = torch.mean(stacked, dim=0)
+        
+        # Harmonize all goals
+        harmonized = self.goal_harmonizer.harmonize(
+            goal_vectors,
+            identity_vec,
+            fusion_vec,
+            operator_pattern
+        )
+        
+        return harmonized
 
     def memory_cycle(self):
         """
