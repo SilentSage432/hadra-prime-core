@@ -48,11 +48,16 @@ class ConsciousWorkspace:
         # A177 — purpose classifier
         from .loop_purpose_classifier import LoopPurposeClassifier
         self.purpose_classifier = LoopPurposeClassifier()
+        # A178 — priority engine
+        from .workspace_priority_engine import WorkspacePriorityEngine
+        self.priority_engine = WorkspacePriorityEngine()
 
     def broadcast(self, **kwargs):
         """
         Push new cognitive elements into the workspace.
         Each update triggers coherence recalibration.
+        
+        A178 — Returns prioritized workspace items before broadcast.
         """
         for k, v in kwargs.items():
             if k in self.buffer:
@@ -60,6 +65,75 @@ class ConsciousWorkspace:
 
         self.buffer["timestamp"] = time.time()
         self._recompute_coherence()
+        
+        # A178 — Prioritize items before they enter conscious workspace
+        items = []
+        
+        # Map buffer keys to item types for prioritization
+        type_mapping = {
+            "identity_state": "identity",
+            "task_context": "task",
+            "reflection": "reflection",
+            "memory_recall": "memory",
+            "evolution_vector": "drift",  # Evolution vectors often indicate drift correction
+            "current_thought": "novelty",  # Current thoughts are novel cognitive content
+            "attention_focus": "exploration",
+            "fusion_state": "exploration",
+            "loop_reentry": "reflection",  # Loop re-entry is a form of reflection
+        }
+        
+        for key, value in self.buffer.items():
+            if value is not None:
+                # Skip non-cognitive items
+                if key in ["timestamp"]:
+                    continue
+                
+                # Determine item type
+                item_type = type_mapping.get(key, "exploration")
+                
+                # Extract vector from value
+                vector = None
+                if isinstance(value, dict):
+                    vector = value.get("vector") or value.get("reentered_vector")
+                    if vector is None and "reentry" in value:
+                        reentry = value.get("reentry", {})
+                        vector = reentry.get("reentered_vector")
+                else:
+                    # Value might be a vector directly
+                    vector = value
+                
+                if vector is not None:
+                    items.append({
+                        "type": item_type,
+                        "vector": vector,
+                        "raw": value,
+                        "key": key
+                    })
+        
+        # Rank items by priority
+        try:
+            # Get tasks from state if available
+            tasks = None
+            if hasattr(self.state, 'tasks'):
+                tasks = self.state.tasks
+            elif hasattr(self.state, 'bridge') and hasattr(self.state.bridge, 'tasks'):
+                tasks = self.state.bridge.tasks
+            
+            ranked = self.priority_engine.rank(
+                items,
+                self.state,
+                tasks
+            )
+            
+            self.buffer["prioritized_workspace"] = [
+                {"priority": s, "item": i["raw"], "key": i["key"], "type": i["type"]}
+                for (s, i) in ranked
+            ]
+        except Exception:
+            # If prioritization fails, continue without it
+            self.buffer["prioritized_workspace"] = []
+        
+        return self.buffer
 
     def _recompute_coherence(self):
         """

@@ -110,6 +110,18 @@ class CognitiveLoopOrchestrator:
         if task_embedding is not None:
             candidates.append(task_embedding)
 
+        # A182 — apply reinforcement bias BEFORE selection
+        try:
+            biased_candidates = []
+            for c in candidates:
+                biased = self.bridge.workspace_reinforcement.apply_bias(c)
+                biased_candidates.append(biased)
+            candidates = biased_candidates
+        except Exception as e:
+            # If reinforcement fails, use original candidates
+            if hasattr(self.bridge, 'logger'):
+                self.bridge.logger.write({"reinforcement_bias_error": str(e)})
+
         # 2. Select the strongest thought
         if not candidates:
             chosen_embedding = None
@@ -137,6 +149,24 @@ class CognitiveLoopOrchestrator:
                 # Update neural internal state (updates drift and timescales)
                 self.bridge.state.update(chosen_embedding)
 
+                # A183 — Capture baseline identity once it's formed
+                if self.bridge.baseline_identity is None:
+                    identity_vec = self.bridge.state.timescales.identity_vector
+                    if identity_vec is not None:
+                        try:
+                            from ..neural.torch_utils import safe_tensor
+                            import torch
+                            identity_tensor = safe_tensor(identity_vec)
+                            if identity_tensor is not None:
+                                if isinstance(identity_tensor, torch.Tensor):
+                                    self.bridge.baseline_identity = identity_tensor.detach().clone()
+                                else:
+                                    # Fallback for lists
+                                    self.bridge.baseline_identity = list(identity_vec) if hasattr(identity_vec, '__iter__') else identity_vec
+                        except Exception as e:
+                            if hasattr(self.bridge, 'logger'):
+                                self.bridge.logger.write({"baseline_capture_error": str(e)})
+
                 # Recompute attention with updated timescales
                 if hasattr(self.bridge, "attention"):
                     self.bridge.attention.compute_attention_vector(self.bridge.state.timescales)
@@ -150,6 +180,79 @@ class CognitiveLoopOrchestrator:
                     
                     # === A165: Personality Drift Regulation ===
                     identity_vec = self.bridge.state.timescales.identity_vector
+                    
+                    # A183 — Identity drift prevention
+                    if self.bridge.baseline_identity is not None and identity_vec is not None:
+                        try:
+                            corrected_identity, drift_value = self.bridge.identity_drift.correct(
+                                identity_vec,
+                                self.bridge.baseline_identity
+                            )
+                            
+                            # Apply correction if drift was detected
+                            if corrected_identity is not None and corrected_identity is not identity_vec:
+                                # Update identity vector with corrected version
+                                from ..neural.torch_utils import safe_tensor
+                                import torch
+                                corrected_tensor = safe_tensor(corrected_identity)
+                                if corrected_tensor is not None:
+                                    if isinstance(corrected_tensor, torch.Tensor):
+                                        self.bridge.state.timescales.identity_vector = corrected_tensor
+                                    else:
+                                        self.bridge.state.timescales.identity_vector = corrected_identity
+                            
+                            # Log drift for diagnostics
+                            if hasattr(self.bridge, 'memory_store') and self.bridge.memory_store is not None:
+                                try:
+                                    if hasattr(self.bridge.memory_store, 'log_identity_drift'):
+                                        self.bridge.memory_store.log_identity_drift({
+                                            "drift_value": drift_value,
+                                            "within_limits": drift_value < self.bridge.identity_drift.max_drift
+                                        })
+                                    elif hasattr(self.bridge, 'logger'):
+                                        # Fallback to logger if memory_store doesn't have log_identity_drift
+                                        self.bridge.logger.write({
+                                            "identity_drift": {
+                                                "drift_value": drift_value,
+                                                "within_limits": drift_value < self.bridge.identity_drift.max_drift
+                                            }
+                                        })
+                                except Exception:
+                                    # If logging fails, continue without it
+                                    pass
+                        except Exception as e:
+                            if hasattr(self.bridge, 'logger'):
+                                self.bridge.logger.write({"identity_drift_correction_error": str(e)})
+                    
+                    # A184 — Log identity coherence
+                    if self.bridge.baseline_identity is not None and identity_vec is not None:
+                        try:
+                            sim = self.bridge.identity_gate.cosine_sim(
+                                identity_vec,
+                                self.bridge.baseline_identity
+                            )
+                            
+                            # Log to memory_store if available
+                            if hasattr(self.bridge, 'memory_store') and self.bridge.memory_store is not None:
+                                try:
+                                    if hasattr(self.bridge.memory_store, 'log_identity_coherence'):
+                                        self.bridge.memory_store.log_identity_coherence({
+                                            "similarity_to_baseline": sim
+                                        })
+                                    elif hasattr(self.bridge, 'logger'):
+                                        # Fallback to logger
+                                        self.bridge.logger.write({
+                                            "identity_coherence": {
+                                                "similarity_to_baseline": sim
+                                            }
+                                        })
+                                except Exception:
+                                    # If logging fails, continue without it
+                                    pass
+                        except Exception as e:
+                            if hasattr(self.bridge, 'logger'):
+                                self.bridge.logger.write({"identity_coherence_log_error": str(e)})
+                    
                     personality_vec = self.bridge.fusion.last_fusion_vector
                     
                     if identity_vec is not None and personality_vec is not None:
@@ -226,10 +329,113 @@ class CognitiveLoopOrchestrator:
                 self._personality_drift_info = None
 
         # ---------------------------------------------
-        # A163 — Evolution-biased cognitive action selection
+        # A179 — Supervisory evaluation + A180 — Conflict assessment + A181 — Meta-intent
         # ---------------------------------------------
-        action = self.bridge.choose_cognitive_action()
+        supervision = None
+        conflict_resolution = 0.5  # Default neutral resolution
+        intent_vector = None
         
+        if chosen_embedding is not None:
+            try:
+                supervision = self.bridge.supervisor.supervise(chosen_embedding, self.bridge.state)
+            except Exception as e:
+                if hasattr(self.bridge, 'logger'):
+                    self.bridge.logger.write({"supervision_error": str(e)})
+                supervision = None
+        
+        # A180 — Detect and resolve conflicts
+        try:
+            conflict = self.bridge.conflict_resolver.detect_conflict(self.bridge.state, self.bridge)
+            conflict_resolution = self.bridge.conflict_resolver.resolve(conflict)
+            
+            # Store evolution pressure back into state
+            if not hasattr(self.bridge.state, 'evolution_pressure'):
+                self.bridge.state.evolution_pressure = conflict_resolution
+            else:
+                self.bridge.state.evolution_pressure = conflict_resolution
+        except Exception as e:
+            if hasattr(self.bridge, 'logger'):
+                self.bridge.logger.write({"conflict_resolution_error": str(e)})
+            conflict_resolution = 0.5  # Fallback to neutral
+        
+        # A181 — Compute intent weights and combine intent vectors
+        try:
+            # Operator context (tasks)
+            operator_context = []
+            if hasattr(self.bridge, 'tasks') and self.bridge.tasks is not None:
+                if hasattr(self.bridge.tasks, 'list_tasks'):
+                    operator_context = self.bridge.tasks.list_tasks()
+                elif hasattr(self.bridge.tasks, 'queue'):
+                    # Fallback: extract tasks from queue directly
+                    operator_context = [task for _, _, task in self.bridge.tasks.queue]
+            
+            # Compute intent weighting
+            intent_weights = self.bridge.meta_intent.compute_intent_weights(
+                self.bridge.state,
+                operator_context
+            )
+            
+            # Get vectors for intent combination
+            operator_vec = chosen_embedding  # Use chosen thought as operator intent proxy
+            system_vec = None
+            self_vec = None
+            
+            # System intent: identity vector
+            try:
+                if hasattr(self.bridge.state, 'timescales') and self.bridge.state.timescales is not None:
+                    system_vec = getattr(self.bridge.state.timescales, 'identity_vector', None)
+            except Exception:
+                pass
+            
+            # Self intent: evolution vector or identity vector as fallback
+            try:
+                # Try to get evolution vector from trajectory
+                if hasattr(self, 'last_output') and self.last_output:
+                    trajectory = self.last_output.get("evolution_trajectory", {})
+                    self_vec = trajectory.get("vector")
+                
+                # Fallback to identity vector if evolution vector not available
+                if self_vec is None and system_vec is not None:
+                    self_vec = system_vec
+            except Exception:
+                pass
+            
+            # Combine intent vectors into a single intent bias signal
+            intent_vector = self.bridge.meta_intent.combine_intents(
+                operator_vec=operator_vec,
+                system_vec=system_vec,
+                self_vec=self_vec
+            )
+        except Exception as e:
+            if hasattr(self.bridge, 'logger'):
+                self.bridge.logger.write({"meta_intent_error": str(e)})
+            intent_vector = None
+        
+        # A182 — reinforce workspace pathways based on intent vs chosen embedding (feedback learning)
+        if chosen_embedding is not None and intent_vector is not None:
+            try:
+                self.bridge.workspace_reinforcement.reinforce(
+                    intent_vector=intent_vector,
+                    workspace_vector=chosen_embedding
+                )
+            except Exception as e:
+                if hasattr(self.bridge, 'logger'):
+                    self.bridge.logger.write({"reinforcement_feedback_error": str(e)})
+        
+        # Choose action with bias from supervisor, conflict resolution, and intent vector
+        if supervision and "action_bias" in supervision:
+            action = self.bridge.action_engine.choose_biased(
+                supervision["action_bias"], 
+                conflict_resolution,
+                intent_vector,
+                self.bridge
+            )
+        else:
+            action = self.bridge.choose_cognitive_action()
+        
+        # ---------------------------------------------
+        # A163 — Evolution-biased cognitive action selection (still applies)
+        # ---------------------------------------------
         if trend == "upward":
             # More identity growth + reflection when healthy
             if action == "retrieve_memory":
@@ -301,6 +507,155 @@ class CognitiveLoopOrchestrator:
         drift_state = self.bridge.state.drift.get_status()
         fusion_state = self.bridge.fusion.status()
         attention_state = self.bridge.attention.status()
+        
+        # ---------------------------------------------------
+        # A185 — Sleep/Wake Identity Consolidation Trigger
+        # ---------------------------------------------------
+        self.bridge.cycle_step += 1
+
+        if self.bridge.cycle_step >= self.bridge.sleep_cycle_interval:
+            # Begin "sleep" cycle - consolidate identity
+            baseline = self.bridge.baseline_identity
+            current = self.bridge.state.timescales.identity_vector
+
+            if baseline is not None and current is not None:
+                try:
+                    consolidated = self.bridge.identity_consolidator.consolidate(
+                        current,
+                        baseline,
+                        self.bridge.identity_drift
+                    )
+                    
+                    if consolidated is not None:
+                        # Apply consolidated identity
+                        from ..neural.torch_utils import safe_tensor
+                        import torch
+                        consolidated_tensor = safe_tensor(consolidated)
+                        if consolidated_tensor is not None:
+                            if isinstance(consolidated_tensor, torch.Tensor):
+                                self.bridge.state.timescales.identity_vector = consolidated_tensor
+                            else:
+                                self.bridge.state.timescales.identity_vector = consolidated
+                        
+                        # Log consolidation event
+                        try:
+                            baseline_similarity = self.bridge.identity_gate.cosine_sim(
+                                consolidated,
+                                baseline
+                            )
+                            
+                            if hasattr(self.bridge, 'memory_store') and self.bridge.memory_store is not None:
+                                try:
+                                    if hasattr(self.bridge.memory_store, 'log_identity_consolidation'):
+                                        self.bridge.memory_store.log_identity_consolidation({
+                                            "event": "identity_consolidated",
+                                            "baseline_similarity": baseline_similarity
+                                        })
+                                    elif hasattr(self.bridge, 'logger'):
+                                        # Fallback to logger
+                                        self.bridge.logger.write({
+                                            "identity_consolidation": {
+                                                "event": "identity_consolidated",
+                                                "baseline_similarity": baseline_similarity
+                                            }
+                                        })
+                                except Exception:
+                                    pass
+                        except Exception as e:
+                            if hasattr(self.bridge, 'logger'):
+                                self.bridge.logger.write({"consolidation_log_error": str(e)})
+                except Exception as e:
+                    if hasattr(self.bridge, 'logger'):
+                        self.bridge.logger.write({"identity_consolidation_error": str(e)})
+
+            # -------------------------------------------
+            # A186 — Dreamspace Activation
+            # -------------------------------------------
+            try:
+                mm = self.bridge.state.memory_manager if hasattr(self.bridge.state, "memory_manager") else None
+                id_vec = self.bridge.state.timescales.identity_vector
+
+                if id_vec is not None:
+                    dream_events = []
+                    
+                    # Generate 3 dream events
+                    for _ in range(3):
+                        d = self.bridge.dreamspace.generate_dream(mm, id_vec)
+                        if d is not None:
+                            dream_events.append(d)
+                            
+                            # Use dream as subconscious reinforcement
+                            # Blend dream with identity (subtle influence)
+                            from ..neural.torch_utils import safe_tensor, TORCH_AVAILABLE
+                            import torch
+                            dream_tensor = safe_tensor(d)
+                            id_tensor = safe_tensor(id_vec)
+                            
+                            if dream_tensor is not None and id_tensor is not None:
+                                if TORCH_AVAILABLE and isinstance(dream_tensor, torch.Tensor) and isinstance(id_tensor, torch.Tensor):
+                                    if dream_tensor.shape == id_tensor.shape:
+                                        # Subtle blend: 95% identity, 5% dream
+                                        id_vec = (id_tensor * 0.95 + dream_tensor * 0.05)
+                                        norm = torch.norm(id_vec)
+                                        if norm > 0:
+                                            id_vec = id_vec / norm
+                                else:
+                                    # Fallback for lists
+                                    import math
+                                    id_list = list(id_tensor) if hasattr(id_tensor, '__iter__') else [id_tensor]
+                                    dream_list = list(dream_tensor) if hasattr(dream_tensor, '__iter__') else [dream_tensor]
+                                    
+                                    if len(id_list) == len(dream_list):
+                                        id_vec = [i * 0.95 + d * 0.05 for i, d in zip(id_list, dream_list)]
+                                        norm = math.sqrt(sum(x * x for x in id_vec))
+                                        if norm > 0:
+                                            id_vec = [v / norm for v in id_vec]
+
+                    # Log dreams
+                    if dream_events:
+                        try:
+                            # Convert dream events to serializable format
+                            dream_data = []
+                            for d in dream_events:
+                                d_tensor = safe_tensor(d)
+                                if d_tensor is not None:
+                                    if TORCH_AVAILABLE and isinstance(d_tensor, torch.Tensor):
+                                        dream_data.append(d_tensor.tolist())
+                                    else:
+                                        dream_data.append(list(d) if hasattr(d, '__iter__') else [d])
+                            
+                            if hasattr(self.bridge, 'memory_store') and self.bridge.memory_store is not None:
+                                try:
+                                    if hasattr(self.bridge.memory_store, 'log_dream_events'):
+                                        self.bridge.memory_store.log_dream_events(dream_data)
+                                    elif hasattr(self.bridge, 'logger'):
+                                        # Fallback to logger
+                                        self.bridge.logger.write({
+                                            "dream_events": {
+                                                "count": len(dream_data),
+                                                "events": dream_data[:3]  # Log first 3 for brevity
+                                            }
+                                        })
+                                except Exception:
+                                    pass
+                        except Exception as e:
+                            if hasattr(self.bridge, 'logger'):
+                                self.bridge.logger.write({"dream_logging_error": str(e)})
+
+                    # Apply post-dream identity (subtle influence from dreams)
+                    if id_vec is not None and id_vec is not self.bridge.state.timescales.identity_vector:
+                        id_tensor = safe_tensor(id_vec)
+                        if id_tensor is not None:
+                            if TORCH_AVAILABLE and isinstance(id_tensor, torch.Tensor):
+                                self.bridge.state.timescales.identity_vector = id_tensor
+                            else:
+                                self.bridge.state.timescales.identity_vector = id_vec
+            except Exception as e:
+                if hasattr(self.bridge, 'logger'):
+                    self.bridge.logger.write({"dreamspace_error": str(e)})
+
+            # Reset cycle counter
+            self.bridge.cycle_step = 0
         
         # === A170: Autobiographical Memory Logging ===
         try:

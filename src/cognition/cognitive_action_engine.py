@@ -97,6 +97,103 @@ class CognitiveActionEngine:
 
         return chosen
 
+    def choose_biased(self, bias, conflict_score=0.5, intent_vector=None, bridge=None):
+        """
+        A179 — Weighted action selection including:
+        - SCN bias
+        - conflict resolution score
+        - meta-intent weighting (A181)
+
+        Args:
+            bias: dict mapping action names to bias multipliers (from SCN)
+            conflict_score: float (0.0-1.0) from conflict resolver (A180)
+            intent_vector: Combined intent vector from meta-intent coordinator (A181)
+            bridge: Optional bridge object (for evolution check)
+
+        Returns:
+            str: Selected action name
+        """
+        # If stability threshold reached, evolution becomes an available action
+        if (
+            bridge is not None
+            and hasattr(bridge, "ready_for_adaptive_evolution")
+            and bridge.ready_for_adaptive_evolution
+            and hasattr(bridge, "evolution")
+            and not bridge.evolution.active
+        ):
+            return "enter_adaptive_evolution"
+
+        actions = list(self.action_weights.keys())
+        
+        # Combine base weights with SCN biases
+        weights = []
+        for action in actions:
+            base_weight = self.action_weights.get(action, 0.0)
+            bias_multiplier = bias.get(action, 1.0)
+            weights.append(base_weight * bias_multiplier)
+        
+        # A180 — Conflict influences risk-taking actions
+        if conflict_score < 0.4:
+            # Lower probability of "evolve" and "update_identity" when unstable
+            if "evolve" in actions:
+                idx = actions.index("evolve")
+                weights[idx] *= 0.5
+            if "update_identity" in actions:
+                idx = actions.index("update_identity")
+                weights[idx] *= 0.7
+            if "enter_adaptive_evolution" in actions:
+                idx = actions.index("enter_adaptive_evolution")
+                weights[idx] *= 0.5
+        elif conflict_score > 0.7:
+            # Encourage evolution during stable alignment
+            if "evolve" in actions:
+                idx = actions.index("evolve")
+                weights[idx] *= 1.2
+            if "enter_adaptive_evolution" in actions:
+                idx = actions.index("enter_adaptive_evolution")
+                weights[idx] *= 1.1
+        
+        # A181 — Intent weighting: if operator intent dominates → focus/action
+        # If self-intent dominates → explore/evolve
+        if intent_vector is not None and conflict_score is not None:
+            try:
+                # Check if intent vector has significant magnitude (operator-driven)
+                import torch
+                if isinstance(intent_vector, torch.Tensor):
+                    mean_magnitude = torch.mean(torch.abs(intent_vector)).item()
+                else:
+                    # Fallback for lists/arrays
+                    mean_magnitude = sum(abs(x) for x in intent_vector) / len(intent_vector) if intent_vector else 0.0
+                
+                # Operator-driven modes: boost memory retrieval for task focus
+                if mean_magnitude > 0.1:
+                    if "retrieve_memory" in actions:
+                        idx = actions.index("retrieve_memory")
+                        weights[idx] *= 1.1
+                
+                # Self-driven modes: boost reflection when stable and self-intent is high
+                if conflict_score > 0.7:
+                    if "generate_reflection" in actions:
+                        idx = actions.index("generate_reflection")
+                        weights[idx] *= 1.25
+            except Exception:
+                # If intent vector processing fails, continue without it
+                pass
+        
+        # Normalize weights
+        total = sum(weights)
+        if total > 0:
+            normalized = [w / total for w in weights]
+        else:
+            # Fallback to uniform if all weights are zero
+            normalized = [1.0 / len(weights)] * len(weights)
+        
+        chosen = random.choices(actions, weights=normalized, k=1)[0]
+        
+        self.last_action = chosen
+        
+        return chosen
+
     def execute(self, action, bridge):
 
         """

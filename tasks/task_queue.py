@@ -35,3 +35,9 @@ class TaskQueue:
             return None
         return self.queue[0][2]
 
+    def list_tasks(self):
+        """
+        A181 — Return list of all tasks in queue (for intent coordination).
+        """
+        return [task for _, _, task in self.queue]
+

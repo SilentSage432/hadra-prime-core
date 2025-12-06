@@ -84,8 +84,37 @@ class NeuralBridge:
         self.self_model = SelfModelEngine()
         # A172: Conscious Workspace Buffer (Global Workspace Core)
         self.workspace = ConsciousWorkspace(self.state)
+        # A179 — Supervisory Control Network
+        from ..cognition.supervisory_control_network import SupervisoryControlNetwork
+        self.supervisor = SupervisoryControlNetwork()
+        # A180 — Supervisory Conflict Resolution Layer
+        from ..cognition.supervisory_conflict_resolver import SupervisoryConflictResolver
+        self.conflict_resolver = SupervisoryConflictResolver()
+        # A181 — Meta-Intent Coordinator
+        from ..cognition.meta_intent_coordinator import MetaIntentCoordinator
+        self.meta_intent = MetaIntentCoordinator()
+        # A182 — Intent-Aware Global Workspace Reinforcement
+        from ..cognition.global_workspace_reinforcement import GlobalWorkspaceReinforcement
+        self.workspace_reinforcement = GlobalWorkspaceReinforcement(dim=128)
+        # A183 — Identity Drift Suppression
+        from ..identity.identity_drift_suppressor import IdentityDriftSuppressor
+        self.identity_drift = IdentityDriftSuppressor()
+        # A184 — Identity Supervisory Gate
+        from ..identity.identity_supervisory_gate import IdentitySupervisoryGate
+        self.identity_gate = IdentitySupervisoryGate()
+        # A185 — Temporal Identity Consolidation
+        from ..identity.temporal_identity_consolidation import TemporalIdentityConsolidator
+        self.identity_consolidator = TemporalIdentityConsolidator()
+        # A186 — Dreamspace (Subconscious Processing Layer)
+        from ..cognition.dreamspace import Dreamspace
+        self.dreamspace = Dreamspace()
+        # Keep a frozen copy of PRIME's identity for drift comparisons
+        self.baseline_identity = None
         self.ready_for_adaptive_evolution = False
         self.cycle_count = 0
+        # A185 — Sleep/wake timer
+        self.cycle_step = 0
+        self.sleep_cycle_interval = 12  # every 12 cognition cycles, PRIME "sleeps"
         self.stability_report = None
         
         # -----------------------------------------
@@ -242,6 +271,74 @@ class NeuralBridge:
     def perform_action(self, action):
 
         return self.action_engine.execute(action, self)
+
+    def update_identity(self, new_identity_vec):
+        """
+        A184 — Update identity through the supervisory gate.
+        
+        This method ensures identity updates are evaluated and filtered
+        based on coherence with baseline identity.
+        
+        Args:
+            new_identity_vec: Proposed new identity vector
+            
+        Returns:
+            Final identity vector (after gate evaluation)
+        """
+        from ..neural.torch_utils import safe_tensor
+        import torch
+        
+        # Run identity update through the supervisory gate
+        if self.baseline_identity is None:
+            # First identity initialization
+            identity_tensor = safe_tensor(new_identity_vec)
+            if identity_tensor is not None:
+                if isinstance(identity_tensor, torch.Tensor):
+                    self.state.timescales.identity_vector = identity_tensor
+                    self.baseline_identity = identity_tensor.detach().clone()
+                else:
+                    self.state.timescales.identity_vector = new_identity_vec
+                    self.baseline_identity = list(new_identity_vec) if hasattr(new_identity_vec, '__iter__') else new_identity_vec
+            else:
+                self.state.timescales.identity_vector = new_identity_vec
+            return new_identity_vec
+
+        # Evaluate update through gate
+        current_identity = self.state.timescales.identity_vector
+        if current_identity is None:
+            current_identity = self.baseline_identity
+
+        decision, sim = self.identity_gate.evaluate(
+            new_identity_vec,
+            self.baseline_identity
+        )
+
+        if decision == "accept":
+            final_vec = new_identity_vec
+
+        elif decision == "soft-merge":
+            final_vec = self.identity_gate.merge_identity(
+                current_identity,
+                new_identity_vec,
+                weight=0.20
+            )
+
+        else:  # reject
+            # revert toward baseline identity using drift suppressor
+            corrected_vec, _ = self.identity_drift.correct(
+                current_identity,
+                self.baseline_identity
+            )
+            final_vec = corrected_vec
+
+        # Apply identity
+        final_tensor = safe_tensor(final_vec)
+        if final_tensor is not None:
+            self.state.timescales.identity_vector = final_tensor
+        else:
+            self.state.timescales.identity_vector = final_vec
+
+        return final_vec
 
     def propose_thoughts(self):
         """
