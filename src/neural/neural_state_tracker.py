@@ -30,6 +30,7 @@ class NeuralStateTracker:
 
         self.last_embedding = None
         self.last_perception = None
+        self.task_embeddings = []
 
         self.drift = NeuralDriftEngine()
         self.timescales = NeuralTimescales()

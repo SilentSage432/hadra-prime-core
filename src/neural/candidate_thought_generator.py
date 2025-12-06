@@ -27,9 +27,10 @@ from .torch_utils import safe_tensor, is_tensor, safe_norm, TORCH_AVAILABLE
 
 class CandidateThoughtGenerator:
 
-    def __init__(self, num_candidates=4, noise_scale=0.05):
+    def __init__(self, num_candidates=4, noise_scale=0.05, bridge=None):
         self.num_candidates = num_candidates
         self.noise_scale = noise_scale
+        self.bridge = bridge  # Optional bridge reference for accessing seed embeddings
 
     def generate_variants(self, base_vector):
         """
@@ -74,6 +75,7 @@ class CandidateThoughtGenerator:
         2. Add attention-directed variant
         3. Add identity-directed variant
         4. Add random exploration variants
+        5. Include seed embeddings if available via bridge
         """
         proposals = []
 
@@ -85,6 +87,39 @@ class CandidateThoughtGenerator:
 
         if identity_vec is not None:
             proposals += self.generate_variants(identity_vec)
+
+        # ----------------------------------------------------
+        # FINAL FIX: Inject seed embeddings as candidate thoughts
+        # ----------------------------------------------------
+        # Get seed embeddings from bridge if available
+        seed_embeddings = None
+        if self.bridge and hasattr(self.bridge.state, "seed_embeddings"):
+            seed_embeddings = self.bridge.state.seed_embeddings
+        
+        if seed_embeddings:
+            for item in seed_embeddings:
+                try:
+                    emb = item.get("embedding")
+                    if emb is not None:
+                        proposals.append(emb)
+                except Exception as e:
+                    print("⚠️ Seed injection error in CandidateThoughtGenerator:", e)
+
+        # Safety: ensure at least something is returned
+        if len(proposals) == 0:
+            # fallback: generate variants from fusion if available
+            if fusion_vec is not None:
+                proposals += self.generate_variants(fusion_vec)
+            # If still empty, create a minimal random vector
+            if len(proposals) == 0:
+                try:
+                    import torch
+                    if TORCH_AVAILABLE:
+                        # Create a random normalized vector as fallback
+                        fallback = torch.randn(128)  # Default embedding size
+                        proposals.append(fallback / torch.norm(fallback))
+                except:
+                    pass
 
         return proposals
 

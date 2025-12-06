@@ -2,6 +2,34 @@ import json
 import os
 from datetime import datetime
 
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    torch = None
+
+
+def make_json_serializable(obj):
+    """
+    Recursively convert PyTorch tensors and other non-serializable objects
+    to JSON-serializable formats.
+    """
+    if TORCH_AVAILABLE and isinstance(obj, torch.Tensor):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {key: make_json_serializable(value) for key, value in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [make_json_serializable(item) for item in obj]
+    elif isinstance(obj, (int, float, str, bool, type(None))):
+        return obj
+    else:
+        # For other types, try to convert to string
+        try:
+            return str(obj)
+        except:
+            return None
+
 
 class MemoryStore:
 
@@ -39,13 +67,17 @@ class MemoryStore:
             pass
 
     def save(self):
+        # Convert tensors to JSON-serializable format before saving
+        serializable_data = make_json_serializable(self.data)
         with open(self.filename, "w") as f:
-            json.dump(self.data, f, indent=2)
+            json.dump(serializable_data, f, indent=2)
 
     def add_event(self, category, payload):
+        # Convert payload to JSON-serializable format
+        serializable_payload = make_json_serializable(payload)
         timestamped = {
             "timestamp": datetime.utcnow().isoformat(),
-            "data": payload
+            "data": serializable_payload
         }
         self.data[category].append(timestamped)
         self.save()

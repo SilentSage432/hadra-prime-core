@@ -67,13 +67,25 @@ class CognitiveActionEngine:
 
         }
 
-    def choose_action(self):
+    def choose_action(self, bridge=None):
 
         """
 
         Selects a cognitive action based on weighted probability.
 
+        If stability threshold reached, evolution becomes an available action.
+
         """
+
+        # If stability threshold reached, evolution becomes an available action
+        if (
+            bridge is not None
+            and hasattr(bridge, "ready_for_adaptive_evolution")
+            and bridge.ready_for_adaptive_evolution
+            and hasattr(bridge, "evolution")
+            and not bridge.evolution.active
+        ):
+            return "enter_adaptive_evolution"
 
         actions = list(self.action_weights.keys())
 
@@ -135,6 +147,13 @@ class CognitiveActionEngine:
         elif action == "reinforce_attention":
 
             return bridge.attention.last_focus_vector
+
+        elif action == "enter_adaptive_evolution":
+            report = bridge.evolution.try_activate(
+                bridge.stability_report,
+                bridge.cycle_count
+            )
+            return report
 
         return None
 

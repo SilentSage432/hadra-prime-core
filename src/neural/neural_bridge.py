@@ -22,6 +22,8 @@ from .neural_context_fusion import NeuralContextFusion
 from .neural_thought_selector import NeuralThoughtSelector
 from .candidate_thought_generator import CandidateThoughtGenerator
 from .reflective_thought_generator import ReflectiveThoughtGenerator
+from .self_stability_engine import SelfStabilityEngine
+from .adaptive_evolution_engine import AdaptiveEvolutionEngine
 from ..memory.memory_interaction_engine import MemoryInteractionEngine
 from ..cognition.cognitive_action_engine import CognitiveActionEngine
 from ..cognition.cognitive_loop_orchestrator import CognitiveLoopOrchestrator
@@ -35,6 +37,7 @@ if _root_path not in sys.path:
 from persistence.memory_store import MemoryStore
 from persistence.log_writer import LogWriter
 from perception.perception_manager import PerceptionManager
+from tasks.task_queue import TaskQueue
 
 class NeuralBridge:
 
@@ -47,14 +50,30 @@ class NeuralBridge:
         self.attention = NeuralAttentionEngine()
         self.fusion = NeuralContextFusion()
         self.selector = NeuralThoughtSelector()
-        self.generator = CandidateThoughtGenerator()
+        self.generator = CandidateThoughtGenerator(bridge=self)
         self.reflector = ReflectiveThoughtGenerator()
         self.memory_engine = MemoryInteractionEngine()
         self.action_engine = CognitiveActionEngine()
         self.memory_store = MemoryStore()
         self.logger = LogWriter()
         self.perception = PerceptionManager(self)
+        self.tasks = TaskQueue()
         self.orchestrator = CognitiveLoopOrchestrator(self)
+        self.stability = SelfStabilityEngine()
+        self.evolution = AdaptiveEvolutionEngine()
+        self.ready_for_adaptive_evolution = False
+        self.cycle_count = 0
+        self.stability_report = None
+        
+        # -----------------------------------------
+        # Seed Embeddings Activation (A152 Fix)
+        # -----------------------------------------
+        try:
+            self.state.seed_embeddings = self.embed_seed_memory()
+            print("🔥 SEED EMBEDDINGS LOADED:", len(self.state.seed_embeddings))
+        except Exception as e:
+            print("SEED EMBEDDING ERROR:", e)
+            self.state.seed_embeddings = []
         
         # Seed neural memory with initial concepts on first run
         self.seed_neural_memory()
@@ -183,7 +202,7 @@ class NeuralBridge:
 
     def choose_cognitive_action(self):
 
-        return self.action_engine.choose_action()
+        return self.action_engine.choose_action(self)
 
     def perform_action(self, action):
 
@@ -197,12 +216,19 @@ class NeuralBridge:
         attention = self.attention.last_focus_vector
         identity = self.state.timescales.identity_vector
 
+        # Generate base candidates (generator now handles seed injection internally)
         candidates = self.generator.propose(fusion, attention, identity)
         
         # Include last perception embedding as thought seed
         if self.state.last_perception and self.state.last_perception.get("embedding") is not None:
             perception_vec = self.state.last_perception["embedding"]
             candidates.append(perception_vec)
+        
+        # Include task embeddings
+        task_embeddings = getattr(self.state, "task_embeddings", [])
+        for item in task_embeddings:
+            if item.get("embedding") is not None:
+                candidates.append(item["embedding"])
         
         return candidates
 
@@ -257,32 +283,42 @@ class NeuralBridge:
 
     def embed_seed_memory(self):
         """
-        Embed seed memories from memory_store into vector form.
-        Returns list of embedded seed memories for use in thought generation.
+        Load seed memories from the memory store and embed them.
+        Ensures compatibility across all stored seed formats.
         """
         seeds = self.memory_store.data.get("thought_events", [])
         embedded = []
         
         for seed in seeds:
-            if seed.get("timestamp") == "seed" and "data" in seed:
-                content = seed["data"].get("content", "")
-                if content:
-                    # Use hooks to encode the seed text
-                    vec = self.hooks.on_perception(content)
-                    if vec is not None:
-                        # Convert to list if tensor
-                        try:
-                            import torch
-                            if isinstance(vec, torch.Tensor):
-                                vec = vec.tolist()
-                        except:
-                            pass
-                        embedded.append({
-                            "text": content,
-                            "type": seed["data"].get("type", "concept"),
-                            "embedding": vec
-                        })
+            # Each seed may be stored as:
+            # { "timestamp": "...", "data": { "content": "...", ... } }
+            # or directly as { "content": "...", ... }
+            data = seed.get("data", seed)
+            
+            # Check if this is a seed (timestamp == "seed" or has seed-like structure)
+            is_seed = seed.get("timestamp") == "seed" or "content" in data
+            
+            if not is_seed:
+                continue
+            
+            text = data.get("content") or data.get("text")
+            if not text:
+                continue
+            
+            try:
+                # Use hooks to encode the seed text
+                vec = self.hooks.on_perception(text)
+                if vec is not None:
+                    # Keep as tensor (don't convert to list)
+                    embedded.append({
+                        "text": text,
+                        "type": data.get("type", "concept"),
+                        "embedding": vec
+                    })
+            except Exception as e:
+                print("ERROR embedding seed:", text, e)
         
+        print("🔥 FINAL SEED EMBEDDING COUNT:", len(embedded))
         return embedded
 
     def seed_neural_memory(self):
@@ -325,4 +361,40 @@ class NeuralBridge:
         self.process_perception(text)
         
         return perception
+
+    def add_task(self, text, priority=5):
+        """
+        Add a task to PRIME's task queue with priority.
+        Tasks influence thought generation and cognitive direction.
+        """
+        task = self.tasks.add_task(text, priority)
+        
+        # Encode task text into embedding
+        embedding = self.hooks.on_perception(text)
+        
+        # Convert to list if tensor
+        embedding_list = embedding
+        try:
+            import torch
+            if isinstance(embedding, torch.Tensor):
+                embedding_list = embedding.tolist()
+        except:
+            pass
+        
+        # Store in memory
+        self.memory_store.log_thought_event({
+            "type": "task_added",
+            "content": text,
+            "priority": priority
+        })
+        
+        # Store embedding for future use
+        self.state.task_embeddings.append({
+            "text": text,
+            "embedding": embedding,
+            "embedding_list": embedding_list,
+            "priority": priority
+        })
+        
+        return {"task": text, "priority": priority}
 
