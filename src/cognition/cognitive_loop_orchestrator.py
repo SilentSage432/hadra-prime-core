@@ -317,12 +317,96 @@ class CognitiveLoopOrchestrator:
             if hasattr(self.bridge, 'logger'):
                 self.bridge.logger.write({"reinforcement_bias_error": str(e)})
 
+        # A219 — Activate relevant competency clusters based on context
+        competency_activations = []
+        competency_bias = 0.0
+        try:
+            if hasattr(self.bridge, 'competencies') and self.bridge.competencies.clusters:
+                # Compute context vector from fusion + attention
+                fusion_vec = self.bridge.fusion.last_fusion_vector
+                attention_vec = self.bridge.attention.last_focus_vector
+                
+                if fusion_vec is not None and attention_vec is not None:
+                    from ..neural.torch_utils import safe_tensor, TORCH_AVAILABLE
+                    fusion_t = safe_tensor(fusion_vec)
+                    attention_t = safe_tensor(attention_vec)
+                    
+                    if fusion_t is not None and attention_t is not None:
+                        # Blend fusion and attention to form context vector
+                        if TORCH_AVAILABLE:
+                            import torch
+                            if isinstance(fusion_t, torch.Tensor) and isinstance(attention_t, torch.Tensor):
+                                # Ensure same dimensions
+                                if fusion_t.shape == attention_t.shape:
+                                    context_vec = (fusion_t + attention_t) / 2.0
+                                else:
+                                    # Use fusion as fallback
+                                    context_vec = fusion_t
+                            else:
+                                context_vec = fusion_t
+                        else:
+                            # Python list fallback
+                            if hasattr(fusion_t, '__iter__') and hasattr(attention_t, '__iter__'):
+                                fusion_list = list(fusion_t) if not isinstance(fusion_t, list) else fusion_t
+                                attention_list = list(attention_t) if not isinstance(attention_t, list) else attention_t
+                                if len(fusion_list) == len(attention_list):
+                                    context_vec = [(f + a) / 2.0 for f, a in zip(fusion_list, attention_list)]
+                                else:
+                                    context_vec = fusion_list
+                            else:
+                                context_vec = fusion_t
+                        
+                        # Activate competencies
+                        competency_activations = self.bridge.competencies.activate(context_vec)
+                        
+                        # Compute influence bias from activations
+                        if competency_activations:
+                            competency_bias = sum(sim for _, sim in competency_activations) / len(competency_activations)
+                        
+                        # Log activations
+                        if competency_activations:
+                            if hasattr(self.bridge, 'memory_store') and self.bridge.memory_store is not None:
+                                try:
+                                    if hasattr(self.bridge.memory_store, 'log_thought_event'):
+                                        self.bridge.memory_store.log_thought_event({
+                                            "type": "competency_activation",
+                                            "activations": [(name, round(sim, 4)) for name, sim in competency_activations],
+                                            "bias": round(competency_bias, 4)
+                                        })
+                                except Exception:
+                                    pass
+                            
+                            # Also log via logger
+                            if hasattr(self.bridge, 'logger'):
+                                try:
+                                    self.bridge.logger.write({
+                                        "competency_activation": {
+                                            "activations": [(name, round(sim, 4)) for name, sim in competency_activations],
+                                            "bias": round(competency_bias, 4),
+                                            "count": len(competency_activations)
+                                        }
+                                    })
+                                except Exception:
+                                    pass
+        except Exception as e:
+            # If activation fails, continue without it
+            if hasattr(self.bridge, 'logger'):
+                try:
+                    self.bridge.logger.write({"competency_activation_error": str(e)})
+                except Exception:
+                    pass
+        
+        # Store competency activation info for output
+        self._competency_activations = competency_activations
+        self._competency_bias = competency_bias
+        
         # 2. Select the strongest thought
         if not candidates:
             chosen_embedding = None
             dbg = {"note": "No candidates generated"}
         else:
-            result = self.bridge.select_thought(candidates)
+            # Pass competency bias to thought selector
+            result = self.bridge.select_thought(candidates, competency_bias=competency_bias)
             
             # Handle both tuple and single return values
             if isinstance(result, tuple):
@@ -1409,6 +1493,11 @@ class CognitiveLoopOrchestrator:
             "skill_generalizer": self.bridge.skill_generalizer.summary() if hasattr(self.bridge, 'skill_generalizer') else None,  # A215 — Skill generalization
             "skill_manager": self.bridge.skills.status() if hasattr(self.bridge, 'skills') else None,  # A217 — Skill manager
             "competency_manager": self.bridge.competencies.status() if hasattr(self.bridge, 'competencies') else None,  # A218 — Competency clustering
+            "competency_activation": {
+                "activations": [(name, round(sim, 4)) for name, sim in getattr(self, '_competency_activations', [])],
+                "bias": round(getattr(self, '_competency_bias', 0.0), 4),
+                "count": len(getattr(self, '_competency_activations', []))
+            } if hasattr(self, '_competency_activations') else None,  # A219 — Competency activation
             "self_model": self.bridge.self_model.summary(),
         }
 

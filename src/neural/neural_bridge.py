@@ -390,7 +390,7 @@ class NeuralBridge:
 
         return self.fusion.status()
 
-    def select_thought(self, candidate_embeddings):
+    def select_thought(self, candidate_embeddings, competency_bias=0.0):
 
         fusion = self.fusion.last_fusion_vector
 
@@ -404,7 +404,8 @@ class NeuralBridge:
 
             self.state.memory_manager if hasattr(self.state, "memory_manager") else None,
 
-            goal_modulation=self.last_goal_modulation  # A204 — Goal modulation
+            goal_modulation=self.last_goal_modulation,  # A204 — Goal modulation
+            competency_bias=competency_bias  # A219 — Competency activation bias
 
         )
 

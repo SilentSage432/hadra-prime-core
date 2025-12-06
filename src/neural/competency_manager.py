@@ -28,15 +28,17 @@ class CompetencyManager:
     - Reflection Optimization Cluster
     """
     
-    def __init__(self, similarity_threshold=0.65):
+    def __init__(self, similarity_threshold=0.65, activation_threshold=0.55):
         """
         Initialize competency manager.
         
         Args:
             similarity_threshold: Cosine similarity threshold for clustering (default 0.65)
+            activation_threshold: Cosine similarity threshold for activation (default 0.55)
         """
         self.clusters = {}  # name -> { "centroid": tensor, "members": [tensors], "metadata": dict }
         self.similarity_threshold = similarity_threshold
+        self.activation_threshold = activation_threshold  # A219 — Activation threshold
 
     def cluster_skills(self, skills):
         """
@@ -157,6 +159,41 @@ class CompetencyManager:
         Clear all clusters (for testing/reset).
         """
         self.clusters = {}
+    
+    def activate(self, context_vec):
+        """
+        A219 — Activate relevant competency clusters based on context similarity.
+        
+        Returns list of (name, similarity) tuples for competencies that exceed
+        the activation threshold, sorted by strength (strongest first).
+        
+        Args:
+            context_vec: Context vector (fusion + attention blend) to evaluate
+            
+        Returns:
+            List of (competency_name, similarity_score) tuples, sorted by similarity descending
+        """
+        context = safe_tensor(context_vec)
+        if context is None or not self.clusters:
+            return []
+        
+        activations = []
+        
+        for name, cluster in self.clusters.items():
+            centroid = cluster.get("centroid")
+            if centroid is None:
+                continue
+            
+            # Compute similarity between context and competency centroid
+            sim = safe_cosine_similarity(context, centroid)
+            
+            if sim is not None and sim > self.activation_threshold:
+                activations.append((name, sim))
+        
+        # Sort by similarity (strongest → weakest)
+        activations.sort(key=lambda x: x[1], reverse=True)
+        
+        return activations
     
     def get_competency_influence(self, target_vec):
         """

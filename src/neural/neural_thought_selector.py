@@ -121,7 +121,7 @@ class NeuralThoughtSelector:
 
         }
 
-    def select(self, candidate_embeddings, fusion_vec, attention_engine, memory_manager, goal_modulation=None):
+    def select(self, candidate_embeddings, fusion_vec, attention_engine, memory_manager, goal_modulation=None, competency_bias=0.0):
 
         """
 
@@ -129,6 +129,9 @@ class NeuralThoughtSelector:
 
         A204 — Now includes goal modulation influence on scoring.
         A215 — Now includes cross-domain skill transfer.
+        A217 — Now includes skill bias.
+        A218 — Now includes competency bias.
+        A219 — Now includes competency activation bias.
 
         """
 
@@ -215,7 +218,11 @@ class NeuralThoughtSelector:
             # Combine skill and competency bias (competency has slightly higher weight)
             combined_bias = (skill_bias * 0.4) + (comp_bias * 0.6)
             
-            score, dbg = self.score_thought(emb, fusion_vec, attention_engine, memory_manager, skill_bias=combined_bias)
+            # A219 — Add direct competency activation bias
+            # This is the bias from activated competencies (separate from centroid similarity)
+            final_bias = combined_bias + (competency_bias * 0.3)  # 30% weight for activation bias
+            
+            score, dbg = self.score_thought(emb, fusion_vec, attention_engine, memory_manager, skill_bias=final_bias)
             
             # === A204: Inject goal modulation influence ===
             if goal_modulation is not None:
