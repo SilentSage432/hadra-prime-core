@@ -78,6 +78,25 @@ class CognitiveLoopOrchestrator:
         # 1. Propose candidate thoughts
         candidates = self.bridge.propose_thoughts()
         
+        # === A203: Generate emergent goals ===
+        try:
+            goals = self.bridge.generate_goals()
+            goal_summary = self.bridge.goal_manager.summary()
+            
+            # Inject top goal vectors as candidate thoughts
+            active_goal_vectors = self.bridge.goal_manager.get_active_goal_vectors()
+            for goal_vec in active_goal_vectors[:2]:  # Top 2 goals
+                if goal_vec is not None:
+                    candidates.append(goal_vec)
+            
+            # Store goal summary for output
+            self._goal_summary = goal_summary
+        except Exception as e:
+            # If goal generation fails, continue without it
+            if hasattr(self.bridge, 'logger'):
+                self.bridge.logger.write({"goal_generation_error": str(e)})
+            self._goal_summary = []
+        
         # ---------------------------------------------
         # A163 — Evolution-weighted candidate modulation
         # ---------------------------------------------
@@ -184,6 +203,23 @@ class CognitiveLoopOrchestrator:
                     except Exception as e:
                         if hasattr(self.bridge, 'logger'):
                             self.bridge.logger.write({"adrae_workspace_injection_error": str(e)})
+                    
+                    # A202 — Update Global Workspace Continuity
+                    try:
+                        drift_state = self.bridge.state.drift.get_status()
+                        drift_level = drift_state.get("avg_drift", 0.0) if drift_state else 0.0
+                        attention_vec = self.bridge.attention.last_focus_vector
+                        continuity_vec = self.bridge.continuity.update(
+                            chosen_embedding,
+                            attention_vec,
+                            drift_level
+                        )
+                        # Store continuity in output (will be added to last_output later)
+                        self._continuity_vec = continuity_vec
+                    except Exception as e:
+                        if hasattr(self.bridge, 'logger'):
+                            self.bridge.logger.write({"continuity_update_error": str(e)})
+                        self._continuity_vec = None
                     
                     # === A165: Personality Drift Regulation ===
                     identity_vec = self.bridge.state.timescales.identity_vector
@@ -727,6 +763,8 @@ class CognitiveLoopOrchestrator:
             },
             "personality_signature": getattr(self, '_personality_signature_info', {"active": False}),
             "continuity": self.bridge.personality_continuity.summary(),
+            "workspace_continuity": getattr(self, '_continuity_vec', None),
+            "active_goals": getattr(self, '_goal_summary', []),  # A203 — Emergent goals
             "self_model": self.bridge.self_model.summary(),
         }
 

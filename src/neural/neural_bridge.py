@@ -38,6 +38,7 @@ from ..cognition.personality_gradient_engine import PersonalityGradientEngine
 from ..cognition.personality_signature_engine import PersonalitySignatureEngine
 from ..cognition.personality_continuity_engine import LifelongPersonalityContinuity
 from .models.identity_encoder import IdentityEncoder
+from .trainers.identity_trainer import IdentityTrainer
 
 # Import persistence layer (from project root)
 import sys
@@ -100,6 +101,16 @@ class NeuralBridge:
         # A182 — Intent-Aware Global Workspace Reinforcement
         from ..cognition.global_workspace_reinforcement import GlobalWorkspaceReinforcement
         self.workspace_reinforcement = GlobalWorkspaceReinforcement(dim=128)
+        # A202 — Global Workspace Cross-Cycle Continuity Engine
+        from ..cognition.global_workspace_continuity import GlobalWorkspaceContinuity
+        self.continuity = GlobalWorkspaceContinuity(dim=128)
+        # A203 — Emergent Goal Formation Layer
+        from .neural_goal_manager import (
+            NeuralGoalProposer, NeuralGoalEvaluator, NeuralGoalManager
+        )
+        self.goal_proposer = NeuralGoalProposer()
+        self.goal_evaluator = NeuralGoalEvaluator()
+        self.goal_manager = NeuralGoalManager()
         # A183 — Identity Drift Suppression
         from ..identity.identity_drift_suppressor import IdentityDriftSuppressor
         self.identity_drift = IdentityDriftSuppressor()
@@ -119,6 +130,16 @@ class NeuralBridge:
         except Exception as e:
             print(f"⚠️ IdentityEncoder initialization failed: {e}")
             self.identity_encoder = None
+        
+        # A201 — Identity Training Cycle
+        try:
+            if self.identity_encoder is not None:
+                self.identity_trainer = IdentityTrainer(self.identity_encoder, lr=1e-4)
+            else:
+                self.identity_trainer = None
+        except Exception as e:
+            print(f"⚠️ IdentityTrainer initialization failed: {e}")
+            self.identity_trainer = None
         # Keep a frozen copy of PRIME's identity for drift comparisons
         self.baseline_identity = None
         self.ready_for_adaptive_evolution = False
@@ -215,8 +236,8 @@ class NeuralBridge:
         lt_vec = self.state.timescales.identity_vector
         st_summary = self.state.timescales.ST.summary_vector()
         
-        # A200 — Encode identity through neural model
-        if self.identity_encoder is not None and lt_vec is not None:
+        # === A201: Train Identity Encoder ===
+        if self.identity_trainer is not None and lt_vec is not None:
             try:
                 from .torch_utils import safe_tensor, TORCH_AVAILABLE
                 import torch
@@ -224,32 +245,52 @@ class NeuralBridge:
                 if TORCH_AVAILABLE:
                     identity_tensor = safe_tensor(lt_vec)
                     if identity_tensor is not None and isinstance(identity_tensor, torch.Tensor):
-                            # Encode identity to latent representation
-                            with torch.no_grad():  # Don't train during inference
-                                latent = self.identity_encoder.encode(identity_tensor)
-                                # Store latent identity (32-dim) as a learned representation
-                                # Note: We keep the full identity vector too for compatibility
-                                latent_squeezed = latent.squeeze(0).detach().clone()
-                                # Store in timescales (create attribute if it doesn't exist)
-                                self.state.timescales.latent_identity = latent_squeezed
-                            
-                            # Log identity encoding event
-                            if hasattr(self, 'logger'):
-                                try:
-                                    self.logger.write({
-                                        "identity_encoding": {
-                                            "event": "neural_identity_encoded",
-                                            "latent_dim": latent.shape[-1] if latent.dim() > 0 else 32,
-                                            "status": "stabilized"
-                                        }
-                                    })
-                                except Exception:
-                                    pass
+                        # Get previous latent identity for continuity
+                        prev_latent = None
+                        if hasattr(self.state.timescales, 'latent_identity') and self.state.timescales.latent_identity is not None:
+                            prev_latent = safe_tensor(self.state.timescales.latent_identity)
+                            if prev_latent is not None and isinstance(prev_latent, torch.Tensor):
+                                # Ensure prev_latent is on same device as identity_tensor
+                                if prev_latent.device != identity_tensor.device:
+                                    prev_latent = prev_latent.to(identity_tensor.device)
+                        
+                        # Get coherence score from dual-mind sync
+                        coherence = self.dual.coherence_score()
+                        if coherence is None:
+                            coherence = 0.5  # Default to neutral if SAGE not connected
+                        
+                        # Training step: learn identity representation
+                        new_latent, loss = self.identity_trainer.train_step(
+                            identity_tensor,
+                            prev_latent,
+                            coherence
+                        )
+                        
+                        # Store updated latent identity
+                        new_latent_squeezed = new_latent.squeeze(0) if new_latent.dim() > 1 else new_latent
+                        self.state.timescales.latent_identity = new_latent_squeezed.detach().clone()
+                        
+                        # Log training event
+                        print(f"[A201] Identity latent updated — loss={loss:.6f}, coherence={coherence:.3f}")
+                        if hasattr(self, 'logger'):
+                            try:
+                                self.logger.write({
+                                    "identity_training": {
+                                        "event": "neural_identity_trained",
+                                        "loss": float(loss),
+                                        "coherence": float(coherence) if coherence is not None else None,
+                                        "latent_dim": new_latent_squeezed.shape[-1] if new_latent_squeezed.dim() > 0 else 32,
+                                        "status": "trained"
+                                    }
+                                })
+                            except Exception:
+                                pass
             except Exception as e:
-                # If encoding fails, continue without it
+                # If training fails, continue without it
+                print(f"Identity training error: {e}")
                 if hasattr(self, 'logger'):
                     try:
-                        self.logger.write({"identity_encoding_error": str(e)})
+                        self.logger.write({"identity_training_error": str(e)})
                     except Exception:
                         pass
         
@@ -425,6 +466,32 @@ class NeuralBridge:
                 candidates.append(item["embedding"])
         
         return candidates
+
+    def generate_goals(self):
+        """
+        A203 — Generate emergent internal goals.
+        
+        Proposes, evaluates, and updates ADRAE's active goal set based on
+        current cognitive state (fusion, attention, identity, memory).
+        
+        Returns:
+            List of scored goal proposals
+        """
+        fusion = self.fusion.last_fusion_vector
+        attention = self.attention.last_focus_vector
+        identity = self.state.timescales.identity_vector
+        mm = self.state.memory_manager if hasattr(self.state, "memory_manager") else None
+
+        # Propose candidate goals
+        proposals = self.goal_proposer.propose(fusion, attention, identity, mm)
+        
+        # Evaluate and score goals
+        scored = self.goal_evaluator.evaluate(proposals, identity)
+        
+        # Update active goal set
+        self.goal_manager.update_goals(scored)
+        
+        return scored
 
     def memory_cycle(self):
         """
