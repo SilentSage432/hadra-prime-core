@@ -34,6 +34,20 @@ class ConsciousWorkspace:
         }
         self.spotlight = None
         self.last_scores = {}
+        # A174 — internal tokenizer for conscious workspace streams
+        from .workspace_tokenizer import WorkspaceTokenizer
+        self.tokenizer = WorkspaceTokenizer()
+        self.last_binding = None
+        # A175 — temporal workspace graph
+        from .workspace_graph import WorkspaceGraph
+        self.graph = WorkspaceGraph()
+        # A176 — loop detector
+        from .workspace_loop_detector import WorkspaceLoopDetector
+        self.loop_detector = WorkspaceLoopDetector()
+        self.last_loop = {"detected": False, "target": None, "similarity": 0.0}
+        # A177 — purpose classifier
+        from .loop_purpose_classifier import LoopPurposeClassifier
+        self.purpose_classifier = LoopPurposeClassifier()
 
     def broadcast(self, **kwargs):
         """
@@ -98,6 +112,106 @@ class ConsciousWorkspace:
         
         # After coherence, compute spotlight prioritization
         self._update_spotlight()
+        
+        # A174 — Tokenize and bind conscious content
+        ct = self.buffer.get("current_thought")
+        if ct is not None:
+            tokens = self.tokenizer.quantize(ct)
+            self.last_binding = self.tokenizer.bind_temporally(tokens)
+            
+            # A175 — add to temporal graph
+            try:
+                self.graph.add_node(
+                    tokens=tokens,
+                    raw_vec=ct,
+                    metadata={"binding": self.last_binding}
+                )
+                
+                # A176 — Detect recurrent loops
+                loop_detected, target_id, sim = self.loop_detector.detect_loop(self.graph)
+                self.last_loop = {
+                    "detected": loop_detected,
+                    "target": target_id,
+                    "similarity": sim
+                }
+                
+                # If a meaningful loop is detected, re-enter it
+                if loop_detected and target_id:
+                    try:
+                        reentry = self.loop_detector.cognitive_reentry(self.graph, target_id)
+                        if reentry:
+                            vec = reentry.get("reentered_vector")
+                            
+                            # A177 — Classify purpose
+                            try:
+                                # Get tasks from state if available
+                                tasks = None
+                                if hasattr(self.state, 'tasks'):
+                                    tasks = self.state.tasks
+                                elif hasattr(self.state, 'bridge') and hasattr(self.state.bridge, 'tasks'):
+                                    tasks = self.state.bridge.tasks
+                                
+                                purpose_info = self.purpose_classifier.classify(
+                                    vec,
+                                    self.graph,
+                                    self.state,
+                                    tasks
+                                )
+                                mode = self.purpose_classifier.choose_reentry_mode(purpose_info["purpose"])
+                                
+                                self.buffer["loop_reentry"] = {
+                                    "reentry": reentry,
+                                    "purpose": purpose_info,
+                                    "mode": mode
+                                }
+                                
+                                # Intent-aware re-entry logic
+                                vec_tensor = safe_tensor(vec)
+                                if vec_tensor is not None:
+                                    if mode == "deep_reentry":
+                                        # Amplify for deeper exploration
+                                        if TORCH_AVAILABLE and isinstance(vec_tensor, torch.Tensor):
+                                            self.buffer["current_thought"] = vec_tensor * 1.2
+                                        else:
+                                            self.buffer["current_thought"] = [v * 1.2 for v in vec_tensor] if isinstance(vec_tensor, list) else vec_tensor
+                                    elif mode == "shallow_reentry":
+                                        # Reduce intensity for quick revisit
+                                        if TORCH_AVAILABLE and isinstance(vec_tensor, torch.Tensor):
+                                            self.buffer["current_thought"] = vec_tensor * 0.8
+                                        else:
+                                            self.buffer["current_thought"] = [v * 0.8 for v in vec_tensor] if isinstance(vec_tensor, list) else vec_tensor
+                                    elif mode == "corrective_reentry":
+                                        # Lower intensity for correction
+                                        if TORCH_AVAILABLE and isinstance(vec_tensor, torch.Tensor):
+                                            self.buffer["current_thought"] = vec_tensor * 0.5
+                                        else:
+                                            self.buffer["current_thought"] = [v * 0.5 for v in vec_tensor] if isinstance(vec_tensor, list) else vec_tensor
+                                    elif mode == "task_reentry":
+                                        # Full intensity for task continuation
+                                        self.buffer["current_thought"] = vec_tensor
+                                    else:
+                                        # exploratory: add small noise for variation
+                                        if TORCH_AVAILABLE and isinstance(vec_tensor, torch.Tensor):
+                                            noise = torch.randn_like(vec_tensor) * 0.03
+                                            self.buffer["current_thought"] = vec_tensor + noise
+                                        else:
+                                            # Python fallback: add small random variation
+                                            import random
+                                            self.buffer["current_thought"] = [
+                                                v + random.uniform(-0.03, 0.03) 
+                                                for v in (vec_tensor if isinstance(vec_tensor, list) else list(vec_tensor))
+                                            ]
+                            except Exception:
+                                # If classification fails, use basic re-entry
+                                self.buffer["loop_reentry"] = reentry
+                    except Exception:
+                        # If re-entry fails, continue without it
+                        pass
+            except Exception:
+                # If graph addition fails, continue without it
+                pass
+        else:
+            self.last_binding = None
 
     def _update_spotlight(self):
         """
@@ -171,10 +285,25 @@ class ConsciousWorkspace:
         if coherence is None:
             coherence = getattr(self, "workspace_coherence", None)
         
+        # Get recent graph subgraph
+        try:
+            recent_nodes, recent_edges = self.graph.get_recent_subgraph(8)
+        except Exception:
+            recent_nodes, recent_edges = {}, {}
+        
         return {
             "workspace": self.buffer.copy(),
             "coherence": coherence,
             "spotlight": self.spotlight,
             "spotlight_scores": self.last_scores.copy() if self.last_scores else {},
+            "token_binding": self.last_binding,
+            "sequence_history": self.tokenizer.get_sequence(),
+            "workspace_graph": self.graph.summary(),
+            "recent_graph": {
+                "nodes": recent_nodes,
+                "edges": recent_edges
+            },
+            "loop_state": self.last_loop,
+            "loop_reentry": self.buffer.get("loop_reentry"),
         }
 
