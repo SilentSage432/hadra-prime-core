@@ -125,6 +125,12 @@ class NeuralBridge:
         # A207 — Goal-Driven Cognitive Path Shaping Engine
         from .goal_path_shaping_engine import GoalPathShapingEngine
         self.path_shaper = GoalPathShapingEngine()
+        # A208 — Adaptive Subgoal Generator
+        from .adaptive_subgoal_generator import AdaptiveSubgoalGenerator
+        self.subgoal_generator = AdaptiveSubgoalGenerator()
+        # A209 — Subgoal Competition & Selection Layer
+        from .subgoal_competition_engine import SubgoalCompetitionEngine
+        self.subgoal_competition = SubgoalCompetitionEngine()
         # A183 — Identity Drift Suppression
         from ..identity.identity_drift_suppressor import IdentityDriftSuppressor
         self.identity_drift = IdentityDriftSuppressor()

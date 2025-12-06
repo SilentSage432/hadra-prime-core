@@ -566,6 +566,89 @@ class CognitiveLoopOrchestrator:
             self.bridge.action_engine.action_weights = self._original_action_weights
             delattr(self, '_original_action_weights')
         
+        # === A208: Generate adaptive subgoals ===
+        subgoal_state = None
+        competition_state = None  # Initialize before try block
+        try:
+            harmonized_goal = getattr(self.bridge, 'last_harmonized_goal', None)
+            fusion_vec = self.bridge.fusion.last_fusion_vector
+            momentum_vec = None
+            
+            # Get momentum from path shaper
+            if hasattr(self.bridge.path_shaper, 'momentum'):
+                momentum_vec = self.bridge.path_shaper.momentum
+            
+            if harmonized_goal is not None and fusion_vec is not None:
+                # Generate subgoals
+                subgoal_state = self.bridge.subgoal_generator.generate(
+                    harmonized_goal,
+                    fusion_vec,
+                    momentum_vec
+                )
+                
+                # === A209: Run subgoal competition ===
+                competition_state = None
+                try:
+                    active_subgoals = self.bridge.subgoal_generator.active_subgoals
+                    drift_value = None
+                    if hasattr(self.bridge.state, 'drift'):
+                        drift_state = self.bridge.state.drift.get_status()
+                        drift_value = drift_state.get("latest_drift", 0.0) if drift_state else 0.0
+                    
+                    if active_subgoals and len(active_subgoals) > 0:
+                        competition_state = self.bridge.subgoal_competition.compete(
+                            active_subgoals,
+                            harmonized_goal,
+                            fusion_vec,
+                            drift_value
+                        )
+                        
+                        # Apply competition winner's influence to fusion vector
+                        if competition_state and competition_state.get("competition_vector") is not None:
+                            modified_fusion = self.bridge.subgoal_competition.apply_competition(
+                                fusion_vec,
+                                competition_state["competition_vector"]
+                            )
+                            # Update fusion vector with competition winner
+                            if modified_fusion is not None:
+                                self.bridge.fusion.last_fusion_vector = modified_fusion
+                        else:
+                            # Fallback to A208 subgoal influence if no competition winner
+                            if subgoal_state and subgoal_state.get("subgoal_influence") is not None:
+                                modified_fusion = self.bridge.subgoal_generator.apply_influence(
+                                    fusion_vec,
+                                    subgoal_state["subgoal_influence"]
+                                )
+                                if modified_fusion is not None:
+                                    self.bridge.fusion.last_fusion_vector = modified_fusion
+                except Exception as e:
+                    # If competition fails, fallback to A208 subgoal influence
+                    if hasattr(self.bridge, 'logger'):
+                        self.bridge.logger.write({"subgoal_competition_error": str(e)})
+                    competition_state = None
+                    
+                    # Apply subgoal influence as fallback
+                    if subgoal_state and subgoal_state.get("subgoal_influence") is not None:
+                        try:
+                            modified_fusion = self.bridge.subgoal_generator.apply_influence(
+                                fusion_vec,
+                                subgoal_state["subgoal_influence"]
+                            )
+                            if modified_fusion is not None:
+                                self.bridge.fusion.last_fusion_vector = modified_fusion
+                        except Exception:
+                            pass
+        except Exception as e:
+            # If subgoal generation fails, continue without it
+            if hasattr(self.bridge, 'logger'):
+                self.bridge.logger.write({"subgoal_generation_error": str(e)})
+            subgoal_state = None
+            competition_state = None
+        
+        # Store subgoal and competition state for output
+        self._subgoal_state = subgoal_state
+        self._competition_state = competition_state
+        
         # ---------------------------------------------
         # A163 — Evolution-biased cognitive action selection (still applies)
         # ---------------------------------------------
@@ -859,6 +942,8 @@ class CognitiveLoopOrchestrator:
             "fabricated_goal": self.bridge.goal_fabricator.summary(getattr(self, '_fabricated_goal', None)) if hasattr(self.bridge, 'goal_fabricator') else None,  # A205 — Fabricated goal
             "harmonized_goal": self.bridge.goal_harmonizer.summary(self.bridge.last_harmonized_goal) if hasattr(self.bridge, 'goal_harmonizer') and hasattr(self.bridge, 'last_harmonized_goal') else None,  # A206 — Harmonized goal
             "path_shaping": self.bridge.path_shaper.summary(getattr(self, '_path_state', None)) if hasattr(self.bridge, 'path_shaper') else None,  # A207 — Path shaping
+            "subgoal_generator": self.bridge.subgoal_generator.summary(getattr(self, '_subgoal_state', None)) if hasattr(self.bridge, 'subgoal_generator') else None,  # A208 — Subgoal generator
+            "subgoal_competition": self.bridge.subgoal_competition.summary(getattr(self, '_competition_state', None)) if hasattr(self.bridge, 'subgoal_competition') else None,  # A209 — Subgoal competition
             "self_model": self.bridge.self_model.summary(),
         }
 
