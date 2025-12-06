@@ -111,6 +111,13 @@ class NeuralBridge:
         self.goal_proposer = NeuralGoalProposer()
         self.goal_evaluator = NeuralGoalEvaluator()
         self.goal_manager = NeuralGoalManager()
+        # A204 — Goal-Driven Cognitive Modulation Engine
+        from .goal_modulation_engine import GoalModulationEngine
+        self.goal_modulator = GoalModulationEngine()
+        self.last_goal_modulation = None
+        # A205 — Emergent Multi-Vector Goal Fabrication Layer
+        from .goal_fabrication_engine import GoalFabricationEngine
+        self.goal_fabricator = GoalFabricationEngine()
         # A183 — Identity Drift Suppression
         from ..identity.identity_drift_suppressor import IdentityDriftSuppressor
         self.identity_drift = IdentityDriftSuppressor()
@@ -357,7 +364,9 @@ class NeuralBridge:
 
             self.attention,
 
-            self.state.memory_manager if hasattr(self.state, "memory_manager") else None
+            self.state.memory_manager if hasattr(self.state, "memory_manager") else None,
+
+            goal_modulation=self.last_goal_modulation  # A204 — Goal modulation
 
         )
 
@@ -491,7 +500,120 @@ class NeuralBridge:
         # Update active goal set
         self.goal_manager.update_goals(scored)
         
+        # A204 — Compute goal modulation vector
+        self.last_goal_modulation = self.goal_modulator.compute_modulation(
+            self.goal_manager.active_goals,
+            fusion
+        )
+        
         return scored
+
+    def fabricate_goal(self, trajectory=None):
+        """
+        A205 — Fabricate emergent multi-vector goal from diverse cognitive signals.
+        
+        Synthesizes a goal vector from:
+        - identity anchors
+        - autobiographical memory
+        - prediction trajectories
+        - workspace salience
+        - drift signals
+        - operator intent patterns
+        
+        Args:
+            trajectory: Optional trajectory dict from evo_predictor (contains prediction_vec)
+            
+        Returns:
+            Fabricated goal vector or None
+        """
+        identity_vec = self.state.timescales.identity_vector
+        
+        # Get autobiographical memory matrix
+        autobio_recent = self.autobio.get_recent(10) if hasattr(self, 'autobio') else []
+        autobiographical_matrix = None
+        if autobio_recent:
+            # Extract identity vectors from autobiographical entries
+            autobio_vectors = []
+            for entry in autobio_recent:
+                if isinstance(entry, dict):
+                    id_vec = entry.get("identity_vec") or entry.get("identity_vector")
+                    if id_vec is not None:
+                        autobio_vectors.append(id_vec)
+            if autobio_vectors:
+                autobiographical_matrix = autobio_vectors
+        
+        # Get prediction vector from trajectory
+        prediction_vec = None
+        if trajectory and isinstance(trajectory, dict):
+            prediction_vec = trajectory.get("vector")
+        
+        # Get workspace salience (from workspace snapshot)
+        workspace_salience = None
+        if hasattr(self, 'workspace'):
+            try:
+                snapshot = self.workspace.snapshot()
+                if isinstance(snapshot, dict):
+                    # Extract salience from workspace state
+                    workspace_salience = snapshot.get("salience") or snapshot.get("focus_vector")
+            except Exception:
+                pass
+        
+        # Get drift signal (from drift state)
+        drift_signal = None
+        if hasattr(self.state, 'drift'):
+            try:
+                drift_state = self.state.drift.get_status()
+                if drift_state:
+                    # Use drift vector or create from drift metrics
+                    drift_signal = drift_state.get("drift_vector")
+                    if drift_signal is None and identity_vec is not None:
+                        # Create drift signal from drift metrics
+                        drift_value = drift_state.get("latest_drift", 0.0)
+                        from .torch_utils import safe_tensor, TORCH_AVAILABLE
+                        if TORCH_AVAILABLE:
+                            import torch
+                            id_t = safe_tensor(identity_vec)
+                            if isinstance(id_t, torch.Tensor):
+                                # Invert drift: lower drift = stronger signal
+                                drift_signal = id_t * (1.0 - abs(drift_value))
+            except Exception:
+                pass
+        
+        # Get operator intent pattern (from task queue or meta-intent)
+        operator_pattern = None
+        if hasattr(self, 'meta_intent'):
+            try:
+                # Get operator intent from meta-intent coordinator
+                if hasattr(self.meta_intent, 'get_operator_intent'):
+                    operator_pattern = self.meta_intent.get_operator_intent()
+                elif hasattr(self, 'tasks') and self.tasks:
+                    # Use task embeddings as operator intent proxy
+                    task_embeddings = getattr(self.state, "task_embeddings", [])
+                    if task_embeddings:
+                        # Average task embeddings
+                        from .torch_utils import safe_tensor, TORCH_AVAILABLE
+                        if TORCH_AVAILABLE:
+                            import torch
+                            task_vecs = [safe_tensor(t.get("embedding")) for t in task_embeddings 
+                                       if t.get("embedding") is not None]
+                            task_tensors = [t for t in task_vecs if isinstance(t, torch.Tensor)]
+                            if task_tensors and len(task_tensors) > 0:
+                                stacked = torch.stack(task_tensors)
+                                operator_pattern = torch.mean(stacked, dim=0)
+            except Exception:
+                pass
+        
+        # Fabricate goal
+        fabricated_goal = self.goal_fabricator.fabricate(
+            identity_vec=identity_vec,
+            autobiographical_matrix=autobiographical_matrix,
+            prediction_vec=prediction_vec,
+            workspace_salience=workspace_salience,
+            drift_signal=drift_signal,
+            operator_pattern=operator_pattern
+        )
+        
+        return fabricated_goal
 
     def memory_cycle(self):
         """

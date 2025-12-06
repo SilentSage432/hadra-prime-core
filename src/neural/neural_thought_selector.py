@@ -111,11 +111,13 @@ class NeuralThoughtSelector:
 
         }
 
-    def select(self, candidate_embeddings, fusion_vec, attention_engine, memory_manager):
+    def select(self, candidate_embeddings, fusion_vec, attention_engine, memory_manager, goal_modulation=None):
 
         """
 
         Choose the best thought among candidates.
+
+        A204 — Now includes goal modulation influence on scoring.
 
         """
 
@@ -132,6 +134,26 @@ class NeuralThoughtSelector:
         for emb in candidate_embeddings:
 
             score, dbg = self.score_thought(emb, fusion_vec, attention_engine, memory_manager)
+            
+            # === A204: Inject goal modulation influence ===
+            if goal_modulation is not None:
+                emb_tensor = safe_tensor(emb)
+                mod_tensor = safe_tensor(goal_modulation)
+                
+                if TORCH_AVAILABLE and isinstance(emb_tensor, torch.Tensor) and isinstance(mod_tensor, torch.Tensor):
+                    # Ensure same dimensions
+                    if emb_tensor.shape == mod_tensor.shape:
+                        # Add modulation influence (20% weight)
+                        mod_influence = torch.dot(emb_tensor.flatten(), mod_tensor.flatten()).item() * 0.2
+                        score += mod_influence
+                elif not TORCH_AVAILABLE:
+                    # Python list fallback
+                    if hasattr(emb_tensor, '__iter__') and hasattr(mod_tensor, '__iter__'):
+                        emb_list = list(emb_tensor) if not isinstance(emb_tensor, list) else emb_tensor
+                        mod_list = list(mod_tensor) if not isinstance(mod_tensor, list) else mod_tensor
+                        if len(emb_list) == len(mod_list):
+                            mod_influence = sum(e * m for e, m in zip(emb_list, mod_list)) * 0.2
+                            score += mod_influence
 
             if score > best_score:
 
@@ -140,6 +162,10 @@ class NeuralThoughtSelector:
                 best = emb
 
                 best_debug = dbg
+
+        # Add goal modulation info to debug output
+        if best_debug is not None:
+            best_debug["goal_modulation_applied"] = goal_modulation is not None
 
         return best, best_debug
 

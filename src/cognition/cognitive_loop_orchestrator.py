@@ -83,19 +83,57 @@ class CognitiveLoopOrchestrator:
             goals = self.bridge.generate_goals()
             goal_summary = self.bridge.goal_manager.summary()
             
+            # A204 — Make goal modulation visible in diagnostics
+            goal_mod = self.bridge.last_goal_modulation
+            
+            # === A205: Fabricate emergent multi-vector goal ===
+            fabricated_goal = None
+            try:
+                fabricated_goal = self.bridge.fabricate_goal(trajectory=trajectory)
+                if fabricated_goal is not None:
+                    # Add fabricated goal as a candidate thought
+                    candidates.append(fabricated_goal)
+                    # Also add to goal manager as a fabricated goal
+                    fabricated_goal_dict = {
+                        "name": "fabricated_emergent_goal",
+                        "vector": fabricated_goal,
+                        "score": 0.7,  # High score for fabricated goals
+                        "reason": "Emergent multi-vector synthesis from identity, memory, prediction, drift, and operator patterns"
+                    }
+                    # Add to active goals if it scores well
+                    if hasattr(self.bridge.goal_manager, 'active_goals'):
+                        # Evaluate fabricated goal against identity
+                        scored_fabricated = self.bridge.goal_evaluator.evaluate(
+                            [fabricated_goal_dict],
+                            self.bridge.state.timescales.identity_vector
+                        )
+                        if scored_fabricated and scored_fabricated[0].get("score", 0) > 0.5:
+                            # Add to active goals (keep top 2)
+                            all_goals = self.bridge.goal_manager.active_goals + scored_fabricated
+                            all_goals.sort(key=lambda x: x.get("score", 0), reverse=True)
+                            self.bridge.goal_manager.active_goals = all_goals[:2]
+            except Exception as e:
+                # If goal fabrication fails, continue without it
+                if hasattr(self.bridge, 'logger'):
+                    self.bridge.logger.write({"goal_fabrication_error": str(e)})
+            
             # Inject top goal vectors as candidate thoughts
             active_goal_vectors = self.bridge.goal_manager.get_active_goal_vectors()
             for goal_vec in active_goal_vectors[:2]:  # Top 2 goals
                 if goal_vec is not None:
                     candidates.append(goal_vec)
             
-            # Store goal summary for output
+            # Store goal summary and modulation for output
             self._goal_summary = goal_summary
+            self._goal_modulation = goal_mod
+            self._fabricated_goal = fabricated_goal
         except Exception as e:
             # If goal generation fails, continue without it
             if hasattr(self.bridge, 'logger'):
                 self.bridge.logger.write({"goal_generation_error": str(e)})
             self._goal_summary = []
+            self._goal_modulation = None
+            self._fabricated_goal = None
         
         # ---------------------------------------------
         # A163 — Evolution-weighted candidate modulation
@@ -765,6 +803,8 @@ class CognitiveLoopOrchestrator:
             "continuity": self.bridge.personality_continuity.summary(),
             "workspace_continuity": getattr(self, '_continuity_vec', None),
             "active_goals": getattr(self, '_goal_summary', []),  # A203 — Emergent goals
+            "goal_modulation": self.bridge.goal_modulator.summary(getattr(self, '_goal_modulation', None)),  # A204 — Goal modulation
+            "fabricated_goal": self.bridge.goal_fabricator.summary(getattr(self, '_fabricated_goal', None)) if hasattr(self.bridge, 'goal_fabricator') else None,  # A205 — Fabricated goal
             "self_model": self.bridge.self_model.summary(),
         }
 
