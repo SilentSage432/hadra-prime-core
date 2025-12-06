@@ -50,11 +50,13 @@ class NeuralThoughtSelector:
 
         self.salience_weight = salience_weight
 
-    def score_thought(self, embedding, fusion_vec, attention_engine, memory_manager):
+    def score_thought(self, embedding, fusion_vec, attention_engine, memory_manager, skill_bias=0.0):
 
         """
 
         Computes a score for how appropriate a candidate thought is.
+        
+        A217 — Now includes skill bias influence.
 
         """
 
@@ -88,6 +90,9 @@ class NeuralThoughtSelector:
 
             novelty = 1.0
 
+        # A217 — Skill bias (weighted influence from skill vectors)
+        skill_weight = 0.15  # 15% weight for skill influence
+
         # Weighted total score
 
         score = (
@@ -96,7 +101,9 @@ class NeuralThoughtSelector:
 
             self.coherence_weight * coherence +
 
-            self.novelty_weight * novelty
+            self.novelty_weight * novelty +
+
+            skill_weight * skill_bias
 
         )
 
@@ -107,6 +114,8 @@ class NeuralThoughtSelector:
             "coherence": coherence,
 
             "novelty": novelty,
+
+            "skill_bias": skill_bias,
 
             "total": score
 
@@ -161,6 +170,11 @@ class NeuralThoughtSelector:
 
             return None, None
 
+        # A217 — Apply skill priors to thought selection
+        skill_vectors = []
+        if hasattr(attention_engine, 'bridge') and hasattr(attention_engine.bridge, 'skills'):
+            skill_vectors = attention_engine.bridge.skills.get_all_skill_vectors()
+        
         best = None
 
         best_score = -999
@@ -168,8 +182,19 @@ class NeuralThoughtSelector:
         best_debug = None
 
         for emb in shaped_candidates:
-
-            score, dbg = self.score_thought(emb, fusion_vec, attention_engine, memory_manager)
+            # A217 — Compute skill bias for this candidate
+            skill_bias = 0.0
+            if skill_vectors and fusion_vec is not None:
+                # Mean similarity to all skill vectors
+                sims = []
+                for sv in skill_vectors:
+                    sim = safe_cosine_similarity(emb, sv)
+                    if sim is not None:
+                        sims.append(sim)
+                if sims:
+                    skill_bias = sum(sims) / len(sims)
+            
+            score, dbg = self.score_thought(emb, fusion_vec, attention_engine, memory_manager, skill_bias=skill_bias)
             
             # === A204: Inject goal modulation influence ===
             if goal_modulation is not None:

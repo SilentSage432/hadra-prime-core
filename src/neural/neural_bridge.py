@@ -84,6 +84,9 @@ class NeuralBridge:
         self.skill_generalizer = SkillGeneralizationEngine()
         # Initialize generalized skill patterns in generator
         self.generator.generalized_skill_patterns = []
+        # A217 — Skill Vector Expansion Through Uncertainty Minimization
+        from .skill_manager import SkillManager
+        self.skills = SkillManager()
         self.stability = SelfStabilityEngine()
         self.evolution = AdaptiveEvolutionEngine()
         self.evo_consolidator = EvolutionMemoryConsolidator()

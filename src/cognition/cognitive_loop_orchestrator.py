@@ -41,6 +41,8 @@ class CognitiveLoopOrchestrator:
         self.chain_step_index = 0  # Current step pointer
         self.chain_failures = 0  # Failure counter for rerouting
         self.max_failures = 3  # Threshold before branch rewrite
+        # A216 — Uncertainty tracking
+        self._uncertainty_value = 0.0  # Initialize uncertainty value
 
     def _monitor_and_reroute(self, action_result):
         """
@@ -938,10 +940,96 @@ class CognitiveLoopOrchestrator:
         # 5. Update attention & fusion (internal to bridge)
         # Fusion gets recomputed automatically on next perception/reflection
 
-        # 6. Drift & coherence awareness
+        # 6. Drift, coherence, and uncertainty (A216)
         drift_state = self.bridge.state.drift.get_status()
         fusion_state = self.bridge.fusion.status()
         attention_state = self.bridge.attention.status()
+        
+        # A216 — Compute uncertainty signal
+        uncertainty = self.bridge.state.compute_uncertainty(
+            self.bridge.fusion.last_fusion_vector,
+            self.bridge.attention.last_focus_vector,
+            drift_state
+        )
+        
+        # Store uncertainty for action engine and output
+        self.bridge.state.last_uncertainty = uncertainty
+        self._uncertainty_value = uncertainty  # Store for output
+        
+        # A217 — If uncertainty is high, generate a new skill vector
+        if uncertainty > 0.65:
+            try:
+                # Extract skill vector from current fusion state
+                skill_vec = self.bridge.fusion.last_fusion_vector
+                if skill_vec is not None:
+                    # Generate unique skill name
+                    import time
+                    skill_name = f"skill_auto_{int(time.time())}"
+                    
+                    # Create metadata about the skill
+                    skill_metadata = {
+                        "uncertainty": uncertainty,
+                        "drift": drift_state.get("latest_drift", 0.0) if drift_state else 0.0,
+                        "fusion_coherence": fusion_state.get("coherence", 1.0) if isinstance(fusion_state, dict) else 1.0,
+                        "attention_strength": attention_state.get("strength", 0.0) if isinstance(attention_state, dict) else 0.0,
+                        "created_at": time.time()
+                    }
+                    
+                    # Add skill to skill bank
+                    skill_entry = self.bridge.skills.add_skill(skill_name, skill_vec, skill_metadata)
+                    
+                    if skill_entry:
+                        # Log skill creation
+                        if hasattr(self.bridge, 'memory_store') and self.bridge.memory_store is not None:
+                            try:
+                                if hasattr(self.bridge.memory_store, 'log_thought_event'):
+                                    self.bridge.memory_store.log_thought_event({
+                                        "type": "new_skill_created",
+                                        "skill": skill_name,
+                                        "uncertainty": uncertainty,
+                                        "skill_count": self.bridge.skills.get_skill_count()
+                                    })
+                            except Exception:
+                                pass
+                        
+                        # Also log via logger if available
+                        if hasattr(self.bridge, 'logger'):
+                            try:
+                                self.bridge.logger.write({
+                                    "new_skill_created": {
+                                        "skill": skill_name,
+                                        "uncertainty": round(uncertainty, 4),
+                                        "skill_count": self.bridge.skills.get_skill_count()
+                                    }
+                                })
+                            except Exception:
+                                pass
+            except Exception as e:
+                # If skill creation fails, continue without it
+                if hasattr(self.bridge, 'logger'):
+                    try:
+                        self.bridge.logger.write({"skill_creation_error": str(e)})
+                    except Exception:
+                        pass
+        
+        # Log uncertainty
+        if hasattr(self.bridge, 'memory_store') and self.bridge.memory_store is not None:
+            try:
+                if hasattr(self.bridge.memory_store, 'log_thought_event'):
+                    self.bridge.memory_store.log_thought_event({
+                        "type": "uncertainty",
+                        "value": uncertainty
+                    })
+                elif hasattr(self.bridge, 'logger'):
+                    self.bridge.logger.write({
+                        "uncertainty": {
+                            "value": round(uncertainty, 4),
+                            "level": "low" if uncertainty < 0.25 else "moderate" if uncertainty < 0.5 else "high" if uncertainty < 0.75 else "extreme"
+                        }
+                    })
+            except Exception:
+                # If logging fails, continue without it
+                pass
         
         # A213 — Store completed or rerouted chains (after drift/coherence computed)
         if chain_update and chain_update.get("status") in ("chain_complete", "chain_rerouted"):
@@ -1243,6 +1331,10 @@ class CognitiveLoopOrchestrator:
             "drift": drift_state,
             "fusion": fusion_state,
             "attention": attention_state,
+            "uncertainty": {
+                "value": round(self._uncertainty_value, 4),
+                "level": "low" if self._uncertainty_value < 0.25 else "moderate" if self._uncertainty_value < 0.5 else "high" if self._uncertainty_value < 0.75 else "extreme"
+            } if hasattr(self, '_uncertainty_value') else {"value": None, "level": None},  # A216 — Uncertainty signal
             "active_task": next_task if next_task else None,
             "evolution_trend": trend,
             "trajectory_vector_preview": evo_vec[:8].tolist() if evo_vec is not None and hasattr(evo_vec, '__getitem__') and len(evo_vec) > 8 else None,
@@ -1270,6 +1362,7 @@ class CognitiveLoopOrchestrator:
             "chain_memory": self.bridge.chain_memory.summary() if hasattr(self.bridge, 'chain_memory') else None,  # A213 — Chain memory
             "skill_encoder": self.bridge.skill_encoder.summary() if hasattr(self.bridge, 'skill_encoder') else None,  # A214 — Skill encoder
             "skill_generalizer": self.bridge.skill_generalizer.summary() if hasattr(self.bridge, 'skill_generalizer') else None,  # A215 — Skill generalization
+            "skill_manager": self.bridge.skills.status() if hasattr(self.bridge, 'skills') else None,  # A217 — Skill manager
             "self_model": self.bridge.self_model.summary(),
         }
 

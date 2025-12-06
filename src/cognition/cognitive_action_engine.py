@@ -74,6 +74,8 @@ class CognitiveActionEngine:
         Selects a cognitive action based on weighted probability.
 
         If stability threshold reached, evolution becomes an available action.
+        
+        A216 — Now adapts action choice based on uncertainty level.
 
         """
 
@@ -86,6 +88,23 @@ class CognitiveActionEngine:
             and not bridge.evolution.active
         ):
             return "enter_adaptive_evolution"
+
+        # A216 — Adaptive action choice based on uncertainty
+        uncertainty = 0.0
+        if bridge is not None and hasattr(bridge, 'state'):
+            uncertainty = getattr(bridge.state, "last_uncertainty", 0.0)
+        
+        # Uncertainty-based action selection
+        if uncertainty > 0.75:
+            # Extreme uncertainty: generate reflection to understand situation
+            return "generate_reflection"
+        elif uncertainty > 0.50:
+            # High uncertainty: retrieve memory to find relevant context
+            return "retrieve_memory"
+        elif uncertainty > 0.25:
+            # Moderate uncertainty: update identity to stabilize
+            return "update_identity"
+        # Low uncertainty (< 0.25): proceed with normal weighted selection
 
         actions = list(self.action_weights.keys())
 
