@@ -29,6 +29,7 @@ from .evolution_trajectory_predictor import EvolutionaryTrajectoryPredictor
 from ..memory.memory_interaction_engine import MemoryInteractionEngine
 from ..memory.autobiographical_memory import AutobiographicalMemory
 from ..self.self_model_engine import SelfModelEngine
+from ..cognition.global_workspace import ConsciousWorkspace
 from ..cognition.cognitive_action_engine import CognitiveActionEngine
 from ..cognition.cognitive_loop_orchestrator import CognitiveLoopOrchestrator
 from ..cognition.cognitive_growth_scheduler import CognitiveGrowthScheduler
@@ -81,6 +82,8 @@ class NeuralBridge:
         self.autobio = AutobiographicalMemory()
         # A171: Emergent Self-Model Engine
         self.self_model = SelfModelEngine()
+        # A172: Conscious Workspace Buffer (Global Workspace Core)
+        self.workspace = ConsciousWorkspace(self.state)
         self.ready_for_adaptive_evolution = False
         self.cycle_count = 0
         self.stability_report = None

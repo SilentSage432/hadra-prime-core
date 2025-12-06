@@ -396,6 +396,37 @@ class CognitiveLoopOrchestrator:
         # Write runtime entry
         self.bridge.logger.write(self.last_output)
         
+        # A172: Broadcast cognitive step into the conscious workspace
+        try:
+            # Get evolution vector from trajectory if available
+            evolution_vec = None
+            if hasattr(self, 'last_output') and self.last_output.get("evolution_trajectory"):
+                trajectory = self.last_output.get("evolution_trajectory", {})
+                evolution_vec = trajectory.get("vector")
+            
+            self.bridge.workspace.broadcast(
+                current_thought=chosen_embedding,
+                current_action=action,
+                memory_recall=recalled,
+                identity_state=self.bridge.state.timescales.identity_vector,
+                reflection=action_output if action == "generate_reflection" else None,
+                attention_focus=attention_state,
+                fusion_state=fusion_state,
+                task_context=next_task,
+                evolution_vector=evolution_vec,
+            )
+            
+            # Add workspace snapshot to output
+            workspace_snapshot = self.bridge.workspace.snapshot()
+            self.last_output["workspace"] = workspace_snapshot
+            
+            # A173 — Log spotlight state
+            self.bridge.logger.write({"workspace_spotlight": workspace_snapshot})
+        except Exception as e:
+            # If workspace broadcast fails, continue without it
+            if hasattr(self.bridge, 'logger'):
+                self.bridge.logger.write({"workspace_broadcast_error": str(e)})
+        
         # Log task engagement if task is active
         if next_task:
             self.bridge.logger.write({"engaged_task": next_task})
