@@ -36,6 +36,122 @@ class CognitiveLoopOrchestrator:
         self.bridge = bridge
         self.loop_interval = loop_interval
         self.last_output = None
+        # A212 — Multi-Step Execution Monitoring
+        self.active_chain = None  # A211: multi-step execution chain
+        self.chain_step_index = 0  # Current step pointer
+        self.chain_failures = 0  # Failure counter for rerouting
+        self.max_failures = 3  # Threshold before branch rewrite
+
+    def _monitor_and_reroute(self, action_result):
+        """
+        A212 — Monitors the active multi-step execution chain and adaptively reroutes
+        if steps fail, stall, or deviate from the intended execution vector.
+        
+        Args:
+            action_result: Result from cognitive action execution
+            
+        Returns:
+            Dict with monitoring status and chain update
+        """
+        if not self.active_chain or len(self.active_chain) == 0:
+            return {"status": "no_chain_active"}
+        
+        if self.chain_step_index >= len(self.active_chain):
+            # Chain complete
+            completed = self.active_chain.copy()
+            self.active_chain = None
+            self.chain_step_index = 0
+            self.chain_failures = 0
+            return {"status": "chain_complete", "completed_chain": completed}
+        
+        current_goal = self.active_chain[self.chain_step_index]
+        
+        # Check for step success/failure
+        # Action result might be a dict or other type
+        if isinstance(action_result, dict):
+            step_success = action_result.get("success", True)
+        else:
+            # If action_result is not a dict, assume success if not None
+            step_success = action_result is not None
+        
+        if step_success:
+            # Move to the next step
+            self.chain_step_index += 1
+            self.chain_failures = 0
+            
+            if self.chain_step_index >= len(self.active_chain):
+                # Chain complete
+                completed = self.active_chain.copy()
+                self.active_chain = None
+                self.chain_step_index = 0
+                return {"status": "chain_complete", "completed_chain": completed}
+            
+            return {
+                "status": "step_advanced",
+                "next_step": self.active_chain[self.chain_step_index].get("id") if isinstance(self.active_chain[self.chain_step_index], dict) else str(self.active_chain[self.chain_step_index]),
+                "step_index": self.chain_step_index
+            }
+        
+        # Step Failure Case
+        self.chain_failures += 1
+        
+        # Reroute if too many failures
+        if self.chain_failures >= self.max_failures:
+            # Rewrite chain by regenerating subgoals and planning
+            try:
+                # Get current active subgoals
+                active_subgoals = self.bridge.subgoal_generator.active_subgoals
+                
+                if active_subgoals and len(active_subgoals) >= 2:
+                    # Regenerate planning chain
+                    harmonized_goal = getattr(self.bridge, 'last_harmonized_goal', None)
+                    route = {"active": active_subgoals[0].get("id")} if active_subgoals else None
+                    
+                    planning_state = self.bridge.planning_engine.plan(
+                        active_subgoals,
+                        route,
+                        self.bridge.fusion.last_fusion_vector,
+                        self.bridge.attention.last_focus_vector
+                    )
+                    
+                    if planning_state and planning_state.get("plan_valid"):
+                        # Extract chain from planning state
+                        execution_order = planning_state.get("execution_order", [])
+                        # Rebuild chain from execution order
+                        new_chain = []
+                        for step_info in execution_order:
+                            step_id = step_info.get("id")
+                            # Find matching subgoal
+                            matching_sg = next((sg for sg in active_subgoals if sg.get("id") == step_id), None)
+                            if matching_sg:
+                                new_chain.append(matching_sg)
+                        
+                        if new_chain:
+                            self.active_chain = new_chain
+                            self.chain_step_index = 0
+                            self.chain_failures = 0
+                            
+                            return {
+                                "status": "chain_rerouted",
+                                "new_chain_length": len(new_chain),
+                                "failure_index": self.chain_step_index
+                            }
+            except Exception as e:
+                # If rerouting fails, reset chain
+                if hasattr(self.bridge, 'logger'):
+                    self.bridge.logger.write({"chain_rerouting_error": str(e)})
+                self.active_chain = None
+                self.chain_step_index = 0
+                self.chain_failures = 0
+                return {"status": "chain_reset", "reason": "rerouting_failed"}
+        
+        # Retry same step
+        return {
+            "status": "retry_step",
+            "step": current_goal.get("id") if isinstance(current_goal, dict) else str(current_goal),
+            "failures": self.chain_failures,
+            "max_failures": self.max_failures
+        }
 
     def step(self):
         """
@@ -569,6 +685,8 @@ class CognitiveLoopOrchestrator:
         # === A208: Generate adaptive subgoals ===
         subgoal_state = None
         competition_state = None  # Initialize before try block
+        routing_state = None  # Initialize before try block
+        planning_state = None  # Initialize before try block
         try:
             harmonized_goal = getattr(self.bridge, 'last_harmonized_goal', None)
             fusion_vec = self.bridge.fusion.last_fusion_vector
@@ -612,6 +730,88 @@ class CognitiveLoopOrchestrator:
                             # Update fusion vector with competition winner
                             if modified_fusion is not None:
                                 self.bridge.fusion.last_fusion_vector = modified_fusion
+                            
+                            # === A210: Route subgoals into execution pathways ===
+                            try:
+                                active_subgoals = self.bridge.subgoal_generator.active_subgoals
+                                attention_vec = self.bridge.attention.last_focus_vector
+                                
+                                if active_subgoals and len(active_subgoals) > 0:
+                                    routing_state = self.bridge.subgoal_router.route(
+                                        active_subgoals,
+                                        harmonized_goal,
+                                        self.bridge.fusion.last_fusion_vector,  # Use updated fusion
+                                        attention_vec,
+                                        drift_value
+                                    )
+                                    
+                                    # Apply routing modifications to fusion and attention
+                                    if routing_state:
+                                        mod_fusion = routing_state.get("modified_fusion")
+                                        mod_attention = routing_state.get("modified_attention")
+                                        
+                                        if mod_fusion is not None:
+                                            self.bridge.fusion.last_fusion_vector = mod_fusion
+                                        
+                                        if mod_attention is not None:
+                                            self.bridge.attention.last_focus_vector = mod_attention
+                                        
+                                        # === A211: Build multi-step execution chain ===
+                                        try:
+                                            # Get current route and active subgoals
+                                            current_route = routing_state.get("current_route")
+                                            active_subgoals = self.bridge.subgoal_generator.active_subgoals
+                                            
+                                            if current_route and active_subgoals and len(active_subgoals) >= 2:
+                                                planning_state = self.bridge.planning_engine.plan(
+                                                    active_subgoals,
+                                                    current_route,
+                                                    self.bridge.fusion.last_fusion_vector,
+                                                    self.bridge.attention.last_focus_vector
+                                                )
+                                                
+                                                # Apply planning modifications to fusion and attention
+                                                if planning_state and planning_state.get("plan_valid"):
+                                                    plan_fusion = planning_state.get("modified_fusion")
+                                                    plan_attention = planning_state.get("modified_attention")
+                                                    
+                                                    if plan_fusion is not None:
+                                                        self.bridge.fusion.last_fusion_vector = plan_fusion
+                                                    
+                                                    if plan_attention is not None:
+                                                        self.bridge.attention.last_focus_vector = plan_attention
+                                        except Exception as e:
+                                            # If planning fails, continue without it
+                                            if hasattr(self.bridge, 'logger'):
+                                                self.bridge.logger.write({"planning_error": str(e)})
+                                            planning_state = None
+                                        
+                                        # Store planning state for output
+                                        self._planning_state = planning_state
+                                        
+                                        # A212 — Update active chain from planning state
+                                        if planning_state and planning_state.get("plan_valid"):
+                                            execution_order = planning_state.get("execution_order", [])
+                                            if execution_order:
+                                                # Build chain from execution order
+                                                chain = []
+                                                for step_info in execution_order:
+                                                    step_id = step_info.get("id")
+                                                    # Find matching subgoal
+                                                    matching_sg = next((sg for sg in active_subgoals if sg.get("id") == step_id), None)
+                                                    if matching_sg:
+                                                        chain.append(matching_sg)
+                                                
+                                                if chain:
+                                                    self.active_chain = chain
+                                                    self.chain_step_index = 0
+                                                    self.chain_failures = 0
+                            except Exception as e:
+                                # If routing fails, continue without it
+                                if hasattr(self.bridge, 'logger'):
+                                    self.bridge.logger.write({"subgoal_routing_error": str(e)})
+                                routing_state = None
+                                self._planning_state = None
                         else:
                             # Fallback to A208 subgoal influence if no competition winner
                             if subgoal_state and subgoal_state.get("subgoal_influence") is not None:
@@ -644,10 +844,14 @@ class CognitiveLoopOrchestrator:
                 self.bridge.logger.write({"subgoal_generation_error": str(e)})
             subgoal_state = None
             competition_state = None
+            routing_state = None
+            planning_state = None
         
-        # Store subgoal and competition state for output
+        # Store subgoal, competition, routing, and planning state for output
         self._subgoal_state = subgoal_state
         self._competition_state = competition_state
+        self._routing_state = routing_state
+        self._planning_state = planning_state
         
         # ---------------------------------------------
         # A163 — Evolution-biased cognitive action selection (still applies)
@@ -692,7 +896,22 @@ class CognitiveLoopOrchestrator:
         
         # 3. Execute a cognitive action
         action_output = self.bridge.perform_action(action)
-
+        
+        # 3b. A212 — Monitor multi-step execution chain
+        chain_update = None
+        try:
+            chain_update = self._monitor_and_reroute(
+                action_output if isinstance(action_output, dict) else {}
+            )
+        except Exception as e:
+            # If monitoring fails, continue without it
+            if hasattr(self.bridge, 'logger'):
+                self.bridge.logger.write({"chain_monitoring_error": str(e)})
+            chain_update = {"status": "monitoring_error"}
+        
+        # Store chain update for output
+        self._chain_update = chain_update
+        
         # 4. Memory metabolism
         recalled = self.bridge.memory_cycle()
 
@@ -944,6 +1163,11 @@ class CognitiveLoopOrchestrator:
             "path_shaping": self.bridge.path_shaper.summary(getattr(self, '_path_state', None)) if hasattr(self.bridge, 'path_shaper') else None,  # A207 — Path shaping
             "subgoal_generator": self.bridge.subgoal_generator.summary(getattr(self, '_subgoal_state', None)) if hasattr(self.bridge, 'subgoal_generator') else None,  # A208 — Subgoal generator
             "subgoal_competition": self.bridge.subgoal_competition.summary(getattr(self, '_competition_state', None)) if hasattr(self.bridge, 'subgoal_competition') else None,  # A209 — Subgoal competition
+            "subgoal_routing": self.bridge.subgoal_router.summary(getattr(self, '_routing_state', None)) if hasattr(self.bridge, 'subgoal_router') else None,  # A210 — Subgoal routing
+            "sequential_planning": self.bridge.planning_engine.summary(getattr(self, '_planning_state', None)) if hasattr(self.bridge, 'planning_engine') else None,  # A211 — Sequential planning
+            "multi_step_update": getattr(self, '_chain_update', None),  # A212 — Chain monitoring update
+            "current_chain": [sg.get("id") for sg in self.active_chain] if self.active_chain else None,  # A212 — Current active chain
+            "chain_step_index": self.chain_step_index,  # A212 — Current step in chain
             "self_model": self.bridge.self_model.summary(),
         }
 

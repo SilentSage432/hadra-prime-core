@@ -131,6 +131,12 @@ class NeuralBridge:
         # A209 — Subgoal Competition & Selection Layer
         from .subgoal_competition_engine import SubgoalCompetitionEngine
         self.subgoal_competition = SubgoalCompetitionEngine()
+        # A210 — Dynamic Subgoal Routing & Execution Priority
+        from .subgoal_routing_engine import SubgoalRoutingEngine
+        self.subgoal_router = SubgoalRoutingEngine()
+        # A211 — Multi-Step Execution Chains (Sequential Planning Engine)
+        from .sequential_planning_engine import SequentialPlanningEngine
+        self.planning_engine = SequentialPlanningEngine()
         # A183 — Identity Drift Suppression
         from ..identity.identity_drift_suppressor import IdentityDriftSuppressor
         self.identity_drift = IdentityDriftSuppressor()
