@@ -102,6 +102,9 @@ class NeuralTimescales:
         # Long-term identity anchor vector
 
         self.identity_vector = None
+        
+        # A169 — long-horizon identity anchor
+        self.long_horizon_identity = None
 
     def update(self, embedding):
 
@@ -134,6 +137,45 @@ class NeuralTimescales:
         else:
 
             self.identity_vector = 0.98 * self.identity_vector + 0.02 * t
+        
+        # A169 — Update long-horizon identity (slow-changing)
+        if self.long_horizon_identity is None:
+            self.long_horizon_identity = t.clone() if hasattr(t, 'clone') else t
+        else:
+            # slow-moving exponential update (97% old, 3% new)
+            try:
+                if isinstance(t, torch.Tensor):
+                    if isinstance(self.long_horizon_identity, torch.Tensor):
+                        if self.long_horizon_identity.shape == t.shape:
+                            self.long_horizon_identity = (
+                                0.97 * self.long_horizon_identity +
+                                0.03 * t
+                            )
+                    else:
+                        # Convert to tensor if needed
+                        self.long_horizon_identity = torch.tensor(self.long_horizon_identity, dtype=t.dtype)
+                        if self.long_horizon_identity.shape == t.shape:
+                            self.long_horizon_identity = (
+                                0.97 * self.long_horizon_identity +
+                                0.03 * t
+                            )
+                else:
+                    # Python fallback
+                    if isinstance(self.long_horizon_identity, torch.Tensor):
+                        self.long_horizon_identity = self.long_horizon_identity.tolist()
+                    
+                    if isinstance(t, torch.Tensor):
+                        t = t.tolist()
+                    
+                    if isinstance(self.long_horizon_identity, list) and isinstance(t, list):
+                        if len(self.long_horizon_identity) == len(t):
+                            self.long_horizon_identity = [
+                                0.97 * old + 0.03 * new
+                                for old, new in zip(self.long_horizon_identity, t)
+                            ]
+            except Exception:
+                # If update fails, keep existing long_horizon_identity
+                pass
 
     def summary(self):
 

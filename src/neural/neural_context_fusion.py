@@ -23,6 +23,12 @@ This produces PRIME's "Cognitive Fusion Vector",
 
 used by the runtime reasoning loop (A150+).
 
+Upgraded in A162:
+- Evolution-weighted fusion adjustments
+- Trajectory-aware identity reinforcement
+- Drift-sensitive fusion stabilization
+- Attention-influenced fusion modulation
+
 """
 
 import torch
@@ -53,6 +59,10 @@ class NeuralContextFusion:
         
         # A157: Mutation candidate - identity weight
         self.identity_weight = 0.10  # Alias for weights["identity"]
+        
+        # A162: Evolution-weighted fusion adjustment
+        self.evo_weight = 0.20       # evolutionary influence weighting
+        self.evo_decay = 0.97        # slow decay toward baseline
 
     def fuse(self, attention_vec, timescales):
 
@@ -149,4 +159,69 @@ class NeuralContextFusion:
             "coherence": 1.0  # Placeholder for coherence metric
 
         }
+    
+    # ------------------------------------------------------
+    # A162 — Evolution-Weighted Fusion Adjustment
+    # ------------------------------------------------------
+    def apply_evolutionary_adjustment(self, trajectory, drift_level):
+        """
+        Adjust internal fusion behavior using evolutionary trajectory.
+
+        trajectory:
+            - trend: "upward", "unstable", "neutral"
+            - vector: torch.Tensor or None
+            - encoded: embedding summary
+
+        drift_level:
+            float — used to stabilize or loosen evolutionary weighting.
+        """
+
+        if trajectory is None:
+            return
+
+        evo_vec = trajectory.get("vector")
+        trend = trajectory.get("trend")
+
+        # ------------------------------
+        # Adjust evolutionary weighting
+        # ------------------------------
+        if trend == "upward":
+            # PRIME is stable → allow stronger fusion evolution
+            self.evo_weight = min(0.35, self.evo_weight + 0.02)
+        elif trend == "unstable":
+            # instability → restrict evolutionary influence
+            self.evo_weight = max(0.08, self.evo_weight - 0.03)
+        else:
+            # gentle decay back toward baseline
+            self.evo_weight = self.evo_weight * self.evo_decay
+
+        # Drift-sensitive dampening
+        if drift_level and drift_level > 0.05:
+            self.evo_weight *= 0.9
+
+        # ------------------------------------------------
+        # Apply embedding-weighted fusion evolution
+        # ------------------------------------------------
+        if evo_vec is not None and self.last_fusion_vector is not None:
+            evo_tensor = safe_tensor(evo_vec)
+            fusion_tensor = safe_tensor(self.last_fusion_vector)
+            
+            if (is_tensor(evo_tensor) and isinstance(evo_tensor, torch.Tensor) and
+                is_tensor(fusion_tensor) and isinstance(fusion_tensor, torch.Tensor)):
+                
+                # Ensure same dimensions
+                if fusion_tensor.shape == evo_tensor.shape:
+                    evo_norm = torch.norm(evo_tensor)
+                    if evo_norm > 0:
+                        evo_vec_normalized = evo_tensor / evo_norm
+                    else:
+                        evo_vec_normalized = evo_tensor
+
+                    # Blend evolutionary direction into fusion state
+                    self.last_fusion_vector = (
+                        (1 - self.evo_weight) * fusion_tensor +
+                        self.evo_weight * evo_vec_normalized
+                    )
+
+        return self.last_fusion_vector
 

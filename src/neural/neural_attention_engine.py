@@ -15,6 +15,11 @@ Computes attention-weighted neural context vectors by combining:
 
 This engine produces PRIME's "focus vector" used in reasoning.
 
+Now upgraded in A161 to support:
+- Trajectory-guided recalibration
+- Evolution-aware attention weighting
+- Alignment effects with predicted evolution vector
+
 """
 
 import torch
@@ -37,6 +42,10 @@ class NeuralAttentionEngine:
         
         # A157: Mutation candidate - scaling factor
         self.scaling = 1.0
+        
+        # A161: Evolution-driven attention recalibration
+        self.evo_weight = 0.25       # evolutionary influence on attention
+        self.evo_decay = 0.95        # slow decay for long-term shaping
 
     def compute_attention_vector(self, timescales):
 
@@ -118,6 +127,56 @@ class NeuralAttentionEngine:
             return 0.0
 
         return safe_cosine_similarity(embedding, self.last_focus_vector)
+    
+    # ----------------------------------------------------
+    # A161 — Evolution-Driven Attentional Recalibration
+    # ----------------------------------------------------
+    def recalibrate_with_evolution(self, trajectory):
+        """
+        Adjusts attention behavior based on predicted evolutionary direction.
+        The 'trajectory' dict contains:
+            - trend ("upward", "unstable", "neutral")
+            - vector (torch.Tensor or None)
+            - encoded (embedding-form reflection)
+        """
+        if trajectory is None:
+            return
+
+        trend = trajectory.get("trend")
+        evo_vec = trajectory.get("vector")
+        encoded_msg = trajectory.get("encoded")
+
+        # 1. Adjust weights based on stability trend
+        if trend == "upward":
+            # PRIME is stable → can afford to widen attentional exploration
+            self.evo_weight = min(0.4, self.evo_weight + 0.02)
+        elif trend == "unstable":
+            # PRIME needs to narrow focus → attention stabilizes
+            self.evo_weight = max(0.1, self.evo_weight - 0.03)
+        else:
+            # neutral: gentle decay back to baseline
+            self.evo_weight = self.evo_weight * self.evo_decay
+
+        # 2. Align focus vector toward evolutionary direction
+        if evo_vec is not None and is_tensor(evo_vec):
+            evo_tensor = safe_tensor(evo_vec)
+            if evo_tensor is not None and isinstance(evo_tensor, torch.Tensor):
+                evo_norm = torch.norm(evo_tensor)
+                if evo_norm > 0:
+                    evo_vec_normalized = evo_tensor / evo_norm
+                else:
+                    evo_vec_normalized = evo_tensor
+
+                # Blend old focus with evolution trajectory
+                if self.last_focus_vector is not None and is_tensor(self.last_focus_vector):
+                    focus_tensor = safe_tensor(self.last_focus_vector)
+                    if focus_tensor is not None and isinstance(focus_tensor, torch.Tensor):
+                        # Ensure same dimensions
+                        if focus_tensor.shape == evo_vec_normalized.shape:
+                            self.last_focus_vector = (
+                                (1 - self.evo_weight) * focus_tensor +
+                                self.evo_weight * evo_vec_normalized
+                            )
     
     # A157: Mutation registry
     def get_scaling(self):

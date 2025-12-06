@@ -25,9 +25,17 @@ from .reflective_thought_generator import ReflectiveThoughtGenerator
 from .self_stability_engine import SelfStabilityEngine
 from .adaptive_evolution_engine import AdaptiveEvolutionEngine
 from .evolution_memory_consolidator import EvolutionMemoryConsolidator
+from .evolution_trajectory_predictor import EvolutionaryTrajectoryPredictor
 from ..memory.memory_interaction_engine import MemoryInteractionEngine
+from ..memory.autobiographical_memory import AutobiographicalMemory
+from ..self.self_model_engine import SelfModelEngine
 from ..cognition.cognitive_action_engine import CognitiveActionEngine
 from ..cognition.cognitive_loop_orchestrator import CognitiveLoopOrchestrator
+from ..cognition.cognitive_growth_scheduler import CognitiveGrowthScheduler
+from ..cognition.personality_drift_regulator import PersonalityDriftRegulator
+from ..cognition.personality_gradient_engine import PersonalityGradientEngine
+from ..cognition.personality_signature_engine import PersonalitySignatureEngine
+from ..cognition.personality_continuity_engine import LifelongPersonalityContinuity
 
 # Import persistence layer (from project root)
 import sys
@@ -63,6 +71,16 @@ class NeuralBridge:
         self.stability = SelfStabilityEngine()
         self.evolution = AdaptiveEvolutionEngine()
         self.evo_consolidator = EvolutionMemoryConsolidator()
+        self.evo_predictor = EvolutionaryTrajectoryPredictor()
+        self.growth = CognitiveGrowthScheduler()
+        self.personality = PersonalityDriftRegulator()
+        self.personality_gradient = PersonalityGradientEngine()
+        self.personality_signature = PersonalitySignatureEngine()
+        self.personality_continuity = LifelongPersonalityContinuity()
+        # A170 Autobiographical Memory Matrix
+        self.autobio = AutobiographicalMemory()
+        # A171: Emergent Self-Model Engine
+        self.self_model = SelfModelEngine()
         self.ready_for_adaptive_evolution = False
         self.cycle_count = 0
         self.stability_report = None
@@ -411,4 +429,22 @@ class NeuralBridge:
         })
         
         return {"task": text, "priority": priority}
+
+    def autobiographical_summary(self):
+        """
+        A170: Get summary of autobiographical memory state.
+        """
+        return self.autobio.summarize()
+
+    def autobiographical_recent(self, n=10):
+        """
+        A170: Get the most recent N autobiographical entries.
+        """
+        return self.autobio.get_recent(n)
+    
+    def self_model_status(self):
+        """
+        A171: Get status of the emergent self-model.
+        """
+        return self.self_model.summary()
 

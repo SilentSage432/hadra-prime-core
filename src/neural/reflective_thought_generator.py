@@ -29,6 +29,10 @@ class ReflectiveThoughtGenerator:
         self.memory_influence = memory_influence
         self.identity_influence = identity_influence
         self.fusion_influence = fusion_influence
+        
+        # === A169 Long-Horizon Identity Weight ===
+        # Long-term identity stabilizer vector influence
+        self.long_horizon_influence = 0.25
 
     def generate(self, fusion_vec, attention_vec, timescales, memory_manager):
         """
@@ -109,12 +113,45 @@ class ReflectiveThoughtGenerator:
             else:
                 identity = [0.0] * len(fusion_vec)
 
+        # ----------------------------------------------------
+        # A169 — Long-Horizon Reflective Identity Anchoring
+        # ----------------------------------------------------
+        long_horizon = None
+
+        if timescales and hasattr(timescales, "long_horizon_identity") and timescales.long_horizon_identity is not None:
+            long_horizon = safe_tensor(timescales.long_horizon_identity)
+        else:
+            # default: zero vector
+            if TORCH_AVAILABLE and isinstance(fusion_vec, torch.Tensor):
+                long_horizon = torch.zeros_like(fusion_vec)
+            else:
+                long_horizon = [0.0] * len(fusion_vec)
+
+        # Weighted long-horizon anchoring
+        if TORCH_AVAILABLE and isinstance(fusion_vec, torch.Tensor):
+            # Ensure same dimensions
+            if identity.shape == long_horizon.shape:
+                anchored_identity = (
+                    self.identity_influence * identity +
+                    self.long_horizon_influence * long_horizon
+                )
+            else:
+                anchored_identity = self.identity_influence * identity
+        else:
+            if len(identity) == len(long_horizon):
+                anchored_identity = [
+                    self.identity_influence * i + self.long_horizon_influence * lh
+                    for i, lh in zip(identity, long_horizon)
+                ]
+            else:
+                anchored_identity = [self.identity_influence * i for i in identity]
+
         # 3. Weighted combination → Reflection vector
         if TORCH_AVAILABLE and isinstance(fusion_vec, torch.Tensor):
             reflective = (
                 self.fusion_influence * fusion_vec +
                 self.memory_influence * memory_context +
-                self.identity_influence * identity
+                anchored_identity    # A169 upgrade
             )
 
             # normalize for consistency
@@ -123,12 +160,22 @@ class ReflectiveThoughtGenerator:
                 reflective = reflective / norm
         else:
             # Fallback: manual weighted combination
-            reflective = [
-                self.fusion_influence * f + 
-                self.memory_influence * m + 
-                self.identity_influence * i
-                for f, m, i in zip(fusion_vec, memory_context, identity)
-            ]
+            # Ensure all vectors have same length
+            if len(fusion_vec) == len(memory_context) == len(anchored_identity):
+                reflective = [
+                    self.fusion_influence * f + 
+                    self.memory_influence * m + 
+                    a
+                    for f, m, a in zip(fusion_vec, memory_context, anchored_identity)
+                ]
+            else:
+                # Fallback if dimensions don't match
+                reflective = [
+                    self.fusion_influence * f + 
+                    self.memory_influence * m + 
+                    self.identity_influence * i
+                    for f, m, i in zip(fusion_vec, memory_context, identity)
+                ]
             
             # Normalize
             norm = sum(x * x for x in reflective) ** 0.5
