@@ -400,13 +400,64 @@ class CognitiveLoopOrchestrator:
         self._competency_activations = competency_activations
         self._competency_bias = competency_bias
         
+        # A220 — Compute synergy between competencies
+        synergy_edges = []
+        synergy_bonus = 0.0
+        try:
+            if hasattr(self.bridge, 'competencies') and self.bridge.competencies.clusters:
+                # Compute synergy edges between all competency pairs
+                synergy_edges = self.bridge.competencies.compute_synergy()
+                
+                # Compute synergy bonus for active competencies
+                if competency_activations and synergy_edges:
+                    synergy_bonus = self.bridge.competencies.synergy_bias(competency_activations, synergy_edges)
+                    
+                    # Log synergy events
+                    if synergy_bonus > 0.0:
+                        if hasattr(self.bridge, 'memory_store') and self.bridge.memory_store is not None:
+                            try:
+                                if hasattr(self.bridge.memory_store, 'log_thought_event'):
+                                    self.bridge.memory_store.log_thought_event({
+                                        "type": "competency_synergy",
+                                        "edges": [(A, B, round(sim, 4)) for A, B, sim in synergy_edges],
+                                        "active": [(name, round(sim, 4)) for name, sim in competency_activations],
+                                        "bonus": round(synergy_bonus, 4)
+                                    })
+                            except Exception:
+                                pass
+                        
+                        # Also log via logger
+                        if hasattr(self.bridge, 'logger'):
+                            try:
+                                self.bridge.logger.write({
+                                    "competency_synergy": {
+                                        "edges": [(A, B, round(sim, 4)) for A, B, sim in synergy_edges],
+                                        "active": [(name, round(sim, 4)) for name, sim in competency_activations],
+                                        "bonus": round(synergy_bonus, 4),
+                                        "edge_count": len(synergy_edges)
+                                    }
+                                })
+                            except Exception:
+                                pass
+        except Exception as e:
+            # If synergy computation fails, continue without it
+            if hasattr(self.bridge, 'logger'):
+                try:
+                    self.bridge.logger.write({"competency_synergy_error": str(e)})
+                except Exception:
+                    pass
+        
+        # Store synergy info for output
+        self._synergy_edges = synergy_edges
+        self._synergy_bonus = synergy_bonus
+        
         # 2. Select the strongest thought
         if not candidates:
             chosen_embedding = None
             dbg = {"note": "No candidates generated"}
         else:
-            # Pass competency bias to thought selector
-            result = self.bridge.select_thought(candidates, competency_bias=competency_bias)
+            # Pass competency bias and synergy bias to thought selector
+            result = self.bridge.select_thought(candidates, competency_bias=competency_bias, synergy_bias=synergy_bonus)
             
             # Handle both tuple and single return values
             if isinstance(result, tuple):
@@ -1498,6 +1549,11 @@ class CognitiveLoopOrchestrator:
                 "bias": round(getattr(self, '_competency_bias', 0.0), 4),
                 "count": len(getattr(self, '_competency_activations', []))
             } if hasattr(self, '_competency_activations') else None,  # A219 — Competency activation
+            "competency_synergy": {
+                "edges": [(A, B, round(sim, 4)) for A, B, sim in getattr(self, '_synergy_edges', [])],
+                "bonus": round(getattr(self, '_synergy_bonus', 0.0), 4),
+                "edge_count": len(getattr(self, '_synergy_edges', []))
+            } if hasattr(self, '_synergy_edges') else None,  # A220 — Competency synergy
             "self_model": self.bridge.self_model.summary(),
         }
 

@@ -50,13 +50,14 @@ class NeuralThoughtSelector:
 
         self.salience_weight = salience_weight
 
-    def score_thought(self, embedding, fusion_vec, attention_engine, memory_manager, skill_bias=0.0):
+    def score_thought(self, embedding, fusion_vec, attention_engine, memory_manager, skill_bias=0.0, synergy_bias=0.0):
 
         """
 
         Computes a score for how appropriate a candidate thought is.
         
         A217 — Now includes skill bias influence.
+        A220 — Now includes synergy bias influence.
 
         """
 
@@ -92,6 +93,9 @@ class NeuralThoughtSelector:
 
         # A217 — Skill bias (weighted influence from skill vectors)
         skill_weight = 0.15  # 15% weight for skill influence
+        
+        # A220 — Synergy bias (weighted influence from competency synergy)
+        synergy_weight = 0.20  # 20% weight for synergy influence
 
         # Weighted total score
 
@@ -103,7 +107,9 @@ class NeuralThoughtSelector:
 
             self.novelty_weight * novelty +
 
-            skill_weight * skill_bias
+            skill_weight * skill_bias +
+
+            synergy_weight * synergy_bias
 
         )
 
@@ -115,13 +121,15 @@ class NeuralThoughtSelector:
 
             "novelty": novelty,
 
-            "skill_bias": skill_bias,
+            "skill_bias": skill_bias,  # A217 — Skill bias (may include competency bias)
+
+            "synergy_bias": synergy_bias,  # A220 — Competency synergy bias
 
             "total": score
 
         }
 
-    def select(self, candidate_embeddings, fusion_vec, attention_engine, memory_manager, goal_modulation=None, competency_bias=0.0):
+    def select(self, candidate_embeddings, fusion_vec, attention_engine, memory_manager, goal_modulation=None, competency_bias=0.0, synergy_bias=0.0):
 
         """
 
@@ -132,6 +140,7 @@ class NeuralThoughtSelector:
         A217 — Now includes skill bias.
         A218 — Now includes competency bias.
         A219 — Now includes competency activation bias.
+        A220 — Now includes competency synergy bias.
 
         """
 
@@ -222,7 +231,7 @@ class NeuralThoughtSelector:
             # This is the bias from activated competencies (separate from centroid similarity)
             final_bias = combined_bias + (competency_bias * 0.3)  # 30% weight for activation bias
             
-            score, dbg = self.score_thought(emb, fusion_vec, attention_engine, memory_manager, skill_bias=final_bias)
+            score, dbg = self.score_thought(emb, fusion_vec, attention_engine, memory_manager, skill_bias=final_bias, synergy_bias=synergy_bias)
             
             # === A204: Inject goal modulation influence ===
             if goal_modulation is not None:

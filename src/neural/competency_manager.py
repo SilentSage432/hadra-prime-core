@@ -195,6 +195,69 @@ class CompetencyManager:
         
         return activations
     
+    def compute_synergy(self, synergy_threshold=0.55):
+        """
+        A220 — Compute synergy edges between competency centroids.
+        
+        Returns list of (competency_A, competency_B, similarity) tuples
+        representing synergy links between compatible competencies.
+        
+        Args:
+            synergy_threshold: Cosine similarity threshold for synergy (default 0.55)
+            
+        Returns:
+            List of (name_A, name_B, similarity) tuples for competencies with synergy
+        """
+        names = list(self.clusters.keys())
+        synergy_edges = []
+        
+        for i in range(len(names)):
+            for j in range(i + 1, len(names)):
+                cluster_A = self.clusters[names[i]]
+                cluster_B = self.clusters[names[j]]
+                
+                centroid_A = cluster_A.get("centroid")
+                centroid_B = cluster_B.get("centroid")
+                
+                if centroid_A is None or centroid_B is None:
+                    continue
+                
+                # Compute similarity between competency centroids
+                sim = safe_cosine_similarity(centroid_A, centroid_B)
+                
+                if sim is not None and sim > synergy_threshold:
+                    synergy_edges.append((names[i], names[j], sim))
+        
+        return synergy_edges
+    
+    def synergy_bias(self, active_competencies, synergy_edges):
+        """
+        A220 — Compute synergy bonus among active competencies.
+        
+        When multiple active competencies have synergy links, their combined
+        influence creates a bonus that enhances thought selection.
+        
+        Args:
+            active_competencies: List of (name, similarity) tuples from activate()
+            synergy_edges: List of (name_A, name_B, similarity) tuples from compute_synergy()
+            
+        Returns:
+            float: Synergy bonus score (sum of synergy similarities for active pairs)
+        """
+        if not active_competencies or not synergy_edges:
+            return 0.0
+        
+        # Get set of active competency names
+        active_names = {name for name, _ in active_competencies}
+        
+        bonus = 0.0
+        for A, B, sim in synergy_edges:
+            # If both competencies in the synergy edge are active, add their synergy
+            if A in active_names and B in active_names:
+                bonus += sim
+        
+        return bonus
+    
     def get_competency_influence(self, target_vec):
         """
         Compute how much each competency cluster influences a target vector.
