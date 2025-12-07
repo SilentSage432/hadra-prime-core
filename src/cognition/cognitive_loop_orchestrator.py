@@ -1658,6 +1658,7 @@ class CognitiveLoopOrchestrator:
             "personality_flow_field": self.bridge.flow.debug_status() if hasattr(self.bridge, 'flow') and self.bridge.flow is not None else {"active": False},  # A223 — Personality Flow Field
             "cognitive_style": self.bridge.style.summarize() if hasattr(self.bridge, 'style') and self.bridge.style is not None else {"active": False},  # A224 — Emergent Cognitive Style
             "style_reinforcement": self.bridge.style_reinforcer.status(self.bridge.style) if hasattr(self.bridge, 'style_reinforcer') and hasattr(self.bridge, 'style') and self.bridge.style_reinforcer is not None and self.bridge.style is not None else {"active": False},  # A225 — Style Reinforcement
+            "micro_narrative": self.bridge.micro_narrative.debug() if hasattr(self.bridge, 'micro_narrative') and self.bridge.micro_narrative is not None else {"active": False},  # A227 — Micro-Narrative Formation
             "self_model": self.bridge.self_model.summary(),
         }
 

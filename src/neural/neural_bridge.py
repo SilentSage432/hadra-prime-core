@@ -105,6 +105,9 @@ class NeuralBridge:
         # A225 — Cognitive Style Reinforcement Layer
         from .style_reinforcement import CognitiveStyleReinforcer
         self.style_reinforcer = CognitiveStyleReinforcer()
+        # A227 — Style-Guided Micro-Narrative Formation Layer
+        from .micro_narrative import MicroNarrativeEngine
+        self.micro_narrative = MicroNarrativeEngine(max_arc_length=4)
         self.stability = SelfStabilityEngine()
         self.evolution = AdaptiveEvolutionEngine()
         self.evo_consolidator = EvolutionMemoryConsolidator()
@@ -941,6 +944,50 @@ class NeuralBridge:
                 if hasattr(self, 'logger'):
                     try:
                         self.logger.write({"cognitive_style_application_error": str(e)})
+                    except Exception:
+                        pass
+        
+        # A227 — Feed reflective vector into narrative engine
+        if reflective is not None and hasattr(self, 'micro_narrative') and self.micro_narrative is not None:
+            try:
+                # Contribute to narrative arc (blends with style)
+                narrative_vec = None
+                if hasattr(self, 'style') and self.style is not None:
+                    narrative_vec = self.micro_narrative.contribute(reflective, self.style)
+                else:
+                    narrative_vec = self.micro_narrative.contribute(reflective, None)
+                
+                # If multiple steps exist, produce a narrative summary
+                arc_summary = self.micro_narrative.summarize_arc()
+                
+                # Push narrative summary back into neural state if meaningful
+                if arc_summary is not None and len(self.micro_narrative.current_arc) > 1:
+                    try:
+                        # Update state with narrative summary (subtle influence)
+                        self.state.update(arc_summary)
+                        
+                        # Log narrative commitment
+                        if hasattr(self, 'logger'):
+                            try:
+                                self.logger.write({
+                                    "narrative_summary_committed": True,
+                                    "arc_length": len(self.micro_narrative.current_arc),
+                                    "has_narrative": arc_summary is not None
+                                })
+                            except Exception:
+                                pass
+                    except Exception as e:
+                        # If state update fails, continue without it
+                        if hasattr(self, 'logger'):
+                            try:
+                                self.logger.write({"narrative_state_update_error": str(e)})
+                            except Exception:
+                                pass
+            except Exception as e:
+                # If narrative processing fails, continue without it
+                if hasattr(self, 'logger'):
+                    try:
+                        self.logger.write({"narrative_processing_error": str(e)})
                     except Exception:
                         pass
         
