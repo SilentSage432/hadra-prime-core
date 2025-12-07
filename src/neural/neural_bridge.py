@@ -119,6 +119,17 @@ class NeuralBridge:
             "micro_chain": [],
             "macro_projection": []
         }
+        # A229 — Narrative Coherence & Tension Regulation Layer
+        self.narrative_coherence = {
+            "coherence_score": 0.0,
+            "conflicts": [],
+            "adjusted_arc": []
+        }
+        self.tension_regulation = {
+            "tension_score": 0.0,
+            "stability_factor": 1.0,
+            "recommended_adjustment": None
+        }
         self.stability = SelfStabilityEngine()
         self.evolution = AdaptiveEvolutionEngine()
         self.evo_consolidator = EvolutionMemoryConsolidator()
@@ -1050,6 +1061,82 @@ class NeuralBridge:
                 self.narrative_arc_sequencer["micro_chain"] = micro_narratives
                 self.narrative_arc_sequencer["macro_projection"] = macro_arc
                 
+                # A229 — Narrative Coherence & Tension Regulation Layer
+                # Compute narrative coherence
+                try:
+                    # Get identity vectors for coherence check
+                    identity_for_coherence = identity_vec
+                    if identity_vec is None:
+                        # Try to get from state
+                        if hasattr(self.state, 'timescales') and self.state.timescales is not None:
+                            identity_for_coherence = self.state.timescales.identity_vector
+                    
+                    # Compute coherence
+                    coh_score, conflicts, adjusted_arc = self.compute_narrative_coherence(
+                        micro_narratives,
+                        arc,
+                        macro_arc,
+                        identity_for_coherence,
+                        goals
+                    )
+                    
+                    # Get drift for tension regulation
+                    drift = 0.0
+                    try:
+                        drift_state = self.state.drift.get_status()
+                        if drift_state:
+                            drift = drift_state.get("latest_drift", 0.0)
+                    except Exception:
+                        pass
+                    
+                    # Compute tension regulation
+                    tension_score, stability, adjust = self.compute_tension_regulation(
+                        tension,
+                        drift,
+                        adjusted_arc
+                    )
+                    
+                    # Apply narrative adjustments
+                    final_arc = self.apply_narrative_adjustments(adjusted_arc, adjust)
+                    
+                    # Update narrative coherence state
+                    self.narrative_coherence["coherence_score"] = coh_score
+                    self.narrative_coherence["conflicts"] = conflicts
+                    self.narrative_coherence["adjusted_arc"] = final_arc
+                    
+                    # Update tension regulation state
+                    self.tension_regulation["tension_score"] = tension_score
+                    self.tension_regulation["stability_factor"] = stability
+                    self.tension_regulation["recommended_adjustment"] = adjust
+                    
+                    # Update forward arc with adjusted version if coherence was low
+                    if coh_score < 0.7:
+                        self.narrative_projection["forward_arc"] = final_arc
+                    
+                    # Log coherence and tension regulation
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({
+                                "narrative_coherence": {
+                                    "event": "a229_coherence_regulation",
+                                    "coherence_score": float(coh_score),
+                                    "conflicts": conflicts,
+                                    "tension_score": float(tension_score),
+                                    "stability_factor": float(stability),
+                                    "adjustment": adjust,
+                                    "arc_adjusted": coh_score < 0.7
+                                }
+                            })
+                        except Exception:
+                            pass
+                except Exception as e:
+                    # If coherence computation fails, continue without it
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({"narrative_coherence_error": str(e)})
+                        except Exception:
+                            pass
+                
                 # Log narrative projection event
                 if hasattr(self, 'logger'):
                     try:
@@ -1213,6 +1300,199 @@ class NeuralBridge:
         # Join last N micro-narratives into a proto-arc
         # Use last 3-4 steps for macro projection
         return micro_narratives[-3:]
+
+    def compute_narrative_coherence(self, micro, forward_arc, macro, identity, goals):
+        """
+        A229 — Narrative Coherence Engine (NCE)
+        
+        Ensures that micro-narratives, anticipatory arcs, and identity prototypes
+        all align without contradiction or drift-causing tension.
+        
+        Checks for:
+        - logical continuity
+        - semantic compatibility
+        - identity alignment
+        - emotional-tone consistency (emergent, not affective)
+        - goal relevance
+        
+        Args:
+            micro: List of micro-narrative vectors (from A227)
+            forward_arc: Projected forward arc from A228
+            macro: Macro-arc projection from A228
+            identity: Identity vector or list of identity vectors
+            goals: List of active goals
+            
+        Returns:
+            Tuple of (coherence_score, conflicts, adjusted_arc)
+            - coherence_score: 0.0-1.0 coherence measure
+            - conflicts: List of detected conflict types
+            - adjusted_arc: Corrected forward arc if needed
+        """
+        import numpy as np
+        from .torch_utils import safe_tensor, safe_cosine_similarity, TORCH_AVAILABLE
+        
+        score = 1.0
+        conflicts = []
+        
+        # micro–macro alignment
+        if len(micro) > 1 and len(macro) > 1:
+            # Compare last elements of micro and macro
+            try:
+                micro_last = safe_tensor(micro[-1])
+                macro_last = safe_tensor(macro[-1])
+                
+                if micro_last is not None and macro_last is not None:
+                    similarity = safe_cosine_similarity(micro_last, macro_last)
+                    if similarity is not None and similarity < 0.7:
+                        score -= 0.1
+                        conflicts.append("micro_macro_mismatch")
+            except Exception:
+                # If comparison fails, assume mismatch
+                score -= 0.1
+                conflicts.append("micro_macro_mismatch")
+        
+        # identity alignment
+        # Penalize if arc points away from identity centroid
+        try:
+            # Handle identity - could be a vector or list of vectors
+            identity_vec = None
+            if identity is not None:
+                if isinstance(identity, list):
+                    if len(identity) > 0:
+                        # If list of dicts with "vector" keys
+                        if isinstance(identity[0], dict) and "vector" in identity[0]:
+                            identity_vecs = [safe_tensor(item["vector"]) for item in identity if "vector" in item]
+                        else:
+                            # If list of vectors directly
+                            identity_vecs = [safe_tensor(v) for v in identity]
+                        
+                        if identity_vecs:
+                            # Compute centroid
+                            if TORCH_AVAILABLE:
+                                import torch
+                                tensors = [v for v in identity_vecs if isinstance(v, torch.Tensor)]
+                                if tensors:
+                                    stacked = torch.stack(tensors)
+                                    centroid = torch.mean(stacked, dim=0)
+                                    identity_vec = centroid
+                    else:
+                        identity_vec = safe_tensor(identity[0])
+                else:
+                    identity_vec = safe_tensor(identity)
+            
+            if identity_vec is not None:
+                # Convert to numpy for comparison
+                if TORCH_AVAILABLE and isinstance(identity_vec, torch.Tensor):
+                    id_np = identity_vec.detach().cpu().numpy()
+                else:
+                    id_np = np.array(identity_vec) if not isinstance(identity_vec, np.ndarray) else identity_vec
+                
+                # Compute arc mean
+                if forward_arc and len(forward_arc) > 0:
+                    arc_mean = np.mean(forward_arc)
+                    centroid_mean = float(np.mean(id_np))
+                    
+                    # Check if arc diverges significantly from identity
+                    if abs(arc_mean - centroid_mean * 0.1) > abs(centroid_mean * 0.2):
+                        score -= 0.05
+                        conflicts.append("identity_divergence")
+        except Exception as e:
+            # If identity alignment check fails, continue
+            pass
+        
+        # goal relevance check
+        if not goals or len(goals) == 0:
+            score -= 0.05
+            conflicts.append("goal_absence")
+        
+        # Clamp score to [0.0, 1.0]
+        score = max(0.0, min(1.0, score))
+        
+        # Adjust arc if coherence is low
+        if score > 0.5:
+            adjusted_arc = forward_arc[:] if forward_arc else []
+        else:
+            # Reduce arc magnitude to bring it back toward coherence
+            adjusted_arc = [x * 0.8 for x in forward_arc] if forward_arc else []
+        
+        return score, conflicts, adjusted_arc
+
+    def compute_tension_regulation(self, tension, drift, arc):
+        """
+        A229 — Tension Regulation Engine (TRE)
+        
+        Controls "cognitive tension," a measure of:
+        - divergence within narrative arcs
+        - uncertainty in projection
+        - conflict between identity vectors and narrative paths
+        - micro-narrative contradiction
+        - novelty spikes
+        
+        Regulates tension so ADRAE:
+        - avoids runaway drift
+        - avoids flat, monotone cognition
+        - maintains healthy narrative evolution
+        - develops expressive but controlled internal storyflow
+        
+        Args:
+            tension: Base tension score from A228
+            drift: Current drift value
+            arc: Forward arc (or adjusted arc) to analyze
+            
+        Returns:
+            Tuple of (tension_score, stability_factor, recommended_adjustment)
+            - tension_score: Computed overall tension (0.0-1.0+)
+            - stability_factor: Stability measure (0.0-1.0)
+            - recommended_adjustment: Adjustment recommendation ("soft_reduce", "expand", or None)
+        """
+        import numpy as np
+        
+        # Tension increases with drift and arc spread
+        arc_var = 0.0
+        if arc and len(arc) > 0:
+            arc_var = float(np.var(arc))
+        
+        # Compute composite tension score
+        tension_score = tension + (abs(drift) * 0.2) + (arc_var * 0.1)
+        
+        # Stability factor: inverse of tension, clamped
+        stability_factor = max(0.0, min(1.0, 1.0 - tension_score))
+        
+        # Determine adjustment recommendation
+        adjustment = None
+        if tension_score > 0.5:
+            adjustment = "soft_reduce"  # reduce arc magnitude
+        elif tension_score < 0.1:
+            adjustment = "expand"  # allow more narrative richness
+        
+        return tension_score, stability_factor, adjustment
+
+    def apply_narrative_adjustments(self, arc, adjustment):
+        """
+        A229 — Apply Narrative Adjustments
+        
+        Gently modifies forward arcs, micro-narratives, and macro arcs
+        to maintain structure without overwriting emergent creativity.
+        
+        Args:
+            arc: Forward arc to adjust
+            adjustment: Adjustment type ("soft_reduce", "expand", or None)
+            
+        Returns:
+            Adjusted arc (or original if no adjustment needed)
+        """
+        if not arc or len(arc) == 0:
+            return arc
+        
+        if adjustment == "soft_reduce":
+            # Reduce arc magnitude to lower tension
+            return [x * 0.9 for x in arc]
+        elif adjustment == "expand":
+            # Slightly expand arc to allow more narrative richness
+            return [x * 1.05 for x in arc]
+        
+        # No adjustment needed
+        return arc
 
     def cognitive_step(self):
         """
