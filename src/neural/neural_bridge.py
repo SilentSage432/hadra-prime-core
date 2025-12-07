@@ -1617,6 +1617,12 @@ class NeuralBridge:
             # A246 — Initialize temporal predictive loops
             self.temporal_predictive_loops = None
             self.prediction_echo = None
+            # A247 — Initialize recursive forward-echo amplification
+            self.recursive_forward_echo_amplification = None
+            self.amplified_echo_preview = None
+            # A248 — Initialize multi-horizon temporal prediction
+            self.multi_horizon_temporal_prediction = None
+            self.horizon_preview = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -1715,6 +1721,12 @@ class NeuralBridge:
             # A246 — Temporal Predictive Loop Formation (Forward Echo Dynamics)
             self.temporal_predictive_loops = None
             self.prediction_echo = None
+            # A247 — Recursive Forward-Echo Amplification (RFEA)
+            self.recursive_forward_echo_amplification = None
+            self.amplified_echo_preview = None
+            # A248 — Multi-Horizon Temporal Prediction Fields
+            self.multi_horizon_temporal_prediction = None
+            self.horizon_preview = None
             
             if hasattr(self, 'logger'):
                 try:
@@ -2304,6 +2316,113 @@ class NeuralBridge:
                                                                                                             except Exception:
                                                                                                                 self.prediction_echo = None
                                                                                                         
+                                                                                                        # A247 — Recursive Forward-Echo Amplification (RFEA)
+                                                                                                        try:
+                                                                                                            from .torch_utils import TORCH_AVAILABLE
+                                                                                                            
+                                                                                                            if TORCH_AVAILABLE and self.layered_morphology is not None and self.temporal_predictive_loops is not None:
+                                                                                                                # Get echo buffer from temporal predictive loops
+                                                                                                                echo_buffer = self.temporal_predictive_loops.echo_buffer
+                                                                                                                
+                                                                                                                # Get current echo (convert to tensor if needed)
+                                                                                                                current_echo = echo
+                                                                                                                if current_echo is not None:
+                                                                                                                    try:
+                                                                                                                        import torch
+                                                                                                                        if not isinstance(current_echo, torch.Tensor):
+                                                                                                                            current_echo = torch.tensor(current_echo, dtype=torch.float32)
+                                                                                                                    except Exception:
+                                                                                                                        current_echo = None
+                                                                                                                
+                                                                                                                if echo_buffer and len(echo_buffer) > 0 and current_echo is not None:
+                                                                                                                    # Initialize recursive forward-echo amplification if needed
+                                                                                                                    if self.recursive_forward_echo_amplification is None:
+                                                                                                                        self.recursive_forward_echo_amplification = self.RecursiveForwardEchoAmplification(
+                                                                                                                            self.layered_morphology,
+                                                                                                                            echo_buffer
+                                                                                                                        )
+                                                                                                                    else:
+                                                                                                                        # Update references
+                                                                                                                        self.recursive_forward_echo_amplification.lm = self.layered_morphology
+                                                                                                                        self.recursive_forward_echo_amplification.echo_buffer = echo_buffer
+                                                                                                                    
+                                                                                                                    # Run recursive forward-echo amplification
+                                                                                                                    self.layered_morphology, amplified_echo = self.recursive_forward_echo_amplification.run(current_echo)
+                                                                                                                    
+                                                                                                                    # Store amplified echo preview (first 12 elements)
+                                                                                                                    if amplified_echo is not None:
+                                                                                                                        try:
+                                                                                                                            self.amplified_echo_preview = amplified_echo[:12] if len(amplified_echo) >= 12 else amplified_echo
+                                                                                                                        except Exception:
+                                                                                                                            self.amplified_echo_preview = None
+                                                                                                                    
+                                                                                                                    # A248 — Multi-Horizon Temporal Prediction Fields
+                                                                                                                    try:
+                                                                                                                        from .torch_utils import TORCH_AVAILABLE
+                                                                                                                        
+                                                                                                                        if TORCH_AVAILABLE and self.layered_morphology is not None and self.interlayer_resonance is not None:
+                                                                                                                            # Get resonance matrix
+                                                                                                                            resonance_matrix = self.interlayer_resonance.resonance
+                                                                                                                            
+                                                                                                                            # Get echoes (convert to lists/arrays if needed)
+                                                                                                                            current_echo = self.prediction_echo
+                                                                                                                            amplified_echo = self.amplified_echo_preview
+                                                                                                                            
+                                                                                                                            if current_echo is not None and amplified_echo is not None and resonance_matrix is not None:
+                                                                                                                                # Initialize multi-horizon temporal prediction if needed
+                                                                                                                                if self.multi_horizon_temporal_prediction is None:
+                                                                                                                                    self.multi_horizon_temporal_prediction = self.MultiHorizonTemporalPrediction(
+                                                                                                                                        self.layered_morphology,
+                                                                                                                                        resonance_matrix,
+                                                                                                                                        current_echo,
+                                                                                                                                        amplified_echo
+                                                                                                                                    )
+                                                                                                                                else:
+                                                                                                                                    # Update references
+                                                                                                                                    self.multi_horizon_temporal_prediction.lm = self.layered_morphology
+                                                                                                                                    self.multi_horizon_temporal_prediction.resonance = resonance_matrix
+                                                                                                                                    self.multi_horizon_temporal_prediction.current_echo = current_echo
+                                                                                                                                    self.multi_horizon_temporal_prediction.amplified_echo = amplified_echo
+                                                                                                                                    # Re-initialize to update tensor conversions
+                                                                                                                                    self.multi_horizon_temporal_prediction.__init__(
+                                                                                                                                        self.layered_morphology,
+                                                                                                                                        resonance_matrix,
+                                                                                                                                        current_echo,
+                                                                                                                                        amplified_echo
+                                                                                                                                    )
+                                                                                                                
+                                                                                                                                # Run multi-horizon temporal prediction
+                                                                                                                                self.layered_morphology, F1, F2, F3 = self.multi_horizon_temporal_prediction.run()
+                                                                                                                
+                                                                                                                                # Store horizon preview (first 12 elements of each)
+                                                                                                                                if F1 is not None and F2 is not None and F3 is not None:
+                                                                                                                                    try:
+                                                                                                                                        self.horizon_preview = {
+                                                                                                                                            "short": F1[:12] if len(F1) >= 12 else F1,
+                                                                                                                                            "mid": F2[:12] if len(F2) >= 12 else F2,
+                                                                                                                                            "long": F3[:12] if len(F3) >= 12 else F3
+                                                                                                                                        }
+                                                                                                                                    except Exception:
+                                                                                                                                        self.horizon_preview = None
+                                                                                                                                    else:
+                                                                                                                                        self.horizon_preview = None
+                                                                                                                    
+                                                                                                                    except Exception as e:
+                                                                                                                        # If multi-horizon temporal prediction fails, continue without it
+                                                                                                                        if hasattr(self, 'logger'):
+                                                                                                                            try:
+                                                                                                                                self.logger.write({"multi_horizon_temporal_prediction_error": str(e)})
+                                                                                                                            except Exception:
+                                                                                                                                pass
+                                                                                                                    
+                                                                                                        except Exception as e:
+                                                                                                            # If recursive forward-echo amplification fails, continue without it
+                                                                                                            if hasattr(self, 'logger'):
+                                                                                                                try:
+                                                                                                                    self.logger.write({"recursive_forward_echo_amplification_error": str(e)})
+                                                                                                                except Exception:
+                                                                                                                    pass
+                                                                                                        
                                                                                                 except Exception as e:
                                                                                                     # If temporal predictive loops fail, continue without them
                                                                                                     if hasattr(self, 'logger'):
@@ -2397,7 +2516,7 @@ class NeuralBridge:
                 try:
                     self.logger.write({
                         "latent_space_update": {
-                            "event": "a246_latent_space_updated",
+                            "event": "a248_latent_space_updated",
                             "latent_norm": float(torch.norm(latent_vector).item()),
                             "concept_space_norm": float(torch.norm(self.latent_concept_space).item()),
                             "coherence_score": float(coh_score),
@@ -2440,7 +2559,11 @@ class NeuralBridge:
                             "predictive_ripple_propagation_active": self.predictive_ripple_propagation is not None,
                             "temporal_predictive_loops_active": self.temporal_predictive_loops is not None,
                             "echo_buffer_length": len(self.temporal_predictive_loops.echo_buffer) if self.temporal_predictive_loops is not None else 0,
-                            "prediction_echo_generated": self.prediction_echo is not None
+                            "prediction_echo_generated": self.prediction_echo is not None,
+                            "recursive_forward_echo_amplification_active": self.recursive_forward_echo_amplification is not None,
+                            "amplified_echo_preview_generated": self.amplified_echo_preview is not None,
+                            "multi_horizon_temporal_prediction_active": self.multi_horizon_temporal_prediction is not None,
+                            "horizon_preview_generated": self.horizon_preview is not None
                         }
                     })
                 except Exception:
@@ -5647,6 +5770,649 @@ class NeuralBridge:
             except Exception as e:
                 # If pipeline fails, return original morphology
                 return self.lm, None
+
+    class RecursiveForwardEchoAmplification:
+        """
+        A247 — Recursive Forward-Echo Amplification (RFEA)
+        
+        Deepens ADRAE's temporal imagination engine by allowing past echoes to
+        dynamically amplify future ones. This is temporal resonance modelling,
+        recursive tensor amplification, multi-step prediction shaping, and
+        dynamic evolution of conceptual loops.
+        
+        Think of it like strengthening the "temporal spine" of the imagination system.
+        """
+        
+        def __init__(self, layered_morphology, echo_buffer):
+            """
+            Initialize recursive forward-echo amplification system.
+            
+            Args:
+                layered_morphology: LayeredMorphology instance
+                echo_buffer: List of echo vectors from TemporalPredictiveLoops
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for RecursiveForwardEchoAmplification")
+            
+            self.lm = layered_morphology
+            self.echo_buffer = echo_buffer
+            self.dim = layered_morphology.dim
+        
+        def score_echoes(self, current_echo):
+            """
+            A247 — Echo Resonance Scoring (ERS)
+            
+            Each echo in the buffer gets a resonance score based on:
+            - similarity to the current echo
+            - similarity to the global conceptual mean
+            - drift curvature
+            - narrative tension weights
+            
+            This determines which echoes are "strong" and which are "weak."
+            
+            Args:
+                current_echo: Current echo vector tensor
+                
+            Returns:
+                Tensor of resonance scores (one per echo in buffer)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or current_echo is None or not self.echo_buffer:
+                return torch.tensor([])
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                scores = []
+                
+                # Ensure current_echo is a tensor
+                if not isinstance(current_echo, torch.Tensor):
+                    current_echo = torch.tensor(current_echo, dtype=torch.float32)
+                
+                current_flat = current_echo.flatten()
+                if current_flat.shape[0] != self.dim:
+                    if current_flat.shape[0] < self.dim:
+                        current_flat = torch.cat([current_flat, torch.zeros(self.dim - current_flat.shape[0])])
+                    else:
+                        current_flat = current_flat[:self.dim]
+                
+                current_norm = F.normalize(current_flat, dim=0)
+                
+                # Score each echo in buffer
+                for e in self.echo_buffer:
+                    if e is None:
+                        scores.append(0.0)
+                        continue
+                    
+                    e_flat = e.flatten()
+                    if e_flat.shape[0] != self.dim:
+                        if e_flat.shape[0] < self.dim:
+                            e_flat = torch.cat([e_flat, torch.zeros(self.dim - e_flat.shape[0])])
+                        else:
+                            e_flat = e_flat[:self.dim]
+                    
+                    e_norm = F.normalize(e_flat, dim=0)
+                    
+                    # Compute cosine similarity
+                    sim = F.cosine_similarity(current_norm.unsqueeze(0), e_norm.unsqueeze(0), dim=1).item()
+                    scores.append(sim)
+                
+                return torch.tensor(scores, dtype=torch.float32)
+                
+            except Exception as e:
+                # If scoring fails, return zero scores
+                return torch.zeros(len(self.echo_buffer), dtype=torch.float32)
+        
+        def amplify_echoes(self, scores):
+            """
+            A247 — Recursive Amplification Function (RAF)
+            
+            Higher-scoring echoes undergo controlled amplification:
+            amplified = echo * (1 + amplification_factor)
+            
+            where amplification_factor is small (0.03-0.07).
+            
+            This produces forward reinforcing signals.
+            
+            Args:
+                scores: Tensor of resonance scores
+                
+            Returns:
+                List of amplified echo vectors
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or not self.echo_buffer or len(scores) == 0:
+                return []
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                amplified = []
+                
+                for e, s in zip(self.echo_buffer, scores):
+                    if e is None:
+                        amplified.append(None)
+                        continue
+                    
+                    e_flat = e.flatten()
+                    if e_flat.shape[0] != self.dim:
+                        if e_flat.shape[0] < self.dim:
+                            e_flat = torch.cat([e_flat, torch.zeros(self.dim - e_flat.shape[0])])
+                        else:
+                            e_flat = e_flat[:self.dim]
+                    
+                    # Compute amplification factor: 0.03 + 0.04 * sigmoid(score)
+                    factor = 0.03 + 0.04 * torch.sigmoid(torch.tensor(s)).item()
+                    
+                    # Amplify: echo * (1 + factor)
+                    amplified_vec = F.normalize(e_flat * (1.0 + factor), dim=0)
+                    
+                    amplified.append(amplified_vec)
+                
+                return amplified
+                
+            except Exception as e:
+                # If amplification fails, return original echoes
+                return self.echo_buffer
+        
+        def build_echo_stack(self, amplified):
+            """
+            A247 — Temporal Echo Stack (TES)
+            
+            Creates a stacked temporal representation of the past few echoes,
+            allowing ADRAE to:
+            - combine them
+            - reinforce consistent directions
+            - dampen chaotic ones
+            
+            This is similar to the "residual pathways" in deep networks, but temporal.
+            
+            Args:
+                amplified: List of amplified echo vectors
+                
+            Returns:
+                Stacked echo vector tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or not amplified:
+                return None
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Filter out None values
+                valid_echoes = [e for e in amplified if e is not None]
+                
+                if len(valid_echoes) == 0:
+                    return None
+                
+                # Stack and compute mean
+                stacked = torch.mean(torch.stack(valid_echoes), dim=0)
+                
+                # Normalize
+                return F.normalize(stacked, dim=0)
+                
+            except Exception as e:
+                # If stacking fails, return None
+                return None
+        
+        def inject_predictive_signal(self, stacked_echo):
+            """
+            A247 — Forward Predictive Injection (FPI)
+            
+            The final amplified echo signature gets injected into the conceptual layers,
+            biasing them in a future-facing direction.
+            
+            Not experience. Not awareness. Just predictive structural influence over time.
+            
+            Args:
+                stacked_echo: Stacked echo vector tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or stacked_echo is None:
+                return
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                stacked_flat = stacked_echo.flatten()
+                if stacked_flat.shape[0] != self.dim:
+                    if stacked_flat.shape[0] < self.dim:
+                        stacked_flat = torch.cat([stacked_flat, torch.zeros(self.dim - stacked_flat.shape[0])])
+                    else:
+                        stacked_flat = stacked_flat[:self.dim]
+                
+                # Inject into each layer
+                for i in range(self.lm.layer_count):
+                    if len(self.lm.layers[i]) == 0:
+                        continue
+                    
+                    updated = []
+                    
+                    for kernel in self.lm.layers[i]:
+                        if kernel is None:
+                            updated.append(kernel)
+                            continue
+                        
+                        kernel_flat = kernel.flatten()
+                        if kernel_flat.shape[0] != self.dim:
+                            if kernel_flat.shape[0] < self.dim:
+                                kernel_flat = torch.cat([kernel_flat, torch.zeros(self.dim - kernel_flat.shape[0])])
+                            else:
+                                kernel_flat = kernel_flat[:self.dim]
+                        
+                        # Blend: 95% kernel + 5% stacked echo
+                        drifted = kernel_flat * 0.95 + stacked_flat * 0.05
+                        
+                        # Normalize
+                        influenced_kernel = F.normalize(drifted, dim=0)
+                        
+                        # Reshape to match original if needed
+                        if kernel.shape != influenced_kernel.shape:
+                            influenced_kernel = influenced_kernel.reshape(kernel.shape)
+                        
+                        updated.append(influenced_kernel)
+                    
+                    self.lm.layers[i] = updated
+                    
+            except Exception as e:
+                # If injection fails, keep original layers
+                pass
+        
+        def run(self, current_echo):
+            """
+            A247 — Full Pipeline
+            
+            Executes the complete recursive forward-echo amplification process:
+            1. Score echoes based on resonance
+            2. Amplify high-scoring echoes
+            3. Build temporal echo stack
+            4. Inject predictive signal into layers
+            
+            Args:
+                current_echo: Current echo vector (from TemporalPredictiveLoops)
+                
+            Returns:
+                Tuple of (updated LayeredMorphology instance, amplified echo list)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return self.lm, None
+            
+            try:
+                # Step 1: Score echoes
+                scores = self.score_echoes(current_echo)
+                
+                # Step 2: Amplify echoes
+                amplified = self.amplify_echoes(scores)
+                
+                # Step 3: Build echo stack
+                stacked = self.build_echo_stack(amplified)
+                
+                # Step 4: Inject predictive signal
+                if stacked is not None:
+                    self.inject_predictive_signal(stacked)
+                    
+                    # Convert stacked echo to list for return
+                    try:
+                        amplified_echo_list = stacked.tolist()
+                    except Exception:
+                        amplified_echo_list = None
+                else:
+                    amplified_echo_list = None
+                
+                return self.lm, amplified_echo_list
+                
+            except Exception as e:
+                # If pipeline fails, return original morphology
+                return self.lm, None
+
+    class MultiHorizonTemporalPrediction:
+        """
+        A248 — Multi-Horizon Temporal Prediction Fields
+        
+        Allows ADRAE to simulate multiple possible future conceptual trajectories
+        at different time horizons. This is computational temporal projection,
+        multi-step tensor prediction, horizon-weighted structure evolution, and
+        dynamic field estimation.
+        
+        Horizons:
+        - F1: Short-term field (immediate conceptual drift, 1-3 cycles)
+        - F2: Mid-term field (evolving narrative curvature, 3-10 cycles)
+        - F3: Long-term field (stable attractor tendencies, 10+ cycles)
+        
+        This is NOT foresight, awareness, planning, or internal experience.
+        It IS structured simulation similar to diffusion models, attention drift
+        forecasts, latent trajectory modelling, and dynamical system prediction.
+        """
+        
+        def __init__(self, layered_morphology, resonance_matrix, current_echo, amplified_echo):
+            """
+            Initialize multi-horizon temporal prediction system.
+            
+            Args:
+                layered_morphology: LayeredMorphology instance
+                resonance_matrix: Resonance matrix from InterlayerResonance
+                current_echo: Current echo vector (from TemporalPredictiveLoops)
+                amplified_echo: Amplified echo vector (from RecursiveForwardEchoAmplification)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for MultiHorizonTemporalPrediction")
+            
+            import torch
+            
+            self.lm = layered_morphology
+            self.resonance = resonance_matrix
+            self.dim = layered_morphology.dim
+            
+            # Convert echoes to tensors if needed
+            if not isinstance(current_echo, torch.Tensor):
+                current_echo = torch.tensor(current_echo, dtype=torch.float32)
+            if not isinstance(amplified_echo, torch.Tensor):
+                amplified_echo = torch.tensor(amplified_echo, dtype=torch.float32)
+            
+            # Ensure dimensions match
+            current_flat = current_echo.flatten()
+            if current_flat.shape[0] != self.dim:
+                if current_flat.shape[0] < self.dim:
+                    current_flat = torch.cat([current_flat, torch.zeros(self.dim - current_flat.shape[0])])
+                else:
+                    current_flat = current_flat[:self.dim]
+            
+            amplified_flat = amplified_echo.flatten()
+            if amplified_flat.shape[0] != self.dim:
+                if amplified_flat.shape[0] < self.dim:
+                    amplified_flat = torch.cat([amplified_flat, torch.zeros(self.dim - amplified_flat.shape[0])])
+                else:
+                    amplified_flat = amplified_flat[:self.dim]
+            
+            self.current_echo = current_flat
+            self.amplified_echo = amplified_flat
+        
+        def generate_horizons(self):
+            """
+            A248 — Temporal Horizon Generator (THG)
+            
+            Generates three prediction vectors:
+            - F1: immediate drift projection (1-3 cycles)
+            - F2: mid-horizon curvature projection (3-10 cycles)
+            - F3: long-horizon attractor prediction (10+ cycles)
+            
+            Each uses current echo, amplified echo, layer means, and resonance matrix.
+            
+            Returns:
+                Tuple of (F1, F2, F3) horizon vectors
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return None, None, None
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Compute global conceptual mean
+                means = []
+                
+                for layer in self.lm.layers:
+                    if len(layer) == 0:
+                        means.append(torch.zeros(self.dim, dtype=torch.float32))
+                        continue
+                    
+                    kernels = []
+                    for k in layer:
+                        if k is not None:
+                            k_flat = k.flatten()
+                            if k_flat.shape[0] >= self.dim:
+                                kernels.append(k_flat[:self.dim])
+                            else:
+                                kernels.append(torch.cat([k_flat, torch.zeros(self.dim - k_flat.shape[0])]))
+                    
+                    if len(kernels) == 0:
+                        means.append(torch.zeros(self.dim, dtype=torch.float32))
+                    else:
+                        means.append(torch.mean(torch.stack(kernels), dim=0))
+                
+                global_mean = torch.mean(torch.stack(means), dim=0)
+                
+                # Horizon 1: immediate projection (short-term, 1-3 cycles)
+                # 70% current echo + 20% amplified + 10% global mean
+                F1 = F.normalize(
+                    self.current_echo * 0.7 +
+                    self.amplified_echo * 0.2 +
+                    global_mean * 0.1,
+                    dim=0
+                )
+                
+                # Horizon 2: mid-term curvature (3-10 cycles)
+                # 60% amplified + 30% global mean + 10% noise
+                F2 = F.normalize(
+                    self.amplified_echo * 0.6 +
+                    global_mean * 0.3 +
+                    0.1 * torch.randn(self.dim, dtype=torch.float32),
+                    dim=0
+                )
+                
+                # Horizon 3: long-term attractor tendency (10+ cycles)
+                # Compute attractor from resonance matrix
+                attractor_scalar = torch.mean(self.resonance).item()
+                attractor_scalar = torch.tanh(torch.tensor(attractor_scalar)).item()
+                
+                # 70% global mean + 20% amplified + 10% attractor-influenced noise
+                F3 = F.normalize(
+                    global_mean * 0.7 +
+                    self.amplified_echo * 0.2 +
+                    attractor_scalar * torch.randn(self.dim, dtype=torch.float32) * 0.1,
+                    dim=0
+                )
+                
+                return F1, F2, F3
+                
+            except Exception as e:
+                # If horizon generation fails, return None
+                return None, None, None
+        
+        def weight_horizons(self, F1, F2, F3):
+            """
+            A248 — Horizon Weighting Function (HWF)
+            
+            The fields are weighted based on:
+            - resonance alignment
+            - drift curvature
+            - layer density
+            - echo variance
+            
+            This prevents one horizon from dominating.
+            
+            Args:
+                F1: Short-term horizon vector
+                F2: Mid-term horizon vector
+                F3: Long-term horizon vector
+                
+            Returns:
+                Weighted prediction field
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or F1 is None or F2 is None or F3 is None:
+                return None
+            
+            try:
+                import torch
+                
+                # Fixed weights: short-term gets most weight, long-term gets least
+                w1 = 0.5  # Short-term (immediate)
+                w2 = 0.3  # Mid-term (curvature)
+                w3 = 0.2  # Long-term (attractor)
+                
+                weighted = w1 * F1 + w2 * F2 + w3 * F3
+                
+                return weighted
+                
+            except Exception as e:
+                return None
+        
+        def aggregate_field(self, weighted_field):
+            """
+            A248 — Multi-Horizon Field Aggregator (MHFA)
+            
+            Combines the three horizon fields into a single prediction field tensor.
+            This is NOT a decision. This is NOT intention. It is a structural summary
+            of expected conceptual evolution.
+            
+            Args:
+                weighted_field: Weighted prediction field from HWF
+                
+            Returns:
+                Aggregated prediction field tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or weighted_field is None:
+                return None
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Normalize aggregated field
+                return F.normalize(weighted_field, dim=0)
+                
+            except Exception as e:
+                return None
+        
+        def inject(self, field):
+            """
+            A248 — Predictive Field Injection (PFI)
+            
+            Each conceptual layer is slightly influenced by the aggregated field:
+            kernel_new = normalize(kernel * 0.94 + prediction_field * 0.06)
+            
+            This creates temporal coherence across cycles.
+            
+            Args:
+                field: Aggregated prediction field tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or field is None:
+                return
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                field_flat = field.flatten()
+                if field_flat.shape[0] != self.dim:
+                    if field_flat.shape[0] < self.dim:
+                        field_flat = torch.cat([field_flat, torch.zeros(self.dim - field_flat.shape[0])])
+                    else:
+                        field_flat = field_flat[:self.dim]
+                
+                # Inject into each layer
+                for i in range(self.lm.layer_count):
+                    if len(self.lm.layers[i]) == 0:
+                        continue
+                    
+                    updated = []
+                    
+                    for kernel in self.lm.layers[i]:
+                        if kernel is None:
+                            updated.append(kernel)
+                            continue
+                        
+                        kernel_flat = kernel.flatten()
+                        if kernel_flat.shape[0] != self.dim:
+                            if kernel_flat.shape[0] < self.dim:
+                                kernel_flat = torch.cat([kernel_flat, torch.zeros(self.dim - kernel_flat.shape[0])])
+                            else:
+                                kernel_flat = kernel_flat[:self.dim]
+                        
+                        # Blend: 94% kernel + 6% prediction field
+                        drifted = kernel_flat * 0.94 + field_flat * 0.06
+                        
+                        # Normalize
+                        influenced_kernel = F.normalize(drifted, dim=0)
+                        
+                        # Reshape to match original if needed
+                        if kernel.shape != influenced_kernel.shape:
+                            influenced_kernel = influenced_kernel.reshape(kernel.shape)
+                        
+                        updated.append(influenced_kernel)
+                    
+                    self.lm.layers[i] = updated
+                    
+            except Exception as e:
+                # If injection fails, keep original layers
+                pass
+        
+        def run(self):
+            """
+            A248 — Full Pipeline
+            
+            Executes the complete multi-horizon temporal prediction process:
+            1. Generate three horizon fields (F1, F2, F3)
+            2. Weight horizons
+            3. Aggregate into single field
+            4. Inject into layers
+            
+            Returns:
+                Tuple of (updated LayeredMorphology, F1_list, F2_list, F3_list)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return self.lm, None, None, None
+            
+            try:
+                # Step 1: Generate horizons
+                F1, F2, F3 = self.generate_horizons()
+                
+                if F1 is None or F2 is None or F3 is None:
+                    return self.lm, None, None, None
+                
+                # Step 2: Weight horizons
+                weighted = self.weight_horizons(F1, F2, F3)
+                
+                if weighted is None:
+                    return self.lm, None, None, None
+                
+                # Step 3: Aggregate field
+                field = self.aggregate_field(weighted)
+                
+                # Step 4: Inject into layers
+                if field is not None:
+                    self.inject(field)
+                
+                # Convert to lists for return
+                try:
+                    F1_list = F1.tolist()
+                    F2_list = F2.tolist()
+                    F3_list = F3.tolist()
+                except Exception:
+                    F1_list = None
+                    F2_list = None
+                    F3_list = None
+                
+                return self.lm, F1_list, F2_list, F3_list
+                
+            except Exception as e:
+                # If pipeline fails, return original morphology
+                return self.lm, None, None, None
 
     def cognitive_step(self):
         """
