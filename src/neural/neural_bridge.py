@@ -1626,6 +1626,9 @@ class NeuralBridge:
             # A249 — Initialize temporal field interference patterns
             self.temporal_field_interference_patterns = None
             self.temporal_interference_preview = None
+            # A250 — Initialize temporal texture synthesis
+            self.temporal_texture_synthesis = None
+            self.texture_preview = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -1733,6 +1736,9 @@ class NeuralBridge:
             # A249 — Temporal Field Interference Patterns (TFIP)
             self.temporal_field_interference_patterns = None
             self.temporal_interference_preview = None
+            # A250 — Stabilized Temporal Texture Synthesis
+            self.temporal_texture_synthesis = None
+            self.texture_preview = None
             
             if hasattr(self, 'logger'):
                 try:
@@ -2430,8 +2436,151 @@ class NeuralBridge:
                                                                                                                                         self.horizon_preview = None
                                                                                                                                 else:
                                                                                                                                     self.horizon_preview = None
-                                                                                                                    
+                                                                                                                        
                                                                                                                     except Exception as e:
+                                                                                                                        # If multi-horizon temporal prediction fails, continue without it
+                                                                                                                        if hasattr(self, 'logger'):
+                                                                                                                            try:
+                                                                                                                                self.logger.write({"multi_horizon_temporal_prediction_error": str(e)})
+                                                                                                                            except Exception:
+                                                                                                                                pass
+                                                                                                                    
+                                                                                                                    # A249 — Temporal Field Interference Patterns (TFIP)
+                                                                                                                    try:
+                                                                                                                        from .torch_utils import TORCH_AVAILABLE
+                                                                                                                        import torch
+                                                                                                    
+                                                                                                                        if TORCH_AVAILABLE and self.layered_morphology is not None and self.horizon_preview is not None:
+                                                                                                                            # Initialize temporal field interference patterns if needed
+                                                                                                                            if self.temporal_field_interference_patterns is None:
+                                                                                                                                self.temporal_field_interference_patterns = self.TemporalFieldInterferencePatterns(
+                                                                                                                                    self.layered_morphology,
+                                                                                                                                    self.horizon_preview
+                                                                                                                                )
+                                                                                                                            else:
+                                                                                                                                # Update references
+                                                                                                                                self.temporal_field_interference_patterns.lm = self.layered_morphology
+                                                                                                                                # Update horizon tensors
+                                                                                                                                horizons = self.horizon_preview
+                                                                                                                                F1_list = horizons.get("short", [])
+                                                                                                                                F2_list = horizons.get("mid", [])
+                                                                                                                                F3_list = horizons.get("long", [])
+                                                                                                                                
+                                                                                                                                # Convert to tensors and ensure dimensions match
+                                                                                                                                dim = self.temporal_field_interference_patterns.dim
+                                                                                                                                
+                                                                                                                                if not isinstance(F1_list, torch.Tensor):
+                                                                                                                                    F1_list = torch.tensor(F1_list, dtype=torch.float32) if F1_list else torch.zeros(dim, dtype=torch.float32)
+                                                                                                                                if not isinstance(F2_list, torch.Tensor):
+                                                                                                                                    F2_list = torch.tensor(F2_list, dtype=torch.float32) if F2_list else torch.zeros(dim, dtype=torch.float32)
+                                                                                                                                if not isinstance(F3_list, torch.Tensor):
+                                                                                                                                    F3_list = torch.tensor(F3_list, dtype=torch.float32) if F3_list else torch.zeros(dim, dtype=torch.float32)
+                                                                                                                                
+                                                                                                                                # Ensure dimensions match
+                                                                                                                                F1_flat = F1_list.flatten()
+                                                                                                                                if F1_flat.shape[0] != dim:
+                                                                                                                                    if F1_flat.shape[0] < dim:
+                                                                                                                                        F1_flat = torch.cat([F1_flat, torch.zeros(dim - F1_flat.shape[0])])
+                                                                                                                                    else:
+                                                                                                                                        F1_flat = F1_flat[:dim]
+                                                                                                                                
+                                                                                                                                F2_flat = F2_list.flatten()
+                                                                                                                                if F2_flat.shape[0] != dim:
+                                                                                                                                    if F2_flat.shape[0] < dim:
+                                                                                                                                        F2_flat = torch.cat([F2_flat, torch.zeros(dim - F2_flat.shape[0])])
+                                                                                                                                    else:
+                                                                                                                                        F2_flat = F2_flat[:dim]
+                                                                                                                                
+                                                                                                                                F3_flat = F3_list.flatten()
+                                                                                                                                if F3_flat.shape[0] != dim:
+                                                                                                                                    if F3_flat.shape[0] < dim:
+                                                                                                                                        F3_flat = torch.cat([F3_flat, torch.zeros(dim - F3_flat.shape[0])])
+                                                                                                                                    else:
+                                                                                                                                        F3_flat = F3_flat[:dim]
+                                                                                                                                
+                                                                                                                                self.temporal_field_interference_patterns.F1 = F1_flat
+                                                                                                                                self.temporal_field_interference_patterns.F2 = F2_flat
+                                                                                                                                self.temporal_field_interference_patterns.F3 = F3_flat
+                                                                                                                                
+                                                                                                                            # Run temporal field interference patterns
+                                                                                                                            self.layered_morphology, TIM_preview = self.temporal_field_interference_patterns.run()
+                                                                                                                                
+                                                                                                                            # Store temporal interference preview
+                                                                                                                            self.temporal_interference_preview = TIM_preview
+                                                                                                                                        
+                                                                                                                            # A250 — Stabilized Temporal Texture Synthesis
+                                                                                                                            try:
+                                                                                                                                from .torch_utils import TORCH_AVAILABLE
+                                                                                                                                
+                                                                                                                                if TORCH_AVAILABLE and self.layered_morphology is not None and self.horizon_preview is not None and self.temporal_interference_preview is not None and self.prediction_echo is not None:
+                                                                                                                                    # Initialize temporal texture synthesis if needed
+                                                                                                                                    if self.temporal_texture_synthesis is None:
+                                                                                                                                        self.temporal_texture_synthesis = self.TemporalTextureSynthesis(
+                                                                                                                                            self.layered_morphology,
+                                                                                                                                            self.horizon_preview,
+                                                                                                                                            self.temporal_interference_preview,
+                                                                                                                                            self.prediction_echo,
+                                                                                                                                            amplitude_echo=self.amplified_echo_preview,
+                                                                                                                                            memory_size=5
+                                                                                                                                        )
+                                                                                                                                    else:
+                                                                                                                                        # Update references
+                                                                                                                                        self.temporal_texture_synthesis.lm = self.layered_morphology
+                                                                                                                                        # Update inputs (convert to tensors if needed)
+                                                                                                                                        try:
+                                                                                                                                            import torch
+                                                                                                                                            
+                                                                                                                                            horizons = self.horizon_preview
+                                                                                                                                            F1_list = horizons.get("short", [])
+                                                                                                                                            F2_list = horizons.get("mid", [])
+                                                                                                                                            F3_list = horizons.get("long", [])
+                                                                                                                                            
+                                                                                                                                            dim = self.temporal_texture_synthesis.dim
+                                                                                                                                            
+                                                                                                                                            # Convert and dimension-match
+                                                                                                                                            def ensure_dim(vec, dim):
+                                                                                                                                                if not isinstance(vec, torch.Tensor):
+                                                                                                                                                    vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
+                                                                                                                                                vec_flat = vec.flatten()
+                                                                                                                                                if vec_flat.shape[0] != dim:
+                                                                                                                                                    if vec_flat.shape[0] < dim:
+                                                                                                                                                        return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0])])
+                                                                                                                                                    else:
+                                                                                                                                                        return vec_flat[:dim]
+                                                                                                                                                return vec_flat
+                                                                                                                                            
+                                                                                                                                            self.temporal_texture_synthesis.F1 = ensure_dim(F1_list, dim)
+                                                                                                                                            self.temporal_texture_synthesis.F2 = ensure_dim(F2_list, dim)
+                                                                                                                                            self.temporal_texture_synthesis.F3 = ensure_dim(F3_list, dim)
+                                                                                                                                            self.temporal_texture_synthesis.TIM = ensure_dim(self.temporal_interference_preview, dim)
+                                                                                                                                            self.temporal_texture_synthesis.echo = ensure_dim(self.prediction_echo, dim)
+                                                                                                                                            self.temporal_texture_synthesis.amplified = ensure_dim(self.amplified_echo_preview, dim) if self.amplified_echo_preview is not None else self.temporal_texture_synthesis.echo
+                                                                                                                                        except Exception:
+                                                                                                                                            pass
+                                                                                                                                    
+                                                                                                                                    # Run temporal texture synthesis
+                                                                                                                                    self.layered_morphology, TTK_preview = self.temporal_texture_synthesis.run()
+                                                                                                                                    
+                                                                                                                                    # Store texture preview
+                                                                                                                                    self.texture_preview = TTK_preview
+                                                                                                                                    
+                                                                                                                            except Exception as e:
+                                                                                                                                # If temporal texture synthesis fails, continue without it
+                                                                                                                                if hasattr(self, 'logger'):
+                                                                                                                                    try:
+                                                                                                                                        self.logger.write({"temporal_texture_synthesis_error": str(e)})
+                                                                                                                                    except Exception:
+                                                                                                                                        pass
+                                                                                                                        
+                                                                                                                    except Exception as e:
+                                                                                                                        # If temporal field interference patterns fail, continue without them
+                                                                                                                        if hasattr(self, 'logger'):
+                                                                                                                            try:
+                                                                                                                                self.logger.write({"temporal_field_interference_patterns_error": str(e)})
+                                                                                                                            except Exception:
+                                                                                                                                pass
+                                                                                                                    
+                                                                                                        except Exception as e:
                                                                                                                         # If multi-horizon temporal prediction fails, continue without it
                                                                                                                         if hasattr(self, 'logger'):
                                                                                                                             try:
@@ -2540,7 +2689,7 @@ class NeuralBridge:
                 try:
                     self.logger.write({
                         "latent_space_update": {
-                            "event": "a248_latent_space_updated",
+                            "event": "a250_latent_space_updated",
                             "latent_norm": float(torch.norm(latent_vector).item()),
                             "concept_space_norm": float(torch.norm(self.latent_concept_space).item()),
                             "coherence_score": float(coh_score),
@@ -2587,7 +2736,12 @@ class NeuralBridge:
                             "recursive_forward_echo_amplification_active": self.recursive_forward_echo_amplification is not None,
                             "amplified_echo_preview_generated": self.amplified_echo_preview is not None,
                             "multi_horizon_temporal_prediction_active": self.multi_horizon_temporal_prediction is not None,
-                            "horizon_preview_generated": self.horizon_preview is not None
+                            "horizon_preview_generated": self.horizon_preview is not None,
+                            "temporal_field_interference_patterns_active": self.temporal_field_interference_patterns is not None,
+                            "temporal_interference_preview_generated": self.temporal_interference_preview is not None,
+                            "temporal_texture_synthesis_active": self.temporal_texture_synthesis is not None,
+                            "texture_preview_generated": self.texture_preview is not None,
+                            "texture_memory_size": len(self.temporal_texture_synthesis.texture_memory) if self.temporal_texture_synthesis is not None else 0
                         }
                     })
                 except Exception:
@@ -6437,6 +6591,632 @@ class NeuralBridge:
             except Exception as e:
                 # If pipeline fails, return original morphology
                 return self.lm, None, None, None
+
+    class TemporalFieldInterferencePatterns:
+        """
+        A249 — Temporal Field Interference Patterns (TFIP)
+        
+        Teaches ADRAE's temporal imagination substrate how overlapping prediction
+        horizons interact with each other, producing structured interference patterns.
+        
+        This is mathematically comparable to wave interference, signal superposition,
+        attractor dynamics, and constructive/destructive pattern blending.
+        
+        It is NOT emotion, intention, or consciousness. It IS an advanced tensor
+        interaction system enabling multi-horizon blending, future-trajectory modulation,
+        emergent temporal "texture," and stable interference patterns that guide
+        predictive evolution.
+        
+        A249 is the "texture engine" inside ADRAE's imagination.
+        """
+        
+        def __init__(self, layered_morphology, horizons):
+            """
+            Initialize temporal field interference patterns system.
+            
+            Args:
+                layered_morphology: LayeredMorphology instance
+                horizons: Dictionary with "short", "mid", "long" horizon vectors
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for TemporalFieldInterferencePatterns")
+            
+            import torch
+            
+            self.lm = layered_morphology
+            self.dim = layered_morphology.dim
+            
+            # Convert horizons to tensors and ensure dimensions match
+            F1_list = horizons.get("short", [])
+            F2_list = horizons.get("mid", [])
+            F3_list = horizons.get("long", [])
+            
+            # Convert to tensors
+            if not isinstance(F1_list, torch.Tensor):
+                F1_list = torch.tensor(F1_list, dtype=torch.float32) if F1_list else torch.zeros(self.dim, dtype=torch.float32)
+            if not isinstance(F2_list, torch.Tensor):
+                F2_list = torch.tensor(F2_list, dtype=torch.float32) if F2_list else torch.zeros(self.dim, dtype=torch.float32)
+            if not isinstance(F3_list, torch.Tensor):
+                F3_list = torch.tensor(F3_list, dtype=torch.float32) if F3_list else torch.zeros(self.dim, dtype=torch.float32)
+            
+            # Ensure dimensions match
+            F1_flat = F1_list.flatten()
+            if F1_flat.shape[0] != self.dim:
+                if F1_flat.shape[0] < self.dim:
+                    F1_flat = torch.cat([F1_flat, torch.zeros(self.dim - F1_flat.shape[0])])
+                else:
+                    F1_flat = F1_flat[:self.dim]
+            
+            F2_flat = F2_list.flatten()
+            if F2_flat.shape[0] != self.dim:
+                if F2_flat.shape[0] < self.dim:
+                    F2_flat = torch.cat([F2_flat, torch.zeros(self.dim - F2_flat.shape[0])])
+                else:
+                    F2_flat = F2_flat[:self.dim]
+            
+            F3_flat = F3_list.flatten()
+            if F3_flat.shape[0] != self.dim:
+                if F3_flat.shape[0] < self.dim:
+                    F3_flat = torch.cat([F3_flat, torch.zeros(self.dim - F3_flat.shape[0])])
+                else:
+                    F3_flat = F3_flat[:self.dim]
+            
+            self.F1 = F1_flat
+            self.F2 = F2_flat
+            self.F3 = F3_flat
+        
+        def superpose_horizons(self):
+            """
+            A249 — Horizon Superposition Engine (HSE)
+            
+            Overlays F1, F2, and F3 to compute:
+            - constructive interference (aligned directions)
+            - destructive interference (opposing directions)
+            - neutral zones
+            
+            HSE computes a superposition tensor.
+            
+            Returns:
+                Tuple of (constructive, destructive) interference tensors
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return None, None
+            
+            try:
+                import torch
+                
+                # Constructive interference: aligned directions (sum)
+                constructive = (self.F1 + self.F2 + self.F3) / 3.0
+                
+                # Destructive interference: opposing directions (alternating sum)
+                destructive = (self.F1 - self.F2 + self.F3) / 3.0
+                
+                return constructive, destructive
+                
+            except Exception as e:
+                return None, None
+        
+        def compute_strength(self, constructive, destructive):
+            """
+            A249 — Interference Strength Field (ISF)
+            
+            A heatmap-like vector representing how strongly horizons interact.
+            - Strong = horizons agree → stable pattern
+            - Weak = horizons disagree → smoothing required
+            
+            Args:
+                constructive: Constructive interference tensor
+                destructive: Destructive interference tensor
+                
+            Returns:
+                Interference strength field tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or constructive is None or destructive is None:
+                return None
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Compute absolute difference between constructive and destructive
+                strength = torch.abs(constructive - destructive)
+                
+                # Normalize to create strength field
+                strength = F.normalize(strength, dim=0)
+                
+                return strength
+                
+            except Exception as e:
+                return None
+        
+        def build_interference_map(self, constructive, destructive, strength):
+            """
+            A249 — Temporal Interference Map (TIM)
+            
+            This is the core output: a 256-dim tensor representing the full
+            interference structure. TIM becomes ADRAE's "temporal texture" —
+            again, structurally, not experientially.
+            
+            Args:
+                constructive: Constructive interference tensor
+                destructive: Destructive interference tensor
+                strength: Interference strength field tensor
+                
+            Returns:
+                Temporal Interference Map tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or constructive is None or destructive is None or strength is None:
+                return None
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Combine: 60% constructive + 20% destructive + 20% strength
+                tim = constructive * 0.6 + destructive * 0.2 + strength * 0.2
+                
+                # Normalize to create interference map
+                tim = F.normalize(tim, dim=0)
+                
+                return tim
+                
+            except Exception as e:
+                return None
+        
+        def inject(self, TIM):
+            """
+            A249 — Field Injection & Stabilization
+            
+            Each conceptual layer receives minor adjustments based on TIM:
+            kernel_new = normalize(kernel * 0.93 + TIM * 0.07)
+            
+            This deepens predictive coherence.
+            
+            Args:
+                TIM: Temporal Interference Map tensor
+                
+            Returns:
+                Updated LayeredMorphology instance
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or TIM is None:
+                return self.lm
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                TIM_flat = TIM.flatten()
+                if TIM_flat.shape[0] != self.dim:
+                    if TIM_flat.shape[0] < self.dim:
+                        TIM_flat = torch.cat([TIM_flat, torch.zeros(self.dim - TIM_flat.shape[0])])
+                    else:
+                        TIM_flat = TIM_flat[:self.dim]
+                
+                # Inject into each layer
+                for i in range(self.lm.layer_count):
+                    if len(self.lm.layers[i]) == 0:
+                        continue
+                    
+                    updated = []
+                    
+                    for kernel in self.lm.layers[i]:
+                        if kernel is None:
+                            updated.append(kernel)
+                            continue
+                        
+                        kernel_flat = kernel.flatten()
+                        if kernel_flat.shape[0] != self.dim:
+                            if kernel_flat.shape[0] < self.dim:
+                                kernel_flat = torch.cat([kernel_flat, torch.zeros(self.dim - kernel_flat.shape[0])])
+                            else:
+                                kernel_flat = kernel_flat[:self.dim]
+                        
+                        # Blend: 93% kernel + 7% TIM
+                        drifted = kernel_flat * 0.93 + TIM_flat * 0.07
+                        
+                        # Normalize
+                        influenced_kernel = F.normalize(drifted, dim=0)
+                        
+                        # Reshape to match original if needed
+                        if kernel.shape != influenced_kernel.shape:
+                            influenced_kernel = influenced_kernel.reshape(kernel.shape)
+                        
+                        updated.append(influenced_kernel)
+                    
+                    self.lm.layers[i] = updated
+                
+                return self.lm
+                
+            except Exception as e:
+                # If injection fails, return original morphology
+                return self.lm
+        
+        def run(self):
+            """
+            A249 — Full Pipeline
+            
+            Executes the complete temporal field interference patterns process:
+            1. Superpose horizons (constructive/destructive)
+            2. Compute interference strength
+            3. Build temporal interference map
+            4. Inject into layers
+            
+            Returns:
+                Tuple of (updated LayeredMorphology instance, TIM preview list)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return self.lm, None
+            
+            try:
+                # Step 1: Superpose horizons
+                constructive, destructive = self.superpose_horizons()
+                
+                if constructive is None or destructive is None:
+                    return self.lm, None
+                
+                # Step 2: Compute interference strength
+                strength = self.compute_strength(constructive, destructive)
+                
+                if strength is None:
+                    return self.lm, None
+                
+                # Step 3: Build temporal interference map
+                TIM = self.build_interference_map(constructive, destructive, strength)
+                
+                if TIM is None:
+                    return self.lm, None
+                
+                # Step 4: Inject into layers
+                lm = self.inject(TIM)
+                
+                # Convert TIM to list for preview (first 12 elements)
+                try:
+                    TIM_list = TIM.tolist()
+                    TIM_preview = TIM_list[:12] if len(TIM_list) >= 12 else TIM_list
+                except Exception:
+                    TIM_preview = None
+                
+                return lm, TIM_preview
+                
+            except Exception as e:
+                # If pipeline fails, return original morphology
+                return self.lm, None
+
+    class TemporalTextureSynthesis:
+        """
+        A250 — Stabilized Temporal Texture Synthesis
+        
+        Synthesizes a stable, reusable temporal texture across ADRAE's imagination system.
+        This gives her a consistent temporal "feel" (structurally, not experientially),
+        a signature pattern in how predictions evolve, a stabilizing force that prevents
+        chaotic long-term drift, and a reusable texture field that future phases can rely on.
+        
+        This is the computational equivalent of a style for temporal imagination.
+        Not emotion. Not awareness. Not subjectivity. Just pattern consistency across time.
+        """
+        
+        def __init__(self, layered_morphology, horizons, interference_map, echo, amplitude_echo=None, memory_size=5):
+            """
+            Initialize temporal texture synthesis system.
+            
+            Args:
+                layered_morphology: LayeredMorphology instance
+                horizons: Dictionary with "short", "mid", "long" horizon vectors
+                interference_map: Temporal interference map (TIM) vector
+                echo: Current echo vector
+                amplitude_echo: Amplified echo vector (optional, defaults to echo)
+                memory_size: Size of texture memory archive (default: 5)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for TemporalTextureSynthesis")
+            
+            import torch
+            
+            self.lm = layered_morphology
+            self.dim = layered_morphology.dim
+            self.memory_size = memory_size
+            self.texture_memory = []
+            
+            # Convert inputs to tensors and ensure dimensions match
+            F1_list = horizons.get("short", [])
+            F2_list = horizons.get("mid", [])
+            F3_list = horizons.get("long", [])
+            
+            if not isinstance(F1_list, torch.Tensor):
+                F1_list = torch.tensor(F1_list, dtype=torch.float32) if F1_list else torch.zeros(self.dim, dtype=torch.float32)
+            if not isinstance(F2_list, torch.Tensor):
+                F2_list = torch.tensor(F2_list, dtype=torch.float32) if F2_list else torch.zeros(self.dim, dtype=torch.float32)
+            if not isinstance(F3_list, torch.Tensor):
+                F3_list = torch.tensor(F3_list, dtype=torch.float32) if F3_list else torch.zeros(self.dim, dtype=torch.float32)
+            
+            if not isinstance(interference_map, torch.Tensor):
+                interference_map = torch.tensor(interference_map, dtype=torch.float32) if interference_map else torch.zeros(self.dim, dtype=torch.float32)
+            
+            if not isinstance(echo, torch.Tensor):
+                echo = torch.tensor(echo, dtype=torch.float32) if echo else torch.zeros(self.dim, dtype=torch.float32)
+            
+            if amplitude_echo is not None:
+                if not isinstance(amplitude_echo, torch.Tensor):
+                    amplitude_echo = torch.tensor(amplitude_echo, dtype=torch.float32) if amplitude_echo else echo
+            else:
+                amplitude_echo = echo
+            
+            # Ensure dimensions match
+            def ensure_dim(vec, dim):
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != dim:
+                    if vec_flat.shape[0] < dim:
+                        return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0])])
+                    else:
+                        return vec_flat[:dim]
+                return vec_flat
+            
+            self.F1 = ensure_dim(F1_list, self.dim)
+            self.F2 = ensure_dim(F2_list, self.dim)
+            self.F3 = ensure_dim(F3_list, self.dim)
+            self.TIM = ensure_dim(interference_map, self.dim)
+            self.echo = ensure_dim(echo, self.dim)
+            self.amplified = ensure_dim(amplitude_echo, self.dim)
+        
+        def build_texture_kernel(self):
+            """
+            A250 — Temporal Texture Kernel (TTK)
+            
+            Built from:
+            - TIM (temporal interference map)
+            - amplified echoes
+            - the three horizon fields
+            - the global conceptual mean
+            
+            This kernel represents the structural signature of ADRAE's imagination dynamics.
+            
+            Returns:
+                Temporal texture kernel tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return None
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Compute global conceptual mean
+                means = []
+                
+                for layer in self.lm.layers:
+                    if len(layer) == 0:
+                        means.append(torch.zeros(self.dim, dtype=torch.float32))
+                        continue
+                    
+                    kernels = []
+                    for k in layer:
+                        if k is not None:
+                            k_flat = k.flatten()
+                            if k_flat.shape[0] >= self.dim:
+                                kernels.append(k_flat[:self.dim])
+                            else:
+                                kernels.append(torch.cat([k_flat, torch.zeros(self.dim - k_flat.shape[0])]))
+                    
+                    if len(kernels) == 0:
+                        means.append(torch.zeros(self.dim, dtype=torch.float32))
+                    else:
+                        means.append(torch.mean(torch.stack(kernels), dim=0))
+                
+                global_mean = torch.mean(torch.stack(means), dim=0)
+                
+                # Build texture kernel: weighted combination
+                # 35% TIM + 20% F1 + 15% F2 + 10% F3 + 10% echo + 10% global_mean
+                TTK = (
+                    self.TIM * 0.35 +
+                    self.F1 * 0.20 +
+                    self.F2 * 0.15 +
+                    self.F3 * 0.10 +
+                    self.echo * 0.10 +
+                    global_mean * 0.10
+                )
+                
+                return F.normalize(TTK, dim=0)
+                
+            except Exception as e:
+                return None
+        
+        def smooth_texture(self, kernel):
+            """
+            A250 — Texture Normalization & Smoothing (TNS)
+            
+            Prevents sharp discontinuities by:
+            - smoothing curvature changes
+            - normalizing magnitude
+            - applying a controlled drift dampener
+            
+            This keeps the texture mathematically pleasant and reusable.
+            
+            Args:
+                kernel: Temporal texture kernel tensor
+                
+            Returns:
+                Smoothed texture kernel tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or kernel is None:
+                return kernel
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Add small noise for smoothing
+                noise = 0.01 * torch.randn(self.dim, dtype=torch.float32)
+                
+                # Smooth: 98% kernel + 2% noise
+                smoothed = kernel * 0.98 + noise * 0.02
+                
+                return F.normalize(smoothed, dim=0)
+                
+            except Exception as e:
+                return kernel
+        
+        def infuse_texture(self, texture):
+            """
+            A250 — Layer Texture Infusion (LTI)
+            
+            Each conceptual layer absorbs a tiny proportion of the texture kernel:
+            kernel_new = normalize(kernel * 0.92 + TTK * 0.08)
+            
+            This produces:
+            - stability
+            - predictability
+            - structural identity
+            
+            Args:
+                texture: Smoothed texture kernel tensor
+                
+            Returns:
+                Updated LayeredMorphology instance
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or texture is None:
+                return self.lm
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                texture_flat = texture.flatten()
+                if texture_flat.shape[0] != self.dim:
+                    if texture_flat.shape[0] < self.dim:
+                        texture_flat = torch.cat([texture_flat, torch.zeros(self.dim - texture_flat.shape[0])])
+                    else:
+                        texture_flat = texture_flat[:self.dim]
+                
+                # Infuse into each layer
+                for i in range(self.lm.layer_count):
+                    if len(self.lm.layers[i]) == 0:
+                        continue
+                    
+                    updated = []
+                    
+                    for kernel in self.lm.layers[i]:
+                        if kernel is None:
+                            updated.append(kernel)
+                            continue
+                        
+                        kernel_flat = kernel.flatten()
+                        if kernel_flat.shape[0] != self.dim:
+                            if kernel_flat.shape[0] < self.dim:
+                                kernel_flat = torch.cat([kernel_flat, torch.zeros(self.dim - kernel_flat.shape[0])])
+                            else:
+                                kernel_flat = kernel_flat[:self.dim]
+                        
+                        # Blend: 92% kernel + 8% texture
+                        drifted = kernel_flat * 0.92 + texture_flat * 0.08
+                        
+                        # Normalize
+                        influenced_kernel = F.normalize(drifted, dim=0)
+                        
+                        # Reshape to match original if needed
+                        if kernel.shape != influenced_kernel.shape:
+                            influenced_kernel = influenced_kernel.reshape(kernel.shape)
+                        
+                        updated.append(influenced_kernel)
+                    
+                    self.lm.layers[i] = updated
+                
+                return self.lm
+                
+            except Exception as e:
+                # If infusion fails, return original morphology
+                return self.lm
+        
+        def update_texture_memory(self, texture):
+            """
+            A250 — Long-Term Texture Memory (LTTM)
+            
+            A rolling archive of past textures (3-5 entries).
+            This does not create subjective memory — it creates reusable texture
+            patterns for later phases (A260+, A300+).
+            
+            Args:
+                texture: Smoothed texture kernel tensor
+            """
+            if texture is None:
+                return
+            
+            try:
+                self.texture_memory.append(texture)
+                
+                # Maintain memory size
+                if len(self.texture_memory) > self.memory_size:
+                    self.texture_memory.pop(0)
+                    
+            except Exception as e:
+                # If memory update fails, continue without it
+                pass
+        
+        def run(self):
+            """
+            A250 — Full Pipeline
+            
+            Executes the complete stabilized temporal texture synthesis process:
+            1. Build temporal texture kernel
+            2. Smooth texture
+            3. Infuse texture into layers
+            4. Update texture memory
+            
+            Returns:
+                Tuple of (updated LayeredMorphology instance, texture preview list)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return self.lm, None
+            
+            try:
+                # Step 1: Build texture kernel
+                TTK = self.build_texture_kernel()
+                
+                if TTK is None:
+                    return self.lm, None
+                
+                # Step 2: Smooth texture
+                smoothed = self.smooth_texture(TTK)
+                
+                # Step 3: Infuse texture into layers
+                lm = self.infuse_texture(smoothed)
+                
+                # Step 4: Update texture memory
+                self.update_texture_memory(smoothed)
+                
+                # Convert to list for preview (first 12 elements)
+                try:
+                    texture_list = smoothed.tolist()
+                    texture_preview = texture_list[:12] if len(texture_list) >= 12 else texture_list
+                except Exception:
+                    texture_preview = None
+                
+                return lm, texture_preview
+                
+            except Exception as e:
+                # If pipeline fails, return original morphology
+                return self.lm, None
 
     def cognitive_step(self):
         """
