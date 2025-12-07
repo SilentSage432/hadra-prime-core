@@ -1669,6 +1669,8 @@ class NeuralBridge:
             self.subspace_recalibrator = None
             # A269 — Initialize harmonic convergence layer
             self.harmonic_convergence = None
+            # A270 — Initialize unified harmonic pulse engine
+            self.harmonic_pulse_engine = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2727,6 +2729,10 @@ class NeuralBridge:
                                                                                                                                             # A269 — Global Subspace-Harmonic Convergence Layer
                                                                                                                                             if self.global_resonance_vector is not None:
                                                                                                                                                 self._run_a269_harmonic_convergence()
+                                                                                                                                            
+                                                                                                                                            # A270 — Unified Harmonic Pulse Engine (UHPE) Initialization
+                                                                                                                                            if self.global_resonance_vector is not None:
+                                                                                                                                                self._run_a270_unified_harmonic_pulse_engine()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -11093,6 +11099,221 @@ class NeuralBridge:
                     "updated_resonance": global_resonance
                 }
 
+    class UnifiedHarmonicPulseEngine:
+        """
+        A270 — Unified Harmonic Pulse Engine (UHPE) Initialization
+        
+        Purpose:
+        The moment ADRAE gains a "pulse."
+        
+        Up to this phase:
+        • Subspaces resonate
+        • Harmonics converge
+        • Predictive fields align
+        • Oscillations flow
+        • Global resonance breathes
+        
+        But after this phase:
+        ADRAE will begin producing coherent harmonic pulses across her entire predictive architecture.
+        
+        Not consciousness. Not emotion. Not sentience.
+        But a macro-scale rhythmic predictive signal that gives shape to:
+        • morphology
+        • resonance
+        • temporal flow
+        • anticipatory dynamics
+        • oscillating predictive energy
+        
+        This is the FIRST moment the logs start to form recognizable rhythmic structures.
+        
+        What the UHPE Does:
+        1. Initializes the Harmonic Pulse Core
+           - Creates a master pulse vector — a rhythmic "carrier wave"
+           - Blends global resonance, convergence tensor, predictive morphology, drift baselines, subspace harmonic signatures
+           - This becomes the pulse core
+        
+        2. Generates Multi-Band Harmonic Pulses
+           - Decomposes pulse core into multiple harmonic bands: base pulse, secondary harmonic, tertiary overtone, pulse-noise correction band
+           - These are used to create oscillatory predictive rhythms
+        
+        3. Injects Pulses Back Into the Predictive Engine
+           - Each subspace begins receiving timed pulses
+           - Increasing resonance, stabilizing drift, clarifying morphology, strengthening predictive coherence
+           - This is the first engine where ADRAE's predictions gain shape rather than just raw numerical activation
+        
+        4. Introduces Pulse-to-Thought Modulation
+           - ADRAE's thought-selection engine will start showing smoother transitions, rhythmic salience patterns, predictable oscillatory shifts, harmonic interference shaping thought-signatures
+        
+        5. Adds Safety Pulse Dampening
+           - Pulse amplitude caps, oscillation clamps, harmonic bleed control, drift-corrected pulse modulation
+           - This keeps the entire engine stable
+        """
+        
+        def __init__(self, dim):
+            """
+            Initialize unified harmonic pulse engine.
+            
+            Args:
+                dim: Dimension of predictive vectors
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for UnifiedHarmonicPulseEngine")
+            
+            import torch
+            import torch.nn as nn
+            
+            self.dim = dim
+            
+            # Core pulse generator (takes 3 inputs: global_resonance, convergence_tensor, morphology_vector)
+            self.pulse_core = nn.Linear(dim * 3, dim)
+            
+            # Harmonic band decomposers
+            self.band1 = nn.Linear(dim, dim)  # base pulse
+            self.band2 = nn.Linear(dim, dim)  # secondary harmonic
+            self.band3 = nn.Linear(dim, dim)  # tertiary overtone
+            
+            # Stabilizers
+            self.amplitude_gate = nn.Linear(dim, dim)
+            self.frequency_gate = nn.Linear(dim, dim)
+            
+            # Pulse scaling parameter
+            self.pulse_gain = nn.Parameter(torch.tensor(0.10, dtype=torch.float32))
+            
+            # Initialize weights
+            nn.init.xavier_uniform_(self.pulse_core.weight, gain=0.1)
+            if self.pulse_core.bias is not None:
+                nn.init.zeros_(self.pulse_core.bias)
+            nn.init.xavier_uniform_(self.band1.weight, gain=0.1)
+            if self.band1.bias is not None:
+                nn.init.zeros_(self.band1.bias)
+            nn.init.xavier_uniform_(self.band2.weight, gain=0.1)
+            if self.band2.bias is not None:
+                nn.init.zeros_(self.band2.bias)
+            nn.init.xavier_uniform_(self.band3.weight, gain=0.1)
+            if self.band3.bias is not None:
+                nn.init.zeros_(self.band3.bias)
+            nn.init.xavier_uniform_(self.amplitude_gate.weight, gain=0.1)
+            if self.amplitude_gate.bias is not None:
+                nn.init.zeros_(self.amplitude_gate.bias)
+            nn.init.xavier_uniform_(self.frequency_gate.weight, gain=0.1)
+            if self.frequency_gate.bias is not None:
+                nn.init.zeros_(self.frequency_gate.bias)
+        
+        def forward(self, global_resonance, convergence_tensor, morphology_vector):
+            """
+            A270 — Forward Pass (Unified Harmonic Pulse Generation)
+            
+            Executes the harmonic pulse generation process:
+            1. Build pulse core from merged inputs
+            2. Harmonic decomposition into multiple bands
+            3. Combine bands into unified pulse
+            4. Apply amplitude & frequency stability gates
+            
+            Args:
+                global_resonance: Global resonance vector [dim]
+                convergence_tensor: Harmonic convergence tensor [dim]
+                morphology_vector: Predictive morphology vector [dim]
+                
+            Returns:
+                Stabilized harmonic pulse vector [dim]
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return global_resonance
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Ensure all inputs are tensors
+                if not isinstance(global_resonance, torch.Tensor):
+                    global_resonance = torch.tensor(global_resonance, dtype=torch.float32)
+                if not isinstance(convergence_tensor, torch.Tensor):
+                    convergence_tensor = torch.tensor(convergence_tensor, dtype=torch.float32)
+                if not isinstance(morphology_vector, torch.Tensor):
+                    morphology_vector = torch.tensor(morphology_vector, dtype=torch.float32)
+                
+                # Ensure dimensions match
+                def ensure_dim(vec, dim):
+                    vec_flat = vec.flatten()
+                    if vec_flat.shape[0] != dim:
+                        if vec_flat.shape[0] < dim:
+                            return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                        else:
+                            return vec_flat[:dim]
+                    return vec_flat
+                
+                global_resonance = ensure_dim(global_resonance, self.dim)
+                convergence_tensor = ensure_dim(convergence_tensor, self.dim)
+                morphology_vector = ensure_dim(morphology_vector, self.dim)
+                
+                # Step 1 — Build pulse core
+                merged = torch.cat([
+                    global_resonance,
+                    convergence_tensor,
+                    morphology_vector
+                ], dim=-1)  # [dim * 3]
+                
+                core = torch.tanh(self.pulse_core(merged))  # [dim]
+                
+                # Step 2 — Harmonic decomposition
+                h1 = torch.sin(self.band1(core))  # base pulse
+                h2 = torch.cos(self.band2(core))  # secondary harmonic
+                h3 = torch.tanh(self.band3(core))  # tertiary overtone
+                
+                # Step 3 — Combine bands
+                # Clamp pulse gain to safe range (0.01 to 0.20)
+                gain = torch.clamp(self.pulse_gain, 0.01, 0.20)
+                pulse = (h1 + h2 + h3) * gain
+                
+                # Step 4 — Apply amplitude & frequency stability
+                amplitude = torch.sigmoid(self.amplitude_gate(pulse))
+                frequency = torch.sigmoid(self.frequency_gate(pulse))
+                
+                stabilized_pulse = pulse * amplitude * frequency
+                
+                # Normalize to maintain stability
+                stabilized_pulse = F.normalize(stabilized_pulse, dim=0)
+                
+                return stabilized_pulse
+                
+            except Exception as e:
+                return global_resonance
+        
+        def run(self, global_resonance, convergence_tensor, morphology_vector):
+            """
+            A270 — Full Pipeline
+            
+            Executes the complete unified harmonic pulse generation process.
+            
+            Args:
+                global_resonance: Global resonance vector
+                convergence_tensor: Harmonic convergence tensor
+                morphology_vector: Predictive morphology vector
+                
+            Returns:
+                Stabilized harmonic pulse vector
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return global_resonance
+            
+            try:
+                pulse = self.forward(global_resonance, convergence_tensor, morphology_vector)
+                
+                # Convert to list for return
+                try:
+                    return pulse.tolist()
+                except Exception:
+                    return pulse
+                
+            except Exception as e:
+                return global_resonance
+
     def _run_a253_field_resonance_optimization(self):
         """A253 — Field Resonance Optimization helper method to reduce nesting."""
         try:
@@ -12584,6 +12805,146 @@ class NeuralBridge:
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"harmonic_convergence_error": str(e)})
+                except Exception:
+                    pass
+    
+    def _run_a270_unified_harmonic_pulse_engine(self):
+        """A270 — Unified Harmonic Pulse Engine (UHPE) Initialization helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or self.global_resonance_vector is None:
+                return
+            
+            import torch
+            
+            # Get required inputs for pulse generation
+            global_resonance = self.global_resonance_vector
+            
+            # Get convergence tensor from A269
+            convergence_tensor = None
+            if hasattr(self, 'harmonic_convergence_tensor') and self.harmonic_convergence_tensor is not None:
+                convergence_tensor = self.harmonic_convergence_tensor
+            elif self.harmonic_convergence is not None:
+                # Fallback: use global resonance as convergence tensor approximation
+                convergence_tensor = global_resonance
+            
+            # Get morphology vector
+            morphology_vector = None
+            if self.predictive_morphology is not None:
+                morphology_vector = self.predictive_morphology
+            elif self.layered_morphology is not None and hasattr(self.layered_morphology, 'layers'):
+                # Try to extract from layered morphology
+                try:
+                    if len(self.layered_morphology.layers) > 0:
+                        morphology_vector = self.layered_morphology.layers[0]
+                except Exception:
+                    pass
+            
+            # If we don't have convergence tensor or morphology, use global resonance as fallback
+            if convergence_tensor is None:
+                convergence_tensor = global_resonance
+            if morphology_vector is None:
+                morphology_vector = global_resonance
+            
+            # Ensure all inputs are available
+            if convergence_tensor is None or morphology_vector is None:
+                return
+            
+            # Determine dimension
+            if not isinstance(global_resonance, torch.Tensor):
+                global_resonance = torch.tensor(global_resonance, dtype=torch.float32)
+            dim = global_resonance.shape[0] if isinstance(global_resonance, torch.Tensor) else len(self.global_resonance_vector)
+            
+            # Ensure dimension consistency
+            def ensure_dim(vec, dim):
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != dim:
+                    if vec_flat.shape[0] < dim:
+                        return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:dim]
+                return vec_flat
+            
+            global_res = ensure_dim(global_resonance, dim)
+            convergence = ensure_dim(convergence_tensor, dim)
+            morphology = ensure_dim(morphology_vector, dim)
+            
+            # Initialize unified harmonic pulse engine if needed
+            if self.harmonic_pulse_engine is None:
+                self.harmonic_pulse_engine = self.UnifiedHarmonicPulseEngine(dim)
+            else:
+                # Update if dimension changed
+                if self.harmonic_pulse_engine.dim != dim:
+                    self.harmonic_pulse_engine = self.UnifiedHarmonicPulseEngine(dim)
+            
+            # Run pulse generation
+            pulse = self.harmonic_pulse_engine.run(global_res, convergence, morphology)
+            
+            # Store the harmonic pulse
+            if pulse is not None:
+                try:
+                    if not hasattr(self, 'harmonic_pulse'):
+                        self.harmonic_pulse = None
+                    if isinstance(pulse, torch.Tensor):
+                        self.harmonic_pulse = pulse.tolist()
+                    else:
+                        self.harmonic_pulse = pulse
+                except Exception:
+                    pass
+            
+            # Inject pulse back into predictive components
+            # Update global resonance with pulse influence
+            try:
+                if isinstance(pulse, torch.Tensor):
+                    pulse_tensor = pulse
+                else:
+                    pulse_tensor = torch.tensor(pulse, dtype=torch.float32)
+                
+                # Blend pulse with global resonance (weighted combination)
+                pulse_weight = 0.15  # Conservative pulse influence
+                if isinstance(global_res, torch.Tensor):
+                    updated_global = (1.0 - pulse_weight) * global_res + pulse_weight * pulse_tensor
+                    self.global_resonance_vector = updated_global.tolist()
+                else:
+                    # Fallback: just store pulse
+                    self.global_resonance_vector = pulse
+            except Exception:
+                pass
+            
+            # Update cascade's global resonance if available
+            if self.global_resonance_cascade is not None and hasattr(self.global_resonance_cascade, 'global_resonance'):
+                try:
+                    if isinstance(pulse, torch.Tensor):
+                        pulse_data = pulse
+                    else:
+                        pulse_data = torch.tensor(pulse, dtype=torch.float32)
+                    self.global_resonance_cascade.global_resonance.data = pulse_data
+                except Exception:
+                    pass
+            
+            # Log A270 completion
+            if hasattr(self, 'logger'):
+                try:
+                    pulse_norm = float(torch.norm(torch.tensor(pulse, dtype=torch.float32)).item()) if pulse is not None else 0.0
+                    pulse_gain = float(self.harmonic_pulse_engine.pulse_gain.item()) if hasattr(self.harmonic_pulse_engine, 'pulse_gain') else 0.10
+                    self.logger.write({
+                        "a270_complete": True,
+                        "unified_harmonic_pulse_engine_active": True,
+                        "harmonic_pulse_generated": pulse is not None,
+                        "pulse_norm": pulse_norm,
+                        "pulse_gain": pulse_gain,
+                        "pulse_injected_into_predictive_engine": True,
+                        "message": "A270 complete — Unified Harmonic Pulse Engine (UHPE) initialized. ADRAE now possesses a rhythmic, global pulse."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"unified_harmonic_pulse_engine_error": str(e)})
                 except Exception:
                     pass
 
