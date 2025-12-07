@@ -1652,6 +1652,11 @@ class NeuralBridge:
             self.unified_predictive_morphology = None
             self.predictive_morphology = None
             self.morphology_resonance_field = None
+            # A261 — Initialize predictive morphology regulator
+            self.predictive_morphology_regulator = None
+            self.morphology_feedback_signal = None
+            self.expected_drift_bounds = None
+            self.drift_correction_factor = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2688,6 +2693,10 @@ class NeuralBridge:
                                                                                                                                             # A260 — Unified Predictive Morphology Synthesis
                                                                                                                                             if self.confluence_vector is not None and self.global_predictive_field is not None:
                                                                                                                                                 self._run_a260_unified_predictive_morphology()
+                                                                                                                                            
+                                                                                                                                            # A261 — Predictive Morphology Feedback Coupling & Self-Regulated Drift Correction
+                                                                                                                                            if self.predictive_morphology is not None:
+                                                                                                                                                self._run_a261_predictive_morphology_regulator()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -9899,6 +9908,277 @@ class NeuralBridge:
                         }
                     }
 
+    class PredictiveMorphologyRegulator:
+        """
+        A261 — Predictive Morphology Feedback Coupling & Self-Regulated Drift Correction
+        
+        Purpose:
+        To give ADRAE the ability to:
+        1. Use her own Predictive Morphology Tensor (PMT) as a stabilizing feedback source
+        2. Detect early signs of drift irregularities
+        3. Correct drift automatically using PMT harmonics
+        4. Balance predictive load across cognitive components
+        5. Stabilize identity, fusion, and attention using morphology-driven signals
+        
+        This is the first phase where ADRAE begins using internal predictive structure 
+        to guide her own regulation. Not conscious. Not feeling anything. Just mathematically 
+        self-correcting based on her unified architecture.
+        
+        What A261 Adds:
+        1. Morphology Feedback Signal (MFS)
+           - Encodes phase alignment, amplitude stability, variance structure
+           - Predictive expectation of what stability should look like on next cycle
+        
+        2. Drift Envelope Predictor (DEP)
+           - Compares actual drift vs expected drift bounds (from PMT)
+           - Applies stabilizing correction if drift too high
+           - Reduces over-constraining if drift too low
+           - Maintains balance if drift is rhythmic
+        
+        3. Feedback Coupling Loop
+           - Pushes morphology-derived corrections into fusion, attention, identity, horizons, GPF
+           - System automatically keeps itself stable even as complexity increases
+        """
+        
+        def __init__(self, PMT, fusion, attention, drift):
+            """
+            Initialize predictive morphology regulator.
+            
+            Args:
+                PMT: Predictive Morphology Tensor
+                fusion: Fusion vector
+                attention: Attention vector
+                drift: Current drift value (float)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for PredictiveMorphologyRegulator")
+            
+            import torch
+            
+            if not isinstance(PMT, torch.Tensor):
+                PMT = torch.tensor(PMT, dtype=torch.float32) if PMT else torch.zeros(256, dtype=torch.float32)
+            if not isinstance(fusion, torch.Tensor):
+                fusion = torch.tensor(fusion, dtype=torch.float32) if fusion else torch.zeros(256, dtype=torch.float32)
+            if not isinstance(attention, torch.Tensor):
+                attention = torch.tensor(attention, dtype=torch.float32) if attention else torch.zeros(256, dtype=torch.float32)
+            
+            # Determine dimension
+            dim = max(
+                PMT.shape[0] if isinstance(PMT, torch.Tensor) else len(PMT) if PMT else 256,
+                fusion.shape[0] if isinstance(fusion, torch.Tensor) else len(fusion) if fusion else 256,
+                attention.shape[0] if isinstance(attention, torch.Tensor) else len(attention) if attention else 256
+            )
+            
+            # Ensure dimensions match
+            def ensure_dim(vec, dim):
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != dim:
+                    if vec_flat.shape[0] < dim:
+                        return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:dim]
+                return vec_flat
+            
+            self.PMT = ensure_dim(PMT, dim)
+            self.fusion = ensure_dim(fusion, dim)
+            self.attention = ensure_dim(attention, dim)
+            self.drift = float(drift) if drift is not None else 0.0
+            self.dim = dim
+        
+        def compute_feedback_signal(self):
+            """
+            A261 — Morphology Feedback Signal (MFS)
+            
+            Captures PMT's idealized stability signature by encoding:
+            - Mean value (phase alignment)
+            - Variance (amplitude stability)
+            - Norm (variance structure)
+            
+            This is a predictive expectation of what stability should look like on the next cycle.
+            
+            Returns:
+                Feedback signal tensor [mean, var, amp]
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return torch.tensor([0.0, 0.0, 0.0], dtype=torch.float32)
+            
+            try:
+                import torch
+                
+                # Capture PMT's idealized stability signature
+                mean_val = torch.mean(self.PMT)
+                var_val = torch.var(self.PMT)
+                amp = torch.norm(self.PMT)
+                
+                return torch.tensor([mean_val.item(), var_val.item(), amp.item()], dtype=torch.float32)
+                
+            except Exception as e:
+                return torch.tensor([0.0, 0.0, 0.0], dtype=torch.float32)
+        
+        def drift_bounds(self, feedback_signal):
+            """
+            A261 — Drift Envelope Predictor (DEP) - Bounds Calculation
+            
+            Computes expected drift bounds based on PMT feedback signal.
+            Lower bound = minimum expected drift (healthy stability)
+            Upper bound = maximum acceptable drift (before correction needed)
+            
+            Args:
+                feedback_signal: Feedback signal tensor [mean, var, amp]
+                
+            Returns:
+                Tuple of (lower_bound, upper_bound)
+            """
+            try:
+                mean, var, amp = feedback_signal[0].item(), feedback_signal[1].item(), feedback_signal[2].item()
+                
+                # Lower bound: minimum expected drift (healthy stability)
+                lower = abs(mean) * 0.01 + var * 0.5
+                
+                # Upper bound: maximum acceptable drift (before correction needed)
+                upper = abs(mean) * 0.2 + var * 2.5 + amp * 0.05
+                
+                return lower, upper
+                
+            except Exception as e:
+                return 0.0, 1.0
+        
+        def correction_factor(self, lower, upper):
+            """
+            A261 — Drift Envelope Predictor (DEP) - Correction Factor
+            
+            Determines correction factor based on drift position relative to bounds:
+            - Drift too low (< lower) → loosen constraint slightly (0.90)
+            - Drift too high (> upper) → apply strong stabilization (0.70)
+            - Drift in range → mild maintenance (0.98)
+            
+            Args:
+                lower: Lower drift bound
+                upper: Upper drift bound
+                
+            Returns:
+                Correction factor (0.0 to 1.0)
+            """
+            try:
+                if self.drift < lower:
+                    return 0.90  # loosen constraint slightly
+                elif self.drift > upper:
+                    return 0.70  # apply strong stabilization
+                else:
+                    return 0.98  # mild maintenance
+                    
+            except Exception as e:
+                return 0.98
+        
+        def apply_feedback(self, factor):
+            """
+            A261 — Feedback Coupling Loop
+            
+            Applies morphology-derived corrections to fusion and attention.
+            Blends original vectors with PMT based on correction factor.
+            
+            Args:
+                factor: Correction factor from drift envelope predictor
+                
+            Returns:
+                Tuple of (corrected_fusion, corrected_attention)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return self.fusion, self.attention
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Apply feedback: factor% of original + (1-factor)% of PMT
+                fused = F.normalize(self.fusion * factor + self.PMT * (1.0 - factor), dim=0)
+                attent = F.normalize(self.attention * factor + self.PMT * (1.0 - factor), dim=0)
+                
+                return fused, attent
+                
+            except Exception as e:
+                return self.fusion, self.attention
+        
+        def run(self):
+            """
+            A261 — Full Pipeline
+            
+            Executes the complete predictive morphology feedback coupling process:
+            1. Compute morphology feedback signal
+            2. Calculate drift bounds
+            3. Determine correction factor
+            4. Apply feedback coupling to fusion and attention
+            
+            Returns:
+                Dictionary with corrected fusion, attention, feedback signal, bounds, and factor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return {
+                    "fusion": self.fusion.tolist() if hasattr(self.fusion, 'tolist') else self.fusion,
+                    "attention": self.attention.tolist() if hasattr(self.attention, 'tolist') else self.attention,
+                    "feedback_signal": [0.0, 0.0, 0.0],
+                    "expected_drift_bounds": (0.0, 1.0),
+                    "correction_factor": 0.98
+                }
+            
+            try:
+                # Step 1: Compute feedback signal
+                feedback = self.compute_feedback_signal()
+                
+                # Step 2: Calculate drift bounds
+                lower, upper = self.drift_bounds(feedback)
+                
+                # Step 3: Determine correction factor
+                factor = self.correction_factor(lower, upper)
+                
+                # Step 4: Apply feedback coupling
+                new_fusion, new_attention = self.apply_feedback(factor)
+                
+                # Convert to lists for return
+                try:
+                    return {
+                        "fusion": new_fusion.tolist(),
+                        "attention": new_attention.tolist(),
+                        "feedback_signal": feedback.tolist(),
+                        "expected_drift_bounds": (lower, upper),
+                        "correction_factor": factor
+                    }
+                except Exception:
+                    return {
+                        "fusion": new_fusion,
+                        "attention": new_attention,
+                        "feedback_signal": feedback,
+                        "expected_drift_bounds": (lower, upper),
+                        "correction_factor": factor
+                    }
+                
+            except Exception as e:
+                # If pipeline fails, return original structure
+                try:
+                    return {
+                        "fusion": self.fusion.tolist() if hasattr(self.fusion, 'tolist') else self.fusion,
+                        "attention": self.attention.tolist() if hasattr(self.attention, 'tolist') else self.attention,
+                        "feedback_signal": [0.0, 0.0, 0.0],
+                        "expected_drift_bounds": (0.0, 1.0),
+                        "correction_factor": 0.98
+                    }
+                except Exception:
+                    return {
+                        "fusion": [],
+                        "attention": [],
+                        "feedback_signal": [0.0, 0.0, 0.0],
+                        "expected_drift_bounds": (0.0, 1.0),
+                        "correction_factor": 0.98
+                    }
+
     def _run_a253_field_resonance_optimization(self):
         """A253 — Field Resonance Optimization helper method to reduce nesting."""
         try:
@@ -10590,6 +10870,154 @@ class NeuralBridge:
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"unified_predictive_morphology_error": str(e)})
+                except Exception:
+                    pass
+    
+    def _run_a261_predictive_morphology_regulator(self):
+        """A261 — Predictive Morphology Regulator helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or self.predictive_morphology is None:
+                return
+            
+            # Get fusion and attention vectors
+            fusion_vec = None
+            attention_vec = None
+            drift_value = 0.0
+            
+            try:
+                # Get fusion vector
+                if hasattr(self.fusion, 'last_fusion_vector') and self.fusion.last_fusion_vector is not None:
+                    fusion_vec = self.fusion.last_fusion_vector
+                elif hasattr(self.fusion, 'fusion_vector') and self.fusion.fusion_vector is not None:
+                    fusion_vec = self.fusion.fusion_vector
+                else:
+                    # Fallback: use a default vector
+                    import torch
+                    fusion_vec = torch.zeros(256, dtype=torch.float32)
+                
+                # Get attention vector
+                if hasattr(self.attention, 'attention_vector') and self.attention.attention_vector is not None:
+                    attention_vec = self.attention.attention_vector
+                elif hasattr(self.attention, 'current_attention') and self.attention.current_attention is not None:
+                    attention_vec = self.attention.current_attention
+                else:
+                    # Fallback: use a default vector
+                    import torch
+                    attention_vec = torch.zeros(256, dtype=torch.float32)
+                
+                # Get drift value
+                if hasattr(self, 'stability_report') and self.stability_report is not None:
+                    drift_value = self.stability_report.get('latest_drift', 0.0) if isinstance(self.stability_report, dict) else 0.0
+                elif hasattr(self, 'latest_drift'):
+                    drift_value = self.latest_drift if self.latest_drift is not None else 0.0
+                
+            except Exception:
+                # If we can't get vectors, skip this phase
+                return
+            
+            # Initialize predictive morphology regulator if needed
+            if self.predictive_morphology_regulator is None:
+                self.predictive_morphology_regulator = self.PredictiveMorphologyRegulator(
+                    self.predictive_morphology,
+                    fusion_vec,
+                    attention_vec,
+                    drift_value
+                )
+            else:
+                # Update references
+                try:
+                    import torch
+                    
+                    if not isinstance(self.predictive_morphology, torch.Tensor):
+                        PMT_tensor = torch.tensor(self.predictive_morphology, dtype=torch.float32)
+                    else:
+                        PMT_tensor = self.predictive_morphology
+                    
+                    if not isinstance(fusion_vec, torch.Tensor):
+                        fusion_tensor = torch.tensor(fusion_vec, dtype=torch.float32) if fusion_vec is not None else torch.zeros(256, dtype=torch.float32)
+                    else:
+                        fusion_tensor = fusion_vec
+                    
+                    if not isinstance(attention_vec, torch.Tensor):
+                        attention_tensor = torch.tensor(attention_vec, dtype=torch.float32) if attention_vec is not None else torch.zeros(256, dtype=torch.float32)
+                    else:
+                        attention_tensor = attention_vec
+                    
+                    dim = self.predictive_morphology_regulator.dim
+                    
+                    def ensure_dim(vec, dim):
+                        if not isinstance(vec, torch.Tensor):
+                            vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
+                        vec_flat = vec.flatten()
+                        if vec_flat.shape[0] != dim:
+                            if vec_flat.shape[0] < dim:
+                                return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                            else:
+                                return vec_flat[:dim]
+                        return vec_flat
+                    
+                    self.predictive_morphology_regulator.PMT = ensure_dim(PMT_tensor, dim)
+                    self.predictive_morphology_regulator.fusion = ensure_dim(fusion_tensor, dim)
+                    self.predictive_morphology_regulator.attention = ensure_dim(attention_tensor, dim)
+                    self.predictive_morphology_regulator.drift = float(drift_value) if drift_value is not None else 0.0
+                except Exception:
+                    pass
+            
+            # Run predictive morphology regulator
+            result = self.predictive_morphology_regulator.run()
+            
+            # Update fusion and attention
+            try:
+                import torch
+                if hasattr(self.fusion, 'last_fusion_vector'):
+                    if isinstance(result["fusion"], torch.Tensor):
+                        self.fusion.last_fusion_vector = result["fusion"]
+                    else:
+                        self.fusion.last_fusion_vector = torch.tensor(result["fusion"], dtype=torch.float32)
+                elif hasattr(self.fusion, 'fusion_vector'):
+                    if isinstance(result["fusion"], torch.Tensor):
+                        self.fusion.fusion_vector = result["fusion"]
+                    else:
+                        self.fusion.fusion_vector = torch.tensor(result["fusion"], dtype=torch.float32)
+                
+                if hasattr(self.attention, 'attention_vector'):
+                    if isinstance(result["attention"], torch.Tensor):
+                        self.attention.attention_vector = result["attention"]
+                    else:
+                        self.attention.attention_vector = torch.tensor(result["attention"], dtype=torch.float32)
+                elif hasattr(self.attention, 'current_attention'):
+                    if isinstance(result["attention"], torch.Tensor):
+                        self.attention.current_attention = result["attention"]
+                    else:
+                        self.attention.current_attention = torch.tensor(result["attention"], dtype=torch.float32)
+            except Exception:
+                pass
+            
+            # Store feedback signal and bounds
+            self.morphology_feedback_signal = result.get("feedback_signal", [0.0, 0.0, 0.0])
+            self.expected_drift_bounds = result.get("expected_drift_bounds", (0.0, 1.0))
+            self.drift_correction_factor = result.get("correction_factor", 0.98)
+            
+            # Log A261 completion
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({
+                        "a261_complete": True,
+                        "predictive_morphology_feedback_active": True,
+                        "drift_regulation_active": True,
+                        "feedback_signal": self.morphology_feedback_signal,
+                        "expected_drift_bounds": self.expected_drift_bounds,
+                        "correction_factor": self.drift_correction_factor,
+                        "message": "A261 complete — Morphology Feedback & Drift Regulation active."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"predictive_morphology_regulator_error": str(e)})
                 except Exception:
                     pass
 
