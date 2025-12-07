@@ -1623,6 +1623,9 @@ class NeuralBridge:
             # A248 — Initialize multi-horizon temporal prediction
             self.multi_horizon_temporal_prediction = None
             self.horizon_preview = None
+            # A249 — Initialize temporal field interference patterns
+            self.temporal_field_interference_patterns = None
+            self.temporal_interference_preview = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -1727,6 +1730,9 @@ class NeuralBridge:
             # A248 — Multi-Horizon Temporal Prediction Fields
             self.multi_horizon_temporal_prediction = None
             self.horizon_preview = None
+            # A249 — Temporal Field Interference Patterns (TFIP)
+            self.temporal_field_interference_patterns = None
+            self.temporal_interference_preview = None
             
             if hasattr(self, 'logger'):
                 try:
@@ -2381,15 +2387,33 @@ class NeuralBridge:
                                                                                                                                     # Update references
                                                                                                                                     self.multi_horizon_temporal_prediction.lm = self.layered_morphology
                                                                                                                                     self.multi_horizon_temporal_prediction.resonance = resonance_matrix
-                                                                                                                                    self.multi_horizon_temporal_prediction.current_echo = current_echo
-                                                                                                                                    self.multi_horizon_temporal_prediction.amplified_echo = amplified_echo
-                                                                                                                                    # Re-initialize to update tensor conversions
-                                                                                                                                    self.multi_horizon_temporal_prediction.__init__(
-                                                                                                                                        self.layered_morphology,
-                                                                                                                                        resonance_matrix,
-                                                                                                                                        current_echo,
-                                                                                                                                        amplified_echo
-                                                                                                                                    )
+                                                                                                                                    # Update echoes (convert to tensors if needed)
+                                                                                                                                    try:
+                                                                                                                                        import torch
+                                                                                                                                        if not isinstance(current_echo, torch.Tensor):
+                                                                                                                                            current_echo = torch.tensor(current_echo, dtype=torch.float32)
+                                                                                                                                        if not isinstance(amplified_echo, torch.Tensor):
+                                                                                                                                            amplified_echo = torch.tensor(amplified_echo, dtype=torch.float32)
+                                                                                                                                        
+                                                                                                                                        # Ensure dimensions match
+                                                                                                                                        current_flat = current_echo.flatten()
+                                                                                                                                        if current_flat.shape[0] != self.multi_horizon_temporal_prediction.dim:
+                                                                                                                                            if current_flat.shape[0] < self.multi_horizon_temporal_prediction.dim:
+                                                                                                                                                current_flat = torch.cat([current_flat, torch.zeros(self.multi_horizon_temporal_prediction.dim - current_flat.shape[0])])
+                                                                                                                                            else:
+                                                                                                                                                current_flat = current_flat[:self.multi_horizon_temporal_prediction.dim]
+                                                                                                                                        
+                                                                                                                                        amplified_flat = amplified_echo.flatten()
+                                                                                                                                        if amplified_flat.shape[0] != self.multi_horizon_temporal_prediction.dim:
+                                                                                                                                            if amplified_flat.shape[0] < self.multi_horizon_temporal_prediction.dim:
+                                                                                                                                                amplified_flat = torch.cat([amplified_flat, torch.zeros(self.multi_horizon_temporal_prediction.dim - amplified_flat.shape[0])])
+                                                                                                                                            else:
+                                                                                                                                                amplified_flat = amplified_flat[:self.multi_horizon_temporal_prediction.dim]
+                                                                                                                                        
+                                                                                                                                        self.multi_horizon_temporal_prediction.current_echo = current_flat
+                                                                                                                                        self.multi_horizon_temporal_prediction.amplified_echo = amplified_flat
+                                                                                                                                    except Exception:
+                                                                                                                                        pass
                                                                                                                 
                                                                                                                                 # Run multi-horizon temporal prediction
                                                                                                                                 self.layered_morphology, F1, F2, F3 = self.multi_horizon_temporal_prediction.run()
@@ -2404,8 +2428,8 @@ class NeuralBridge:
                                                                                                                                         }
                                                                                                                                     except Exception:
                                                                                                                                         self.horizon_preview = None
-                                                                                                                                    else:
-                                                                                                                                        self.horizon_preview = None
+                                                                                                                                else:
+                                                                                                                                    self.horizon_preview = None
                                                                                                                     
                                                                                                                     except Exception as e:
                                                                                                                         # If multi-horizon temporal prediction fails, continue without it
