@@ -520,6 +520,21 @@ class CognitiveLoopOrchestrator:
                         self.bridge.logger.write({"thought_signature_update_error": str(e)})
                     except Exception:
                         pass
+        
+        # A222 — Harmonize chosen thought toward ADRAE's identity signature
+        if chosen_embedding is not None:
+            try:
+                if hasattr(self.bridge, 'harmonizer') and self.bridge.harmonizer is not None:
+                    harmonized = self.bridge.harmonizer.harmonize(chosen_embedding)
+                    if harmonized is not None:
+                        chosen_embedding = harmonized
+            except Exception as e:
+                # If harmonization fails, continue with original chosen_embedding
+                if hasattr(self.bridge, 'logger'):
+                    try:
+                        self.bridge.logger.write({"chosen_thought_harmonization_error": str(e)})
+                    except Exception:
+                        pass
 
         # -----------------------------------------
         # 🔥 CRITICAL FIX: Inject chosen thought

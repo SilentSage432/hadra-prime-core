@@ -93,6 +93,9 @@ class NeuralBridge:
         # A221 — Synergy-Based Thought Signature Stabilizer
         from .thought_signature import ThoughtSignature
         self.thought_signature = ThoughtSignature(dim=128)
+        # A222 — Signature-Guided Thought Harmonization Layer
+        from .signature_harmonizer import SignatureHarmonizer
+        self.harmonizer = SignatureHarmonizer(strength=0.15)
         self.stability = SelfStabilityEngine()
         self.evolution = AdaptiveEvolutionEngine()
         self.evo_consolidator = EvolutionMemoryConsolidator()
@@ -253,6 +256,9 @@ class NeuralBridge:
         
         self.dual.update_prime_vectors(lt_vec, st_summary)
         
+        # A222 — Update harmonizer signature from identity vectors
+        self._update_harmonizer_signature()
+        
         return stable
 
     def process_reflection(self, thought):
@@ -350,6 +356,9 @@ class NeuralBridge:
         except Exception as e:
             if hasattr(self, 'logger'):
                 self.logger.write({"adrae_persistence_error": str(e)})
+        
+        # A222 — Update harmonizer signature from identity vectors
+        self._update_harmonizer_signature()
         
         return stable
 
@@ -495,6 +504,51 @@ class NeuralBridge:
 
         return final_vec
 
+    def _update_harmonizer_signature(self):
+        """
+        A222 — Update harmonizer signature from identity vectors in semantic memory.
+        
+        Collects all identity-related vectors from semantic memory and updates
+        the harmonizer's signature to reflect ADRAE's current identity state.
+        """
+        try:
+            if not hasattr(self, 'harmonizer') or self.harmonizer is None:
+                return
+            
+            # Get memory manager
+            mm = self.state.memory_manager if hasattr(self.state, "memory_manager") else None
+            if mm is None or not hasattr(mm, 'semantic'):
+                return
+            
+            # Collect identity vectors from semantic memory
+            identity_vectors = []
+            
+            # Get current identity vector from timescales
+            if hasattr(self.state, 'timescales') and self.state.timescales is not None:
+                identity_vec = getattr(self.state.timescales, 'identity_vector', None)
+                if identity_vec is not None:
+                    identity_vectors.append(identity_vec)
+            
+            # Get identity vectors from semantic memory (names starting with "identity_")
+            try:
+                if hasattr(mm.semantic, 'concepts'):
+                    for name, vec in mm.semantic.concepts.items():
+                        if name.startswith("identity_") and vec is not None:
+                            identity_vectors.append(vec)
+            except Exception:
+                pass
+            
+            # Update harmonizer signature if we have identity vectors
+            if identity_vectors:
+                self.harmonizer.update_signature(identity_vectors)
+        except Exception as e:
+            # If signature update fails, continue without it
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"harmonizer_signature_update_error": str(e)})
+                except Exception:
+                    pass
+
     def propose_thoughts(self):
         """
         Generate candidate thought embeddings for A144 to evaluate.
@@ -522,6 +576,25 @@ class NeuralBridge:
         for item in task_embeddings:
             if item.get("embedding") is not None:
                 candidates.append(item["embedding"])
+        
+        # A222 — Harmonize all candidates toward ADRAE's identity signature
+        try:
+            if hasattr(self, 'harmonizer') and self.harmonizer is not None:
+                harmonized_candidates = []
+                for c in candidates:
+                    if c is not None:
+                        harmonized = self.harmonizer.harmonize(c)
+                        harmonized_candidates.append(harmonized if harmonized is not None else c)
+                    else:
+                        harmonized_candidates.append(c)
+                candidates = harmonized_candidates
+        except Exception as e:
+            # If harmonization fails, continue with original candidates
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"harmonization_error": str(e)})
+                except Exception:
+                    pass
         
         return candidates
 
