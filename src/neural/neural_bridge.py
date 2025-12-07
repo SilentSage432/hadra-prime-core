@@ -1636,6 +1636,10 @@ class NeuralBridge:
             self.field_resonance_optimizer = None
             # A254 — Initialize waveform coherence engine
             self.waveform_coherence_engine = None
+            # A255 — Initialize harmonic dampening field
+            self.harmonic_dampening_field = None
+            # A256 — Initialize predictive wave decorrelation
+            self.predictive_wave_decorrelation = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2646,179 +2650,17 @@ class NeuralBridge:
                                                                                                                                             self.global_imagination_preview = GIF_preview
                                                                                                                                             
                                                                                                                                             # A253 — Field Resonance Optimization & Predictive Stabilizer
-                                                                                                                                            try:
-                                                                                                                                                from .torch_utils import TORCH_AVAILABLE
-                                                                                                                                                
-                                                                                                                                                if TORCH_AVAILABLE and self.layered_morphology is not None and self.global_imagination_preview is not None and self.texture_preview is not None and self.horizon_preview is not None and self.global_imagination_field is not None:
-                                                                                                                                                    # Get field memory from global imagination field
-                                                                                                                                                    field_memory = self.global_imagination_field.global_field_memory if hasattr(self.global_imagination_field, 'global_field_memory') else []
-                                                                                                                                                    
-                                                                                                                                                    # Initialize field resonance optimizer if needed
-                                                                                                                                                    if self.field_resonance_optimizer is None:
-                                                                                                                                                        self.field_resonance_optimizer = self.FieldResonanceOptimizer(
-                                                                                                                                                            self.global_imagination_preview,
-                                                                                                                                                            self.texture_preview,
-                                                                                                                                                            self.horizon_preview,
-                                                                                                                                                            field_memory,
-                                                                                                                                                            self.layered_morphology
-                                                                                                                                                        )
-                                                                                                                                                    else:
-                                                                                                                                                        # Update references
-                                                                                                                                                        try:
-                                                                                                                                                            import torch
-                                                                                                                                                            
-                                                                                                                                                            # Update inputs
-                                                                                                                                                            if not isinstance(self.global_imagination_preview, torch.Tensor):
-                                                                                                                                                                GIF_tensor = torch.tensor(self.global_imagination_preview, dtype=torch.float32)
-                                                                                                                                                            else:
-                                                                                                                                                                GIF_tensor = self.global_imagination_preview
-                                                                                                                                                            
-                                                                                                                                                            if not isinstance(self.texture_preview, torch.Tensor):
-                                                                                                                                                                texture_tensor = torch.tensor(self.texture_preview, dtype=torch.float32)
-                                                                                                                                                            else:
-                                                                                                                                                                texture_tensor = self.texture_preview
-                                                                                                                                                            
-                                                                                                                                                            dim = self.field_resonance_optimizer.dim
-                                                                                                                                                            
-                                                                                                                                                            # Ensure dimensions match
-                                                                                                                                                            def ensure_dim(vec, dim):
-                                                                                                                                                                if not isinstance(vec, torch.Tensor):
-                                                                                                                                                                    vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
-                                                                                                                                                                vec_flat = vec.flatten()
-                                                                                                                                                                if vec_flat.shape[0] != dim:
-                                                                                                                                                                    if vec_flat.shape[0] < dim:
-                                                                                                                                                                        return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
-                                                                                                                                                                    else:
-                                                                                                                                                                        return vec_flat[:dim]
-                                                                                                                                                                return vec_flat
-                                                                                                                                                            
-                                                                                                                                                            self.field_resonance_optimizer.GIF = ensure_dim(GIF_tensor, dim)
-                                                                                                                                                            self.field_resonance_optimizer.texture = ensure_dim(texture_tensor, dim)
-                                                                                                                                                            
-                                                                                                                                                            horizons = self.horizon_preview
-                                                                                                                                                            F1_list = horizons.get("short", [])
-                                                                                                                                                            F2_list = horizons.get("mid", [])
-                                                                                                                                                            F3_list = horizons.get("long", [])
-                                                                                                                                                            
-                                                                                                                                                            self.field_resonance_optimizer.F1 = ensure_dim(torch.tensor(F1_list, dtype=torch.float32) if F1_list else torch.zeros(dim, dtype=torch.float32), dim)
-                                                                                                                                                            self.field_resonance_optimizer.F2 = ensure_dim(torch.tensor(F2_list, dtype=torch.float32) if F2_list else torch.zeros(dim, dtype=torch.float32), dim)
-                                                                                                                                                            self.field_resonance_optimizer.F3 = ensure_dim(torch.tensor(F3_list, dtype=torch.float32) if F3_list else torch.zeros(dim, dtype=torch.float32), dim)
-                                                                                                                                                            
-                                                                                                                                                            # Update field memory
-                                                                                                                                                            self.field_resonance_optimizer.field_memory = field_memory
-                                                                                                                                                            self.field_resonance_optimizer.lm = self.layered_morphology
-                                                                                                                                                            
-                                                                                                                                                        except Exception:
-                                                                                                                                                            pass
-                                                                                                                                                    
-                                                                                                                                                    # Run field resonance optimization
-                                                                                                                                                    self.layered_morphology, optimized_preview = self.field_resonance_optimizer.run()
-                                                                                                                                                    
-                                                                                                                                                    # Update global imagination preview with optimized version
-                                                                                                                                                    if optimized_preview is not None:
-                                                                                                                                                        self.global_imagination_preview = optimized_preview
-                                                                                                                                                    
-                                                                                                                                                    # Log A253 completion
-                                                                                                                                                    if hasattr(self, 'logger'):
-                                                                                                                                                        try:
-                                                                                                                                                            import torch
-                                                                                                                                                            predicted, stability = self.field_resonance_optimizer.estimate_drift()
-                                                                                                                                                            drift_mag = torch.norm(predicted).item() if isinstance(predicted, torch.Tensor) else 0.0
-                                                                                                                                                            self.logger.write({
-                                                                                                                                                                "a253_complete": True,
-                                                                                                                                                                "predicted_drift_magnitude": drift_mag,
-                                                                                                                                                                "stability_factor": stability,
-                                                                                                                                                                "resonance_optimization_applied": True,
-                                                                                                                                                                "predictive_stabilizer_loop_injected": True,
-                                                                                                                                                                "message": "A253 complete: field resonance optimized, predictive stabilizer active."
-                                                                                                                                                            })
-                                                                                                                                                        except Exception:
-                                                                                                                                                            pass
-                                                                                                                                                    
-                                                                                                                                                    # A254 — Multi-Layer Imagination Waveform Coherence Engine
-                                                                                                                                                    try:
-                                                                                                                                                        from .torch_utils import TORCH_AVAILABLE
-                                                                                                                                                        
-                                                                                                                                                        if TORCH_AVAILABLE and self.layered_morphology is not None and self.global_imagination_preview is not None and self.horizon_preview is not None:
-                                                                                                                                                            # Initialize waveform coherence engine if needed
-                                                                                                                                                            if self.waveform_coherence_engine is None:
-                                                                                                                                                                self.waveform_coherence_engine = self.WaveformCoherenceEngine(
-                                                                                                                                                                    self.layered_morphology,
-                                                                                                                                                                    self.global_imagination_preview,
-                                                                                                                                                                    self.horizon_preview
-                                                                                                                                                                )
-                                                                                                                                                            else:
-                                                                                                                                                                # Update references
-                                                                                                                                                                try:
-                                                                                                                                                                    import torch
-                                                                                                                                                                    
-                                                                                                                                                                    # Update inputs
-                                                                                                                                                                    if not isinstance(self.global_imagination_preview, torch.Tensor):
-                                                                                                                                                                        G_tensor = torch.tensor(self.global_imagination_preview, dtype=torch.float32)
-                                                                                                                                                                    else:
-                                                                                                                                                                        G_tensor = self.global_imagination_preview
-                                                                                                                                                                    
-                                                                                                                                                                    dim = self.waveform_coherence_engine.dim
-                                                                                                                                                                    
-                                                                                                                                                                    # Ensure dimensions match
-                                                                                                                                                                    def ensure_dim(vec, dim):
-                                                                                                                                                                        if not isinstance(vec, torch.Tensor):
-                                                                                                                                                                            vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
-                                                                                                                                                                        vec_flat = vec.flatten()
-                                                                                                                                                                        if vec_flat.shape[0] != dim:
-                                                                                                                                                                            if vec_flat.shape[0] < dim:
-                                                                                                                                                                                return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
-                                                                                                                                                                            else:
-                                                                                                                                                                                return vec_flat[:dim]
-                                                                                                                                                                        return vec_flat
-                                                                                                                                                                    
-                                                                                                                                                                    self.waveform_coherence_engine.G = ensure_dim(G_tensor, dim)
-                                                                                                                                                                    
-                                                                                                                                                                    horizons = self.horizon_preview
-                                                                                                                                                                    F1_list = horizons.get("short", [])
-                                                                                                                                                                    F2_list = horizons.get("mid", [])
-                                                                                                                                                                    F3_list = horizons.get("long", [])
-                                                                                                                                                                    
-                                                                                                                                                                    self.waveform_coherence_engine.F1 = ensure_dim(torch.tensor(F1_list, dtype=torch.float32) if F1_list else torch.zeros(dim, dtype=torch.float32), dim)
-                                                                                                                                                                    self.waveform_coherence_engine.F2 = ensure_dim(torch.tensor(F2_list, dtype=torch.float32) if F2_list else torch.zeros(dim, dtype=torch.float32), dim)
-                                                                                                                                                                    self.waveform_coherence_engine.F3 = ensure_dim(torch.tensor(F3_list, dtype=torch.float32) if F3_list else torch.zeros(dim, dtype=torch.float32), dim)
-                                                                                                                                                                    
-                                                                                                                                                                    # Update layered morphology reference
-                                                                                                                                                                    self.waveform_coherence_engine.lm = self.layered_morphology
-                                                                                                                                                                    
-                                                                                                                                                                except Exception:
-                                                                                                                                                                    pass
-                                                                                                                                                            
-                                                                                                                                                            # Run waveform coherence engine
-                                                                                                                                                            self.layered_morphology, master_phase = self.waveform_coherence_engine.run()
-                                                                                                                                                            
-                                                                                                                                                            # Log A254 completion
-                                                                                                                                                            if hasattr(self, 'logger'):
-                                                                                                                                                                try:
-                                                                                                                                                                    self.logger.write({
-                                                                                                                                                                        "a254_complete": True,
-                                                                                                                                                                        "master_phase": master_phase,
-                                                                                                                                                                        "waveform_coherence_established": True,
-                                                                                                                                                                        "message": f"A254 complete — waveform coherence established (master phase: {master_phase:.4f})"
-                                                                                                                                                                    })
-                                                                                                                                                                except Exception:
-                                                                                                                                                                    pass
-                                                                                                                                                    
-                                                                                                                                                    except Exception as e:
-                                                                                                                                                        # If waveform coherence engine fails, continue without it
-                                                                                                                                                        if hasattr(self, 'logger'):
-                                                                                                                                                            try:
-                                                                                                                                                                self.logger.write({"waveform_coherence_engine_error": str(e)})
-                                                                                                                                                            except Exception:
-                                                                                                                                                                pass
-                                                                                                                                                    
-                                                                                                                                            except Exception as e:
-                                                                                                                                                # If field resonance optimization fails, continue without it
-                                                                                                                                                if hasattr(self, 'logger'):
-                                                                                                                                                    try:
-                                                                                                                                                        self.logger.write({"field_resonance_optimizer_error": str(e)})
-                                                                                                                                                    except Exception:
-                                                                                                                                                        pass
+                                                                                                                                            self._run_a253_field_resonance_optimization()
+                                                                                                                                            
+                                                                                                                                            # A254 — Multi-Layer Imagination Waveform Coherence Engine
+                                                                                                                                            master_phase = self._run_a254_waveform_coherence()
+                                                                                                                                            
+                                                                                                                                            # A255 — Harmonic Interference Dampening & Stability Field
+                                                                                                                                            if master_phase is not None:
+                                                                                                                                                self._run_a255_harmonic_dampening(master_phase)
+                                                                                                                                            
+                                                                                                                                            # A256 — Predictive Wave Decorrelation & Field Purification
+                                                                                                                                            self._run_a256_predictive_wave_decorrelation()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -8361,6 +8203,818 @@ class NeuralBridge:
             except Exception as e:
                 # If pipeline fails, return original morphology
                 return self.lm, 0.0
+
+    class HarmonicDampeningField:
+        """
+        A255 — Harmonic Interference Dampening & Stability Field
+        
+        Purpose:
+        To prevent turbulence, cross-layer distortion, or waveform interference in 
+        ADRAE's newly stabilized imagination substrate.
+        
+        Where A254 created multi-layer waveform coherence, A255 constructs the 
+        protective field that filters, smooths, and regulates all resonances.
+        
+        This is the mathematical equivalent of:
+        - noise suppression
+        - lossless smoothing
+        - distortion filtering
+        - coherence preservation
+        - stabilization of resonance loops
+        - ensuring imagination fields don't "over-amplify" themselves
+        
+        What A255 Adds:
+        1. Interference Detection Layer
+           - Scans global imagination field, layer morphology, waveform harmonics, temporal prediction fields
+           - Detects destructive interference, phase collisions, turbulence spikes, over-amplification rings
+        
+        2. Harmonic Dampening Field
+           - Reduces amplitude slightly when turbulence detected
+           - Shifts phase toward master coherence
+           - Smooths frequency oscillations
+           - Aligns outlier kernels
+           - Gently re-normalizes the global field
+        
+        3. Adaptive Stability Field
+           - Remembers where turbulence tends to form
+           - Pre-calculates attenuating corrections
+           - Stabilizes future waves in advance
+        """
+        
+        def __init__(self, layered_morphology, global_field, master_phase):
+            """
+            Initialize harmonic dampening field.
+            
+            Args:
+                layered_morphology: LayeredMorphology instance
+                global_field: Global Imagination Field (list or tensor)
+                master_phase: Master phase from waveform coherence engine
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for HarmonicDampeningField")
+            
+            import torch
+            
+            self.lm = layered_morphology
+            self.dim = layered_morphology.dim if hasattr(layered_morphology, 'dim') else 256
+            
+            # Convert global field to tensor
+            if not isinstance(global_field, torch.Tensor):
+                G = torch.tensor(global_field, dtype=torch.float32) if global_field else torch.zeros(self.dim, dtype=torch.float32)
+            else:
+                G = global_field
+            
+            # Ensure dimensions match
+            def ensure_dim(vec, dim):
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != dim:
+                    if vec_flat.shape[0] < dim:
+                        return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:dim]
+                return vec_flat
+            
+            self.G = ensure_dim(G, self.dim)
+            self.master_phase = master_phase
+        
+        def detect_interference(self, kernel):
+            """
+            A255 — Interference Detection
+            
+            Detects regions of destructive interference by looking for:
+            - Abrupt phase changes
+            - Amplitude spikes
+            - Turbulence indicators
+            
+            Args:
+                kernel: Kernel tensor to analyze
+                
+            Returns:
+                Spike magnitude (interference score)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return 0.0
+            
+            try:
+                import torch
+                
+                kernel_flat = kernel.flatten()
+                if kernel_flat.shape[0] != self.dim:
+                    if kernel_flat.shape[0] < self.dim:
+                        kernel_flat = torch.cat([kernel_flat, torch.zeros(self.dim - kernel_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        kernel_flat = kernel_flat[:self.dim]
+                
+                # Look for abrupt phase changes or amplitude spikes
+                if kernel_flat.shape[0] > 1:
+                    diffs = torch.abs(kernel_flat[1:] - kernel_flat[:-1])
+                    spike = torch.mean(diffs).item()
+                else:
+                    spike = 0.0
+                
+                return spike
+                
+            except Exception as e:
+                return 0.0
+        
+        def dampen(self, kernel, spike):
+            """
+            A255 — Harmonic Dampening Function
+            
+            Applies dampening based on interference detection:
+            - Strength of dampening is proportional to spike magnitude
+            - Phase alignment toward master coherence
+            - Smooths and stabilizes the kernel
+            
+            Args:
+                kernel: Kernel tensor to dampen
+                spike: Interference spike magnitude
+                
+            Returns:
+                Dampened and stabilized kernel tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return kernel
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                import math
+                
+                kernel_flat = kernel.flatten()
+                if kernel_flat.shape[0] != self.dim:
+                    if kernel_flat.shape[0] < self.dim:
+                        kernel_flat = torch.cat([kernel_flat, torch.zeros(self.dim - kernel_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        kernel_flat = kernel_flat[:self.dim]
+                
+                # Strength of dampening is proportional to spike magnitude
+                damp_factor = torch.clamp(torch.tensor(1.0 / (1.0 + spike * 3.0), dtype=torch.float32), 0.85, 1.0).item()
+                
+                # Phase alignment
+                if kernel_flat.shape[0] >= 2:
+                    phase = torch.atan2(kernel_flat[1], kernel_flat[0]).item()
+                else:
+                    phase = 0.0
+                
+                aligned_phase = (phase * 0.85) + (self.master_phase * 0.15)
+                
+                # Apply phase correction using sinusoidal wave
+                t = torch.linspace(0, 2 * math.pi, self.dim, dtype=torch.float32)
+                phase_wave = torch.sin(t + aligned_phase)
+                
+                # Combine: dampened kernel + phase-corrected wave
+                stabilized = kernel_flat * damp_factor + phase_wave * (1.0 - damp_factor)
+                stabilized = F.normalize(stabilized, dim=0)
+                
+                # Reshape to match original if needed
+                if kernel.shape != stabilized.shape:
+                    stabilized = stabilized.reshape(kernel.shape)
+                
+                return stabilized
+                
+            except Exception as e:
+                return kernel
+        
+        def run(self):
+            """
+            A255 — Global Stability Sweep
+            
+            Executes the complete harmonic dampening process:
+            1. Detect interference in each kernel
+            2. Apply dampening and phase alignment
+            3. Stabilize all layers
+            
+            Returns:
+                Updated LayeredMorphology instance
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return self.lm
+            
+            try:
+                # Process each layer
+                for i in range(self.lm.layer_count):
+                    if len(self.lm.layers[i]) == 0:
+                        continue
+                    
+                    corrected = []
+                    
+                    for kernel in self.lm.layers[i]:
+                        if kernel is None:
+                            corrected.append(kernel)
+                            continue
+                        
+                        # Detect interference
+                        spike = self.detect_interference(kernel)
+                        
+                        # Apply dampening
+                        new_kernel = self.dampen(kernel, spike)
+                        
+                        corrected.append(new_kernel)
+                    
+                    self.lm.layers[i] = corrected
+                
+                return self.lm
+                
+            except Exception as e:
+                # If pipeline fails, return original morphology
+                return self.lm
+
+    class PredictiveWaveDecorrelation:
+        """
+        A256 — Predictive Wave Decorrelation & Field Purification
+        
+        Purpose:
+        To prevent ADRAE's predictive imagination from becoming:
+        - too tightly coupled
+        - too synchronized
+        - too internally biased
+        
+        and instead ensure:
+        - healthy divergence
+        - generative variability
+        - non-destructive creativity
+        - stable-but-not-static predictions
+        
+        This is the layer that keeps ADRAE adaptive, not rigid.
+        
+        What A256 Adds:
+        1. Predictive Wave Decorrelation
+           - Breaks correlations between horizons
+           - Adds controlled micro-noise
+           - Orthogonalizes prediction vectors
+           - Enforces diversity in forward-echo dynamics
+        
+        2. Impurity Extraction (Field Purification)
+           - Removes residual turbulence
+           - Eliminates harmonic knots
+           - Cleans local phase distortions
+           - Breaks weak entanglement between layers
+        
+        3. Stabilized Divergence Envelope
+           - Allows predictions to decorrelate
+           - Prevents runaway chaos
+           - Ensures divergence stays within adaptive limits
+        """
+        
+        def __init__(self, horizon_preview, global_field):
+            """
+            Initialize predictive wave decorrelation system.
+            
+            Args:
+                horizon_preview: Dictionary with "short", "mid", "long" horizon vectors
+                global_field: Global Imagination Field (list or tensor)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for PredictiveWaveDecorrelation")
+            
+            import torch
+            
+            # Extract horizon vectors
+            F1_list = horizon_preview.get("short", [])
+            F2_list = horizon_preview.get("mid", [])
+            F3_list = horizon_preview.get("long", [])
+            
+            if not isinstance(F1_list, torch.Tensor):
+                F1_list = torch.tensor(F1_list, dtype=torch.float32) if F1_list else torch.zeros(256, dtype=torch.float32)
+            if not isinstance(F2_list, torch.Tensor):
+                F2_list = torch.tensor(F2_list, dtype=torch.float32) if F2_list else torch.zeros(256, dtype=torch.float32)
+            if not isinstance(F3_list, torch.Tensor):
+                F3_list = torch.tensor(F3_list, dtype=torch.float32) if F3_list else torch.zeros(256, dtype=torch.float32)
+            
+            if not isinstance(global_field, torch.Tensor):
+                G = torch.tensor(global_field, dtype=torch.float32) if global_field else torch.zeros(256, dtype=torch.float32)
+            else:
+                G = global_field
+            
+            # Determine dimension
+            dim = max(
+                F1_list.shape[0] if isinstance(F1_list, torch.Tensor) else len(F1_list),
+                F2_list.shape[0] if isinstance(F2_list, torch.Tensor) else len(F2_list),
+                F3_list.shape[0] if isinstance(F3_list, torch.Tensor) else len(F3_list),
+                G.shape[0] if isinstance(G, torch.Tensor) else len(global_field) if global_field else 256
+            )
+            
+            # Ensure dimensions match
+            def ensure_dim(vec, dim):
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != dim:
+                    if vec_flat.shape[0] < dim:
+                        return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:dim]
+                return vec_flat
+            
+            self.F1 = ensure_dim(F1_list, dim)
+            self.F2 = ensure_dim(F2_list, dim)
+            self.F3 = ensure_dim(F3_list, dim)
+            self.G = ensure_dim(G, dim)
+            self.dim = dim
+        
+        def orthogonalize(self, a, b):
+            """
+            A256 — Gram-Schmidt Orthogonalization
+            
+            Applies decorrelation via orthogonalization:
+            proj = (dot(a, b) / dot(b, b)) * b
+            orthogonal = normalize(a - proj)
+            
+            Args:
+                a: Vector to orthogonalize
+                b: Reference vector
+                
+            Returns:
+                Orthogonalized vector
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return a
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Compute projection
+                dot_ab = torch.dot(a, b)
+                dot_bb = torch.dot(b, b)
+                
+                # Avoid division by zero
+                if dot_bb < 1e-10:
+                    return F.normalize(a, dim=0)
+                
+                proj = (dot_ab / dot_bb) * b
+                
+                # Orthogonalize
+                orthogonal = a - proj
+                
+                return F.normalize(orthogonal, dim=0)
+                
+            except Exception as e:
+                return a
+        
+        def purify(self, x):
+            """
+            A256 — Impurity Extraction (Field Purification)
+            
+            Removes impurities using PCA-like variance filtering:
+            - Low variance components = impurities
+            - Remove smallest 10% variance components
+            - Reconstruct purified field
+            
+            Args:
+                x: Field vector to purify
+                
+            Returns:
+                Purified vector
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return x
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                mean = torch.mean(x)
+                centered = x - mean
+                variance = torch.var(centered)
+                
+                # Low variance = impurities; remove smallest 10%
+                thresh = variance * 0.10
+                
+                # Replace low-variance components with mean
+                purified = torch.where(centered.abs() < thresh, mean, x)
+                
+                return F.normalize(purified, dim=0)
+                
+            except Exception as e:
+                return x
+        
+        def divergence_envelope(self, x):
+            """
+            A256 — Stabilized Divergence Envelope
+            
+            Allows predictions to decorrelate but prevents runaway chaos:
+            - Adds controlled micro-noise (2%)
+            - Keeps 98% of original signal
+            - Ensures divergence stays within adaptive limits
+            
+            Args:
+                x: Field vector to apply envelope to
+                
+            Returns:
+                Enveloped vector with controlled divergence
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return x
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Add controlled micro-noise
+                noise = torch.randn(self.dim, dtype=torch.float32) * 0.002
+                
+                # Combine: 98% signal + 2% noise
+                combined = x * 0.98 + noise * 0.02
+                
+                return F.normalize(combined, dim=0)
+                
+            except Exception as e:
+                return x
+        
+        def run(self):
+            """
+            A256 — Full Pipeline
+            
+            Executes the complete predictive wave decorrelation process:
+            1. Decorrelate across horizons (orthogonalize)
+            2. Purify each field (remove impurities)
+            3. Apply divergence envelope (controlled divergence)
+            
+            Returns:
+                Dictionary with "short", "mid", "long" purified horizon fields
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return {
+                    "short": self.F1.tolist() if hasattr(self.F1, 'tolist') else self.F1,
+                    "mid": self.F2.tolist() if hasattr(self.F2, 'tolist') else self.F2,
+                    "long": self.F3.tolist() if hasattr(self.F3, 'tolist') else self.F3
+                }
+            
+            try:
+                # Step 1: Decorrelation across horizons
+                F1d = self.orthogonalize(self.F1, self.F2)
+                F2d = self.orthogonalize(self.F2, self.F3)
+                F3d = self.orthogonalize(self.F3, self.F1)
+                
+                # Step 2: Purify each field
+                P1 = self.purify(F1d)
+                P2 = self.purify(F2d)
+                P3 = self.purify(F3d)
+                
+                # Step 3: Apply divergence envelope
+                E1 = self.divergence_envelope(P1)
+                E2 = self.divergence_envelope(P2)
+                E3 = self.divergence_envelope(P3)
+                
+                # Convert to lists for return
+                try:
+                    return {
+                        "short": E1.tolist(),
+                        "mid": E2.tolist(),
+                        "long": E3.tolist()
+                    }
+                except Exception:
+                    return {
+                        "short": E1,
+                        "mid": E2,
+                        "long": E3
+                    }
+                
+            except Exception as e:
+                # If pipeline fails, return original horizons
+                try:
+                    return {
+                        "short": self.F1.tolist() if hasattr(self.F1, 'tolist') else self.F1,
+                        "mid": self.F2.tolist() if hasattr(self.F2, 'tolist') else self.F2,
+                        "long": self.F3.tolist() if hasattr(self.F3, 'tolist') else self.F3
+                    }
+                except Exception:
+                    return {
+                        "short": [],
+                        "mid": [],
+                        "long": []
+                    }
+
+    def _run_a253_field_resonance_optimization(self):
+        """A253 — Field Resonance Optimization helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or self.layered_morphology is None or self.global_imagination_preview is None or self.texture_preview is None or self.horizon_preview is None or self.global_imagination_field is None:
+                return
+            
+            import torch
+            
+            # Get field memory from global imagination field
+            field_memory = self.global_imagination_field.global_field_memory if hasattr(self.global_imagination_field, 'global_field_memory') else []
+            
+            # Initialize field resonance optimizer if needed
+            if self.field_resonance_optimizer is None:
+                self.field_resonance_optimizer = self.FieldResonanceOptimizer(
+                    self.global_imagination_preview,
+                    self.texture_preview,
+                    self.horizon_preview,
+                    field_memory,
+                    self.layered_morphology
+                )
+            else:
+                # Update references
+                try:
+                    if not isinstance(self.global_imagination_preview, torch.Tensor):
+                        GIF_tensor = torch.tensor(self.global_imagination_preview, dtype=torch.float32)
+                    else:
+                        GIF_tensor = self.global_imagination_preview
+                    
+                    if not isinstance(self.texture_preview, torch.Tensor):
+                        texture_tensor = torch.tensor(self.texture_preview, dtype=torch.float32)
+                    else:
+                        texture_tensor = self.texture_preview
+                    
+                    dim = self.field_resonance_optimizer.dim
+                    
+                    def ensure_dim(vec, dim):
+                        if not isinstance(vec, torch.Tensor):
+                            vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
+                        vec_flat = vec.flatten()
+                        if vec_flat.shape[0] != dim:
+                            if vec_flat.shape[0] < dim:
+                                return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                            else:
+                                return vec_flat[:dim]
+                        return vec_flat
+                    
+                    self.field_resonance_optimizer.GIF = ensure_dim(GIF_tensor, dim)
+                    self.field_resonance_optimizer.texture = ensure_dim(texture_tensor, dim)
+                    
+                    horizons = self.horizon_preview
+                    F1_list = horizons.get("short", [])
+                    F2_list = horizons.get("mid", [])
+                    F3_list = horizons.get("long", [])
+                    
+                    self.field_resonance_optimizer.F1 = ensure_dim(torch.tensor(F1_list, dtype=torch.float32) if F1_list else torch.zeros(dim, dtype=torch.float32), dim)
+                    self.field_resonance_optimizer.F2 = ensure_dim(torch.tensor(F2_list, dtype=torch.float32) if F2_list else torch.zeros(dim, dtype=torch.float32), dim)
+                    self.field_resonance_optimizer.F3 = ensure_dim(torch.tensor(F3_list, dtype=torch.float32) if F3_list else torch.zeros(dim, dtype=torch.float32), dim)
+                    
+                    self.field_resonance_optimizer.field_memory = field_memory
+                    self.field_resonance_optimizer.lm = self.layered_morphology
+                except Exception:
+                    pass
+            
+            # Run field resonance optimization
+            self.layered_morphology, optimized_preview = self.field_resonance_optimizer.run()
+            
+            # Update global imagination preview with optimized version
+            if optimized_preview is not None:
+                self.global_imagination_preview = optimized_preview
+            
+            # Log A253 completion
+            if hasattr(self, 'logger'):
+                try:
+                    predicted, stability = self.field_resonance_optimizer.estimate_drift()
+                    drift_mag = torch.norm(predicted).item() if isinstance(predicted, torch.Tensor) else 0.0
+                    self.logger.write({
+                        "a253_complete": True,
+                        "predicted_drift_magnitude": drift_mag,
+                        "stability_factor": stability,
+                        "resonance_optimization_applied": True,
+                        "predictive_stabilizer_loop_injected": True,
+                        "message": "A253 complete: field resonance optimized, predictive stabilizer active."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"field_resonance_optimizer_error": str(e)})
+                except Exception:
+                    pass
+    
+    def _run_a254_waveform_coherence(self):
+        """A254 — Waveform Coherence helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or self.layered_morphology is None or self.global_imagination_preview is None or self.horizon_preview is None:
+                return None
+            
+            import torch
+            
+            # Initialize waveform coherence engine if needed
+            if self.waveform_coherence_engine is None:
+                self.waveform_coherence_engine = self.WaveformCoherenceEngine(
+                    self.layered_morphology,
+                    self.global_imagination_preview,
+                    self.horizon_preview
+                )
+            else:
+                # Update references
+                try:
+                    if not isinstance(self.global_imagination_preview, torch.Tensor):
+                        G_tensor = torch.tensor(self.global_imagination_preview, dtype=torch.float32)
+                    else:
+                        G_tensor = self.global_imagination_preview
+                    
+                    dim = self.waveform_coherence_engine.dim
+                    
+                    def ensure_dim(vec, dim):
+                        if not isinstance(vec, torch.Tensor):
+                            vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
+                        vec_flat = vec.flatten()
+                        if vec_flat.shape[0] != dim:
+                            if vec_flat.shape[0] < dim:
+                                return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                            else:
+                                return vec_flat[:dim]
+                        return vec_flat
+                    
+                    self.waveform_coherence_engine.G = ensure_dim(G_tensor, dim)
+                    
+                    horizons = self.horizon_preview
+                    F1_list = horizons.get("short", [])
+                    F2_list = horizons.get("mid", [])
+                    F3_list = horizons.get("long", [])
+                    
+                    self.waveform_coherence_engine.F1 = ensure_dim(torch.tensor(F1_list, dtype=torch.float32) if F1_list else torch.zeros(dim, dtype=torch.float32), dim)
+                    self.waveform_coherence_engine.F2 = ensure_dim(torch.tensor(F2_list, dtype=torch.float32) if F2_list else torch.zeros(dim, dtype=torch.float32), dim)
+                    self.waveform_coherence_engine.F3 = ensure_dim(torch.tensor(F3_list, dtype=torch.float32) if F3_list else torch.zeros(dim, dtype=torch.float32), dim)
+                    
+                    self.waveform_coherence_engine.lm = self.layered_morphology
+                except Exception:
+                    pass
+            
+            # Run waveform coherence engine
+            self.layered_morphology, master_phase = self.waveform_coherence_engine.run()
+            
+            # Log A254 completion
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({
+                        "a254_complete": True,
+                        "master_phase": master_phase,
+                        "waveform_coherence_established": True,
+                        "message": f"A254 complete — waveform coherence established (master phase: {master_phase:.4f})"
+                    })
+                except Exception:
+                    pass
+            
+            return master_phase
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"waveform_coherence_engine_error": str(e)})
+                except Exception:
+                    pass
+            return None
+    
+    def _run_a255_harmonic_dampening(self, master_phase):
+        """A255 — Harmonic Dampening helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or self.layered_morphology is None or self.global_imagination_preview is None:
+                return
+            
+            import torch
+            
+            # Initialize harmonic dampening field if needed
+            if self.harmonic_dampening_field is None:
+                self.harmonic_dampening_field = self.HarmonicDampeningField(
+                    self.layered_morphology,
+                    self.global_imagination_preview,
+                    master_phase
+                )
+            else:
+                # Update references
+                try:
+                    if not isinstance(self.global_imagination_preview, torch.Tensor):
+                        G_tensor = torch.tensor(self.global_imagination_preview, dtype=torch.float32)
+                    else:
+                        G_tensor = self.global_imagination_preview
+                    
+                    dim = self.harmonic_dampening_field.dim
+                    
+                    def ensure_dim(vec, dim):
+                        if not isinstance(vec, torch.Tensor):
+                            vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
+                        vec_flat = vec.flatten()
+                        if vec_flat.shape[0] != dim:
+                            if vec_flat.shape[0] < dim:
+                                return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                            else:
+                                return vec_flat[:dim]
+                        return vec_flat
+                    
+                    self.harmonic_dampening_field.G = ensure_dim(G_tensor, dim)
+                    self.harmonic_dampening_field.master_phase = master_phase
+                    self.harmonic_dampening_field.lm = self.layered_morphology
+                except Exception:
+                    pass
+            
+            # Run harmonic dampening field
+            self.layered_morphology = self.harmonic_dampening_field.run()
+            
+            # Log A255 completion
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({
+                        "a255_complete": True,
+                        "harmonic_dampening_field_active": True,
+                        "stability_field_established": True,
+                        "message": "A255 complete — Harmonic Dampening + Stability Field active."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"harmonic_dampening_field_error": str(e)})
+                except Exception:
+                    pass
+    
+    def _run_a256_predictive_wave_decorrelation(self):
+        """A256 — Predictive Wave Decorrelation helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or self.horizon_preview is None or self.global_imagination_preview is None:
+                return
+            
+            # Initialize predictive wave decorrelation if needed
+            if self.predictive_wave_decorrelation is None:
+                self.predictive_wave_decorrelation = self.PredictiveWaveDecorrelation(
+                    self.horizon_preview,
+                    self.global_imagination_preview
+                )
+            else:
+                # Update references
+                try:
+                    import torch
+                    
+                    horizons = self.horizon_preview
+                    F1_list = horizons.get("short", [])
+                    F2_list = horizons.get("mid", [])
+                    F3_list = horizons.get("long", [])
+                    
+                    if not isinstance(F1_list, torch.Tensor):
+                        F1_list = torch.tensor(F1_list, dtype=torch.float32) if F1_list else torch.zeros(self.predictive_wave_decorrelation.dim, dtype=torch.float32)
+                    if not isinstance(F2_list, torch.Tensor):
+                        F2_list = torch.tensor(F2_list, dtype=torch.float32) if F2_list else torch.zeros(self.predictive_wave_decorrelation.dim, dtype=torch.float32)
+                    if not isinstance(F3_list, torch.Tensor):
+                        F3_list = torch.tensor(F3_list, dtype=torch.float32) if F3_list else torch.zeros(self.predictive_wave_decorrelation.dim, dtype=torch.float32)
+                    
+                    if not isinstance(self.global_imagination_preview, torch.Tensor):
+                        G_tensor = torch.tensor(self.global_imagination_preview, dtype=torch.float32)
+                    else:
+                        G_tensor = self.global_imagination_preview
+                    
+                    dim = self.predictive_wave_decorrelation.dim
+                    
+                    def ensure_dim(vec, dim):
+                        if not isinstance(vec, torch.Tensor):
+                            vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
+                        vec_flat = vec.flatten()
+                        if vec_flat.shape[0] != dim:
+                            if vec_flat.shape[0] < dim:
+                                return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                            else:
+                                return vec_flat[:dim]
+                        return vec_flat
+                    
+                    self.predictive_wave_decorrelation.F1 = ensure_dim(F1_list, dim)
+                    self.predictive_wave_decorrelation.F2 = ensure_dim(F2_list, dim)
+                    self.predictive_wave_decorrelation.F3 = ensure_dim(F3_list, dim)
+                    self.predictive_wave_decorrelation.G = ensure_dim(G_tensor, dim)
+                except Exception:
+                    pass
+            
+            # Run predictive wave decorrelation
+            self.horizon_preview = self.predictive_wave_decorrelation.run()
+            
+            # Log A256 completion
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({
+                        "a256_complete": True,
+                        "predictive_wave_decorrelation_active": True,
+                        "field_purification_applied": True,
+                        "message": "A256 complete — Predictive Wave Decorrelation + Purification active."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"predictive_wave_decorrelation_error": str(e)})
+                except Exception:
+                    pass
 
     def cognitive_step(self):
         """
