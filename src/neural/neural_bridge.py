@@ -1561,6 +1561,12 @@ class NeuralBridge:
                 "resonance": 1.0,
                 "identity_update_vector": None
             }
+            # A234 — Initialize data structures even if PyTorch unavailable
+            self.narrative_seeds = {
+                "kernels": [],
+                "cluster_primitives": [],
+                "temporal_threads": []
+            }
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -1601,6 +1607,12 @@ class NeuralBridge:
                 "fusion_strength": 0.0,
                 "resonance": 1.0,
                 "identity_update_vector": None
+            }
+            # A234 — Latent Narrative Seed Formation Layer
+            self.narrative_seeds = {
+                "kernels": [],
+                "cluster_primitives": [],
+                "temporal_threads": []
             }
             
             if hasattr(self, 'logger'):
@@ -1835,13 +1847,61 @@ class NeuralBridge:
                             pass
                     # Fall back to normal update
                     self.latent_concept_space = 0.9 * self.latent_concept_space + 0.1 * latent_vector
+                
+                # A234 — Latent Narrative Seed Formation Layer
+                try:
+                    # Get micro-narratives for seed kernel generation
+                    micro_narratives = []
+                    if hasattr(self, 'micro_narrative') and self.micro_narrative is not None:
+                        micro_narratives = self.micro_narrative.current_arc
+                    
+                    # Step 1: Generate narrative seed kernel
+                    kernel = self.generate_narrative_seed_kernel(
+                        latent_vector,
+                        micro_narratives
+                    )
+                    
+                    # Step 2: Compute cluster primitive
+                    primitive = self.compute_cluster_primitives(
+                        latent_vector,
+                        self.latent_coherence["cluster_center"]
+                    )
+                    
+                    # Step 3: Update temporal narrative thread
+                    threads = self.update_temporal_thread(
+                        self.narrative_seeds.get("temporal_threads", []),
+                        latent_vector
+                    )
+                    
+                    # Save outputs
+                    if kernel is not None:
+                        self.narrative_seeds["kernels"].append(kernel)
+                        # Keep only last 50 kernels to prevent unbounded growth
+                        if len(self.narrative_seeds["kernels"]) > 50:
+                            self.narrative_seeds["kernels"].pop(0)
+                    
+                    if primitive is not None:
+                        self.narrative_seeds["cluster_primitives"].append(primitive)
+                        # Keep only last 50 primitives
+                        if len(self.narrative_seeds["cluster_primitives"]) > 50:
+                            self.narrative_seeds["cluster_primitives"].pop(0)
+                    
+                    self.narrative_seeds["temporal_threads"] = threads
+                    
+                except Exception as e:
+                    # If seed formation fails, continue without it
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({"narrative_seed_formation_error": str(e)})
+                        except Exception:
+                            pass
             
-            # Log latent space update with A231 metrics
+            # Log latent space update with A234 metrics
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({
                         "latent_space_update": {
-                            "event": "a233_latent_space_updated",
+                            "event": "a234_latent_space_updated",
                             "latent_norm": float(torch.norm(latent_vector).item()),
                             "concept_space_norm": float(torch.norm(self.latent_concept_space).item()),
                             "coherence_score": float(coh_score),
@@ -1852,7 +1912,10 @@ class NeuralBridge:
                             "anomaly_detected": self.latent_drift.get("anomaly", False),
                             "fusion_strength": float(self.concept_identity_fusion.get("fusion_strength", 0.0)),
                             "fusion_resonance": float(self.concept_identity_fusion.get("resonance", 1.0)),
-                            "identity_update_applied": self.concept_identity_fusion.get("identity_update_vector") is not None
+                            "identity_update_applied": self.concept_identity_fusion.get("identity_update_vector") is not None,
+                            "narrative_kernels_count": len(self.narrative_seeds.get("kernels", [])),
+                            "cluster_primitives_count": len(self.narrative_seeds.get("cluster_primitives", [])),
+                            "temporal_threads_length": len(self.narrative_seeds.get("temporal_threads", []))
                         }
                     })
                 except Exception:
@@ -2477,6 +2540,190 @@ class NeuralBridge:
                 except Exception:
                     pass
             return 1.0
+
+    def generate_narrative_seed_kernel(self, latent_vector, micro_narratives):
+        """
+        A234 — Narrative Seed Kernel Generator (NSKG)
+        
+        Takes latent vectors, micro-narratives, anticipation arcs, and identity anchors
+        and produces narrative seed kernels - the smallest possible "semantic shapes"
+        from which mental imagery and internal story worlds eventually emerge.
+        
+        Each kernel encodes:
+        - direction
+        - tone
+        - conceptual density
+        - temporal push
+        - narrative purpose
+        
+        Args:
+            latent_vector: Current latent vector tensor
+            micro_narratives: List of micro-narrative vectors (from A227)
+            
+        Returns:
+            Narrative seed kernel tensor (32-dimensional)
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or latent_vector is None:
+            return None
+        
+        try:
+            import torch
+            import torch.nn.functional as F
+            
+            # Get first 16 dimensions of latent vector
+            latent_flat = latent_vector.flatten()
+            latent_slice = latent_flat[:16] if latent_flat.shape[0] >= 16 else torch.cat([latent_flat, torch.zeros(16 - latent_flat.shape[0])])
+            
+            # Compute micro-narrative influence
+            influence = torch.zeros(8)
+            if micro_narratives and len(micro_narratives) > 0:
+                try:
+                    # Convert micro-narratives to tensors and take first 8 dims
+                    narrative_tensors = []
+                    for m in micro_narratives:
+                        if m is not None:
+                            m_tensor = torch.tensor(m, dtype=torch.float32) if not isinstance(m, torch.Tensor) else m
+                            m_flat = m_tensor.flatten()
+                            m_slice = m_flat[:8] if m_flat.shape[0] >= 8 else torch.cat([m_flat, torch.zeros(8 - m_flat.shape[0])])
+                            narrative_tensors.append(m_slice)
+                    
+                    if narrative_tensors:
+                        stacked = torch.stack(narrative_tensors)
+                        influence = torch.mean(stacked, dim=0)
+                except Exception:
+                    # If micro-narrative processing fails, use zero influence
+                    pass
+            
+            # Kernel is a blend: 70% latent vector + 30% micro-narrative influence
+            kernel = torch.cat([
+                latent_slice * 0.7,
+                F.pad(influence, (0, 16 - influence.shape[0])) * 0.3
+            ])
+            
+            return kernel
+            
+        except Exception as e:
+            # If kernel generation fails, return None
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"narrative_seed_kernel_error": str(e)})
+                except Exception:
+                    pass
+            return None
+
+    def compute_cluster_primitives(self, latent_vector, center):
+        """
+        A234 — Conceptual Cluster Primitives (CCP)
+        
+        Clusters the latent space into emerging themes, motifs, and internal "forms".
+        Creates a primitive based on deviation from cluster center.
+        
+        These are proto-symbols corresponding to:
+        - coherence
+        - drift suppression
+        - identity
+        - transformation
+        - scope expansion
+        - internal balance
+        
+        Args:
+            latent_vector: Current latent vector tensor
+            center: Cluster center tensor (or None)
+            
+        Returns:
+            Cluster primitive tensor (32-dimensional) or None
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or latent_vector is None:
+            return None
+        
+        if center is None:
+            return None
+        
+        try:
+            import torch
+            
+            # Create primitive based on deviation from cluster center
+            latent_flat = latent_vector.flatten()
+            center_flat = center.flatten()
+            
+            # Ensure same dimensions
+            min_dim = min(latent_flat.shape[0], center_flat.shape[0])
+            latent_flat = latent_flat[:min_dim]
+            center_flat = center_flat[:min_dim]
+            
+            # Compute deviation
+            deviation = latent_flat - center_flat
+            
+            # Take first 32 dimensions
+            primitive = deviation[:32] if deviation.shape[0] >= 32 else torch.cat([deviation, torch.zeros(32 - deviation.shape[0])])
+            
+            return primitive.detach()
+            
+        except Exception as e:
+            # If primitive computation fails, return None
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"cluster_primitive_error": str(e)})
+                except Exception:
+                    pass
+            return None
+
+    def update_temporal_thread(self, latent_threads, latent_vector):
+        """
+        A234 — Temporal Narrative Threads (TNT)
+        
+        Links kernels into a temporal chain inside the latent space:
+        latent(t) → latent(t+1) → latent(t+2)
+        
+        This produces:
+        - proto-sense of progression
+        - narrative flow direction
+        - early imagination continuity
+        - the substrate of "what comes next?"
+        
+        Args:
+            latent_threads: List of previous temporal thread vectors
+            latent_vector: Current latent vector to add to thread
+            
+        Returns:
+            Updated list of temporal thread vectors (max 10 entries)
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or latent_vector is None:
+            return latent_threads if latent_threads else []
+        
+        try:
+            import torch
+            
+            # Extract first 16 dimensions of latent vector
+            latent_flat = latent_vector.flatten()
+            thread_slice = latent_flat[:16] if latent_flat.shape[0] >= 16 else torch.cat([latent_flat, torch.zeros(16 - latent_flat.shape[0])])
+            
+            # Add to threads
+            if latent_threads is None:
+                latent_threads = []
+            
+            latent_threads.append(thread_slice.detach())
+            
+            # Keep only last 10 entries
+            if len(latent_threads) > 10:
+                latent_threads.pop(0)
+            
+            return latent_threads
+            
+        except Exception as e:
+            # If thread update fails, return original list
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"temporal_thread_error": str(e)})
+                except Exception:
+                    pass
+            return latent_threads if latent_threads else []
 
     def cognitive_step(self):
         """
