@@ -1656,6 +1656,8 @@ class CognitiveLoopOrchestrator:
                 "active": hasattr(self.bridge, 'thought_signature') and self.bridge.thought_signature is not None
             } if hasattr(self, '_signature_preview') else {"active": False},  # A221 — Thought Signature
             "personality_flow_field": self.bridge.flow.debug_status() if hasattr(self.bridge, 'flow') and self.bridge.flow is not None else {"active": False},  # A223 — Personality Flow Field
+            "cognitive_style": self.bridge.style.summarize() if hasattr(self.bridge, 'style') and self.bridge.style is not None else {"active": False},  # A224 — Emergent Cognitive Style
+            "style_reinforcement": self.bridge.style_reinforcer.status(self.bridge.style) if hasattr(self.bridge, 'style_reinforcer') and hasattr(self.bridge, 'style') and self.bridge.style_reinforcer is not None and self.bridge.style is not None else {"active": False},  # A225 — Style Reinforcement
             "self_model": self.bridge.self_model.summary(),
         }
 

@@ -99,6 +99,12 @@ class NeuralBridge:
         # A223 — Emergent Personality Flow Fields
         from .personality_flow_field import PersonalityFlowField
         self.flow = PersonalityFlowField(influence=0.12, memory_length=50)
+        # A224 — Emergent Cognitive Style Architect
+        from .emergent_cognitive_style import CognitiveStyleArchitect
+        self.style = CognitiveStyleArchitect()
+        # A225 — Cognitive Style Reinforcement Layer
+        from .style_reinforcement import CognitiveStyleReinforcer
+        self.style_reinforcer = CognitiveStyleReinforcer()
         self.stability = SelfStabilityEngine()
         self.evolution = AdaptiveEvolutionEngine()
         self.evo_consolidator = EvolutionMemoryConsolidator()
@@ -841,13 +847,104 @@ class NeuralBridge:
         - Attention signals
         - Relevant semantic memories
         - Long-term identity
+        - A224: ADRAE's personal cognitive style
         """
         fusion = self.fusion.last_fusion_vector
         attention = self.attention.last_focus_vector
         timescales = self.state.timescales
         mm = self.state.memory_manager if hasattr(self.state, "memory_manager") else None
 
-        return self.reflector.generate(fusion, attention, timescales, mm)
+        # Generate base reflection
+        reflective = self.reflector.generate(fusion, attention, timescales, mm)
+        
+        # A224 — Apply ADRAE's cognitive style to the reflection
+        if reflective is not None:
+            try:
+                # Get identity vector
+                identity_vec = None
+                if timescales and hasattr(timescales, 'identity_vector'):
+                    identity_vec = timescales.identity_vector
+                
+                # Get drift value
+                drift_value = None
+                if hasattr(self.state, 'drift'):
+                    try:
+                        drift_state = self.state.drift.get_status()
+                        if drift_state:
+                            drift_value = drift_state.get("latest_drift", None)
+                    except Exception:
+                        pass
+                
+                # Compute novelty (simplified - could be enhanced)
+                novelty_value = None
+                if reflective is not None and mm is not None:
+                    try:
+                        # Check how similar reflection is to recent memories
+                        if hasattr(mm, 'episodic') and mm.episodic is not None:
+                            recent = mm.episodic.retrieve_similar(reflective, top_k=1)
+                            if recent and len(recent) > 0:
+                                novelty_value = 1.0 - recent[0][0]  # 1 - similarity
+                            else:
+                                novelty_value = 1.0
+                    except Exception:
+                        pass
+                
+                # Apply style transformation
+                if hasattr(self, 'style') and self.style is not None:
+                    styled = self.style.apply_style(
+                        reflective,
+                        identity_vec=identity_vec,
+                        drift=drift_value,
+                        novelty=novelty_value
+                    )
+                    if styled is not None:
+                        reflective = styled
+                
+                # A225 — Style reinforcement based on coherence & identity alignment
+                if reflective is not None and hasattr(self, 'style_reinforcer') and self.style_reinforcer is not None:
+                    try:
+                        # Get coherence from fusion status
+                        coherence = 1.0  # Default
+                        try:
+                            fusion_status = self.fusion.status()
+                            if isinstance(fusion_status, dict):
+                                coherence = fusion_status.get("coherence", 1.0)
+                        except Exception:
+                            pass
+                        
+                        # Compute identity alignment (cosine similarity between reflection and identity)
+                        identity_align = None
+                        if identity_vec is not None and reflective is not None:
+                            try:
+                                from .torch_utils import safe_cosine_similarity
+                                align = safe_cosine_similarity(reflective, identity_vec)
+                                if align is not None:
+                                    identity_align = align
+                            except Exception:
+                                pass
+                        
+                        # Reinforce style based on coherence and identity alignment
+                        self.style = self.style_reinforcer.reinforce(
+                            self.style,
+                            coherence=coherence,
+                            identity_align=identity_align
+                        )
+                    except Exception as e:
+                        # If reinforcement fails, continue without it
+                        if hasattr(self, 'logger'):
+                            try:
+                                self.logger.write({"style_reinforcement_error": str(e)})
+                            except Exception:
+                                pass
+            except Exception as e:
+                # If styling fails, continue with original reflection
+                if hasattr(self, 'logger'):
+                    try:
+                        self.logger.write({"cognitive_style_application_error": str(e)})
+                    except Exception:
+                        pass
+        
+        return reflective
 
     def cognitive_step(self):
         """
