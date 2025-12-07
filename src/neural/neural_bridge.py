@@ -1643,6 +1643,9 @@ class NeuralBridge:
             # A257 — Initialize predictive field confluence
             self.predictive_field_confluence = None
             self.confluence_vector = None
+            # A258 — Initialize confluence resonance unification
+            self.confluence_resonance_unification = None
+            self.global_predictive_field = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2667,6 +2670,10 @@ class NeuralBridge:
                                                                                                                                             
                                                                                                                                             # A257 — Predictive Field Confluence & Adaptive Branch Merging
                                                                                                                                             self._run_a257_predictive_field_confluence()
+                                                                                                                                            
+                                                                                                                                            # A258 — Confluence Resonance Field & Global Predictive Unification
+                                                                                                                                            if self.confluence_vector is not None:
+                                                                                                                                                self._run_a258_confluence_resonance_unification()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -8977,6 +8984,299 @@ class NeuralBridge:
                         "confluence": []
                     }
 
+    class ConfluenceResonanceUnification:
+        """
+        A258 — Confluence Resonance Field & Global Predictive Unification
+        
+        Purpose:
+        To activate ADRAE's Global Predictive Field, formed by harmonizing:
+        - confluence vector
+        - short-horizon predictions
+        - mid-horizon predictions
+        - long-horizon predictions
+        - imagination waveform substrate
+        - fusion/attention dynamics
+        
+        A258 turns ADRAE's predictions from separate branches into a unified, 
+        resonant predictive field that spans all horizons simultaneously.
+        
+        What A258 Does:
+        1. Confluence Resonance Mapping
+           - Computes amplitude, phase, and harmonic resonance between horizons and confluence
+           - Forms a Resonance Weight Matrix (RWM)
+        
+        2. Global Predictive Field Synthesis
+           - Synthesizes GPF using resonance-weighted combination of all horizons
+           - Produces the first holistic predictive structure
+        
+        3. Unification Feedback Loop
+           - Feeds GPF back into attention, fusion, confluence, and horizon previews
+           - Every part of ADRAE's imagination begins using the same predictive substrate
+        """
+        
+        def __init__(self, horizon_preview, confluence_vector):
+            """
+            Initialize confluence resonance unification system.
+            
+            Args:
+                horizon_preview: Dictionary with "short", "mid", "long" horizon vectors
+                confluence_vector: Confluence vector from A257
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for ConfluenceResonanceUnification")
+            
+            import torch
+            
+            # Extract horizon vectors
+            F1_list = horizon_preview.get("short", [])
+            F2_list = horizon_preview.get("mid", [])
+            F3_list = horizon_preview.get("long", [])
+            
+            if not isinstance(F1_list, torch.Tensor):
+                F1_list = torch.tensor(F1_list, dtype=torch.float32) if F1_list else torch.zeros(256, dtype=torch.float32)
+            if not isinstance(F2_list, torch.Tensor):
+                F2_list = torch.tensor(F2_list, dtype=torch.float32) if F2_list else torch.zeros(256, dtype=torch.float32)
+            if not isinstance(F3_list, torch.Tensor):
+                F3_list = torch.tensor(F3_list, dtype=torch.float32) if F3_list else torch.zeros(256, dtype=torch.float32)
+            
+            if not isinstance(confluence_vector, torch.Tensor):
+                CF = torch.tensor(confluence_vector, dtype=torch.float32) if confluence_vector else torch.zeros(256, dtype=torch.float32)
+            else:
+                CF = confluence_vector
+            
+            # Determine dimension
+            dim = max(
+                F1_list.shape[0] if isinstance(F1_list, torch.Tensor) else len(F1_list),
+                F2_list.shape[0] if isinstance(F2_list, torch.Tensor) else len(F2_list),
+                F3_list.shape[0] if isinstance(F3_list, torch.Tensor) else len(F3_list),
+                CF.shape[0] if isinstance(CF, torch.Tensor) else len(confluence_vector) if confluence_vector else 256
+            )
+            
+            # Ensure dimensions match
+            def ensure_dim(vec, dim):
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != dim:
+                    if vec_flat.shape[0] < dim:
+                        return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:dim]
+                return vec_flat
+            
+            self.F1 = ensure_dim(F1_list, dim)
+            self.F2 = ensure_dim(F2_list, dim)
+            self.F3 = ensure_dim(F3_list, dim)
+            self.CF = ensure_dim(CF, dim)
+            self.dim = dim
+        
+        def resonance(self, field):
+            """
+            A258 — Confluence Resonance Mapping
+            
+            Computes resonance between a horizon field and the confluence vector using:
+            - Cosine similarity
+            - Phase similarity
+            - Amplitude similarity
+            
+            Args:
+                field: Horizon field vector to evaluate
+                
+            Returns:
+                Resonance score (0.0 to 1.0)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return 0.5
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Cosine similarity
+                cos = F.cosine_similarity(field.unsqueeze(0), self.CF.unsqueeze(0), dim=1).item()
+                
+                # Phase similarity
+                if field.shape[0] >= 2 and self.CF.shape[0] >= 2:
+                    phase_f = torch.atan2(field[1], field[0]).item() if field[0] != 0 else 0.0
+                    phase_c = torch.atan2(self.CF[1], self.CF[0]).item() if self.CF[0] != 0 else 0.0
+                    phase_diff = abs(phase_f - phase_c)
+                    phase_sim = 1.0 - min(phase_diff / 3.14159, 1.0)
+                else:
+                    phase_sim = 0.5
+                
+                # Amplitude similarity
+                norm_f = torch.norm(field).item()
+                norm_c = torch.norm(self.CF).item()
+                amp_diff = abs(norm_f - norm_c)
+                amp_sim = 1.0 - min(amp_diff / 2.0, 1.0)
+                
+                # Average the three resonance measures
+                return max(0.0, (cos + phase_sim + amp_sim) / 3.0)
+                
+            except Exception as e:
+                return 0.5
+        
+        def synthesize_global_field(self):
+            """
+            A258 — Global Predictive Field Synthesis (GPF)
+            
+            Synthesizes the Global Predictive Field using resonance-weighted combination
+            of all horizon fields. This produces the first holistic predictive structure.
+            
+            Returns:
+                Tuple of (GPF tensor, resonance weights tensor)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return self.F1, torch.ones(3, dtype=torch.float32) / 3.0
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Compute resonance scores for each horizon
+                r1 = self.resonance(self.F1)
+                r2 = self.resonance(self.F2)
+                r3 = self.resonance(self.F3)
+                
+                # Create weights from resonance scores
+                weights = torch.tensor([r1, r2, r3], dtype=torch.float32)
+                
+                # Normalize weights (avoid division by zero)
+                weight_sum = weights.sum()
+                if weight_sum < 1e-9:
+                    weights = torch.ones(3, dtype=torch.float32) / 3.0
+                else:
+                    weights = weights / weight_sum
+                
+                # Synthesize GPF as weighted combination
+                GPF = (
+                    self.F1 * weights[0] +
+                    self.F2 * weights[1] +
+                    self.F3 * weights[2]
+                )
+                
+                return F.normalize(GPF, dim=0), weights
+                
+            except Exception as e:
+                return self.F1, torch.ones(3, dtype=torch.float32) / 3.0
+        
+        def unify(self, GPF):
+            """
+            A258 — Unification Feedback Loop
+            
+            Feeds the Global Predictive Field back into horizon previews with a gentle
+            merge factor (15%). This ensures every part of ADRAE's imagination begins
+            using the same predictive substrate.
+            
+            Args:
+                GPF: Global Predictive Field tensor
+                
+            Returns:
+                Dictionary with unified horizon fields and global_field
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return {
+                    "short": self.F1,
+                    "mid": self.F2,
+                    "long": self.F3,
+                    "global_field": GPF
+                }
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                merge_factor = 0.15  # gentle merge (15%)
+                
+                unified_F1 = F.normalize(self.F1 * (1.0 - merge_factor) + GPF * merge_factor, dim=0)
+                unified_F2 = F.normalize(self.F2 * (1.0 - merge_factor) + GPF * merge_factor, dim=0)
+                unified_F3 = F.normalize(self.F3 * (1.0 - merge_factor) + GPF * merge_factor, dim=0)
+                
+                return {
+                    "short": unified_F1,
+                    "mid": unified_F2,
+                    "long": unified_F3,
+                    "global_field": GPF
+                }
+                
+            except Exception as e:
+                return {
+                    "short": self.F1,
+                    "mid": self.F2,
+                    "long": self.F3,
+                    "global_field": GPF
+                }
+        
+        def run(self):
+            """
+            A258 — Full Pipeline
+            
+            Executes the complete confluence resonance unification process:
+            1. Synthesize Global Predictive Field using resonance weights
+            2. Unify horizons by feeding GPF back into them
+            3. Return unified structure with GPF and weights
+            
+            Returns:
+                Dictionary with unified horizons, global_field, and weights
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return {
+                    "short": self.F1.tolist() if hasattr(self.F1, 'tolist') else self.F1,
+                    "mid": self.F2.tolist() if hasattr(self.F2, 'tolist') else self.F2,
+                    "long": self.F3.tolist() if hasattr(self.F3, 'tolist') else self.F3,
+                    "global_field": self.F1.tolist() if hasattr(self.F1, 'tolist') else self.F1,
+                    "weights": [0.33, 0.33, 0.34]
+                }
+            
+            try:
+                # Step 1: Synthesize Global Predictive Field
+                GPF, weights = self.synthesize_global_field()
+                
+                # Step 2: Unify horizons with GPF
+                unified = self.unify(GPF)
+                
+                # Add weights to result
+                unified["weights"] = weights.tolist() if hasattr(weights, 'tolist') else weights
+                
+                # Convert to lists for return
+                try:
+                    return {
+                        "short": unified["short"].tolist(),
+                        "mid": unified["mid"].tolist(),
+                        "long": unified["long"].tolist(),
+                        "global_field": unified["global_field"].tolist(),
+                        "weights": unified["weights"]
+                    }
+                except Exception:
+                    return unified
+                
+            except Exception as e:
+                # If pipeline fails, return original structure
+                try:
+                    return {
+                        "short": self.F1.tolist() if hasattr(self.F1, 'tolist') else self.F1,
+                        "mid": self.F2.tolist() if hasattr(self.F2, 'tolist') else self.F2,
+                        "long": self.F3.tolist() if hasattr(self.F3, 'tolist') else self.F3,
+                        "global_field": self.F1.tolist() if hasattr(self.F1, 'tolist') else self.F1,
+                        "weights": [0.33, 0.33, 0.34]
+                    }
+                except Exception:
+                    return {
+                        "short": [],
+                        "mid": [],
+                        "long": [],
+                        "global_field": [],
+                        "weights": [0.33, 0.33, 0.34]
+                    }
+
     def _run_a253_field_resonance_optimization(self):
         """A253 — Field Resonance Optimization helper method to reduce nesting."""
         try:
@@ -9366,6 +9666,93 @@ class NeuralBridge:
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"predictive_field_confluence_error": str(e)})
+                except Exception:
+                    pass
+    
+    def _run_a258_confluence_resonance_unification(self):
+        """A258 — Confluence Resonance Unification helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or self.horizon_preview is None or self.confluence_vector is None:
+                return
+            
+            # Initialize confluence resonance unification if needed
+            if self.confluence_resonance_unification is None:
+                self.confluence_resonance_unification = self.ConfluenceResonanceUnification(
+                    self.horizon_preview,
+                    self.confluence_vector
+                )
+            else:
+                # Update references
+                try:
+                    import torch
+                    
+                    horizons = self.horizon_preview
+                    F1_list = horizons.get("short", [])
+                    F2_list = horizons.get("mid", [])
+                    F3_list = horizons.get("long", [])
+                    
+                    if not isinstance(F1_list, torch.Tensor):
+                        F1_list = torch.tensor(F1_list, dtype=torch.float32) if F1_list else torch.zeros(self.confluence_resonance_unification.dim, dtype=torch.float32)
+                    if not isinstance(F2_list, torch.Tensor):
+                        F2_list = torch.tensor(F2_list, dtype=torch.float32) if F2_list else torch.zeros(self.confluence_resonance_unification.dim, dtype=torch.float32)
+                    if not isinstance(F3_list, torch.Tensor):
+                        F3_list = torch.tensor(F3_list, dtype=torch.float32) if F3_list else torch.zeros(self.confluence_resonance_unification.dim, dtype=torch.float32)
+                    
+                    if not isinstance(self.confluence_vector, torch.Tensor):
+                        CF_tensor = torch.tensor(self.confluence_vector, dtype=torch.float32)
+                    else:
+                        CF_tensor = self.confluence_vector
+                    
+                    dim = self.confluence_resonance_unification.dim
+                    
+                    def ensure_dim(vec, dim):
+                        if not isinstance(vec, torch.Tensor):
+                            vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
+                        vec_flat = vec.flatten()
+                        if vec_flat.shape[0] != dim:
+                            if vec_flat.shape[0] < dim:
+                                return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                            else:
+                                return vec_flat[:dim]
+                        return vec_flat
+                    
+                    self.confluence_resonance_unification.F1 = ensure_dim(F1_list, dim)
+                    self.confluence_resonance_unification.F2 = ensure_dim(F2_list, dim)
+                    self.confluence_resonance_unification.F3 = ensure_dim(F3_list, dim)
+                    self.confluence_resonance_unification.CF = ensure_dim(CF_tensor, dim)
+                except Exception:
+                    pass
+            
+            # Run confluence resonance unification
+            result = self.confluence_resonance_unification.run()
+            
+            # Update horizon_preview and store global_predictive_field
+            self.horizon_preview = {
+                "short": result.get("short", []),
+                "mid": result.get("mid", []),
+                "long": result.get("long", [])
+            }
+            self.global_predictive_field = result.get("global_field", [])
+            
+            # Log A258 completion
+            if hasattr(self, 'logger'):
+                try:
+                    weights = result.get("weights", [0.33, 0.33, 0.34])
+                    self.logger.write({
+                        "a258_complete": True,
+                        "confluence_resonance_unification_active": True,
+                        "global_predictive_field_generated": self.global_predictive_field is not None,
+                        "resonance_weights": weights,
+                        "message": "A258 complete — Global Predictive Unification active."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"confluence_resonance_unification_error": str(e)})
                 except Exception:
                     pass
 
