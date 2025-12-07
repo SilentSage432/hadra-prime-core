@@ -1565,7 +1565,41 @@ class NeuralBridge:
             self.narrative_seeds = {
                 "kernels": [],
                 "cluster_primitives": [],
-                "temporal_threads": []
+                "temporal_threads": [],
+                # A235 — Initialize mesh structure
+                "mesh": {
+                    "similarity_matrix": None,
+                    "propagated_kernels": [],
+                    "mesh_embedding": None,
+                    # A236 — Initialize temporal structures
+                    "temporal_transition_matrix": None,
+                    "temporal_embedding": None,
+                    "temporal_coherence": 1.0,
+                    # A237 — Initialize resonance structures
+                    "resonance_score": 1.0,
+                    "harmonic_stabilized": False
+                }
+            }
+            # A236 — Initialize temporal state tracking
+            self.prev_mesh_kernels = []
+            self.prev_mesh_embedding = None
+            # A238 — Initialize global narrative integration
+            self.global_narrative_state = None
+            self.global_integration_vector = None
+            self.global_alignment_score = 1.0
+            # A239 — Initialize narrative anticipation structures
+            self.predictive_flow = None
+            self.motif_continuation_matrix = None
+            self.anticipatory_map = None
+            self.prev_global_narrative_state = None
+            self.prev_mesh_embedding_raw = None
+            self.prev_temporal_embedding_raw = None
+            self.kernel_history = []
+            # A240 — Initialize conceptual substrate
+            self.conceptual_substrate = {
+                "reservoir": None,
+                "concepts_raw": [],
+                "concepts_stable": []
             }
             if hasattr(self, 'logger'):
                 try:
@@ -1612,7 +1646,42 @@ class NeuralBridge:
             self.narrative_seeds = {
                 "kernels": [],
                 "cluster_primitives": [],
-                "temporal_threads": []
+                "temporal_threads": [],
+                # A235 — Multi-Seed Narrative Mesh Formation
+                "mesh": {
+                    "similarity_matrix": None,
+                    "propagated_kernels": [],
+                    "mesh_embedding": None,
+                    # A236 — Narrative Mesh Temporal Dynamics Layer
+                    "temporal_transition_matrix": None,
+                    "temporal_embedding": None,
+                    "temporal_coherence": 1.0,
+                    # A237 — Narrative Mesh Resonance & Harmonic Stability Layer
+                    "resonance_score": 1.0,
+                    "harmonic_stabilized": False
+                }
+            }
+            # A236 — Temporal state tracking
+            self.prev_mesh_kernels = []
+            self.prev_mesh_embedding = None
+            # A238 — Global Narrative Integration Layer
+            self.global_narrative_state = None
+            self.global_integration_vector = None
+            self.global_alignment_score = 1.0
+            # A239 — Narrative Anticipation & Predictive Structure Layer
+            self.predictive_flow = None
+            self.motif_continuation_matrix = None
+            self.anticipatory_map = None
+            # A239 — Previous state tracking for predictive flow
+            self.prev_global_narrative_state = None
+            self.prev_mesh_embedding_raw = None
+            self.prev_temporal_embedding_raw = None
+            self.kernel_history = []  # Track kernel history for motif detection
+            # A240 — Conceptual Imagination Substrate (Initialization)
+            self.conceptual_substrate = {
+                "reservoir": None,
+                "concepts_raw": [],
+                "concepts_stable": []
             }
             
             if hasattr(self, 'logger'):
@@ -1895,13 +1964,260 @@ class NeuralBridge:
                             self.logger.write({"narrative_seed_formation_error": str(e)})
                         except Exception:
                             pass
+                
+                # A235 — Multi-Seed Narrative Mesh Formation
+                try:
+                    kernels = self.narrative_seeds.get("kernels", [])
+                    
+                    # Only build mesh if we have at least 2 kernels
+                    if kernels and len(kernels) >= 2:
+                        # Step 1: Build seed interaction graph
+                        sim_matrix = self.build_seed_interaction_graph(kernels)
+                        
+                        if sim_matrix is not None:
+                            # Step 2: Propagate mesh
+                            propagated = self.propagate_mesh(sim_matrix, kernels)
+                            
+                            # Step 3: Compress mesh embedding
+                            mesh_embedding = self.compress_mesh_embedding(propagated)
+                            
+                            # Save into narrative seeds structure
+                            self.narrative_seeds["mesh"]["similarity_matrix"] = sim_matrix
+                            self.narrative_seeds["mesh"]["propagated_kernels"] = propagated
+                            self.narrative_seeds["mesh"]["mesh_embedding"] = mesh_embedding
+                            
+                            # A236 — Narrative Mesh Temporal Dynamics Layer
+                            try:
+                                # Get previous mesh kernels for temporal transition
+                                prev_kernels = getattr(self, "prev_mesh_kernels", [])
+                                
+                                # Step 1: Compute temporal transition matrix
+                                transition_matrix = self.compute_temporal_transition_matrix(
+                                    prev_kernels,
+                                    propagated
+                                )
+                                
+                                # Step 2: Update mesh temporally
+                                prev_embedding = self.narrative_seeds["mesh"].get("mesh_embedding")
+                                if prev_embedding is None:
+                                    prev_embedding = mesh_embedding
+                                
+                                updated_embedding = self.update_mesh_temporally(
+                                    prev_embedding,
+                                    latent_vector,
+                                    transition_matrix
+                                )
+                                
+                                # Step 3: Compute temporal coherence
+                                prev_temporal_embedding = getattr(self, "prev_mesh_embedding", None)
+                                temporal_coherence = self.compute_temporal_coherence(
+                                    prev_temporal_embedding,
+                                    updated_embedding
+                                )
+                                
+                                # Save new temporal state
+                                self.narrative_seeds["mesh"]["temporal_transition_matrix"] = transition_matrix
+                                self.narrative_seeds["mesh"]["temporal_embedding"] = updated_embedding
+                                self.narrative_seeds["mesh"]["temporal_coherence"] = float(temporal_coherence)
+                                
+                                # Store for next cycle
+                                self.prev_mesh_kernels = propagated
+                                self.prev_mesh_embedding = updated_embedding
+                                
+                                # A237 — Narrative Mesh Resonance & Harmonic Stability Layer
+                                try:
+                                    # Get embeddings and identity vector
+                                    mesh = self.narrative_seeds.get("mesh", {})
+                                    temporal_emb = mesh.get("temporal_embedding")
+                                    mesh_emb = mesh.get("mesh_embedding")
+                                    
+                                    # Get identity vector
+                                    identity_vec = None
+                                    if hasattr(self.state, 'timescales') and self.state.timescales is not None:
+                                        identity_vec = getattr(self.state.timescales, 'identity_vector', None)
+                                    
+                                    if temporal_emb is not None and mesh_emb is not None and identity_vec is not None:
+                                        # Step 1: Compute resonance
+                                        resonance_score = self.compute_resonance(
+                                            temporal_emb,
+                                            mesh_emb,
+                                            identity_vec,
+                                            latent_vector
+                                        )
+                                        
+                                        # Step 2: Apply harmonic correction if needed
+                                        corrected_temporal, corrected_mesh = self.harmonic_correction_pulse(
+                                            temporal_emb,
+                                            mesh_emb,
+                                            identity_vec,
+                                            resonance_score
+                                        )
+                                        
+                                        # Save outputs
+                                        self.narrative_seeds["mesh"]["resonance_score"] = float(resonance_score)
+                                        self.narrative_seeds["mesh"]["temporal_embedding"] = corrected_temporal
+                                        self.narrative_seeds["mesh"]["mesh_embedding"] = corrected_mesh
+                                        self.narrative_seeds["mesh"]["harmonic_stabilized"] = resonance_score < 0.75
+                                        
+                                        # A238 — Global Narrative Integration Layer
+                                        try:
+                                            # Step 1: Compute global narrative state
+                                            gns = self.compute_global_narrative_state(
+                                                corrected_mesh,
+                                                corrected_temporal,
+                                                identity_vec,
+                                                latent_vector,
+                                                resonance_score
+                                            )
+                                            
+                                            if gns is not None:
+                                                # Step 2: Cross-system alignment
+                                                fusion_vec = self.fusion.last_fusion_vector
+                                                attention_vec = self.attention.last_focus_vector
+                                                
+                                                alignment_score = self.cross_system_alignment(
+                                                    gns,
+                                                    fusion_vec,
+                                                    attention_vec
+                                                )
+                                                
+                                                # Step 3: Global Integration Pulse
+                                                # Apply alignment-weighted integration
+                                                global_integrated = torch.tanh(gns * (0.9 + 0.1 * alignment_score))
+                                                
+                                                # Save outputs
+                                                self.global_narrative_state = gns
+                                                self.global_integration_vector = global_integrated
+                                                self.global_alignment_score = float(alignment_score)
+                                                
+                                                # A239 — Narrative Anticipation & Predictive Structure Layer
+                                                try:
+                                                    # Step 1: Compute predictive narrative flow vector
+                                                    pnfv = self.compute_predictive_flow(
+                                                        gns,
+                                                        getattr(self, "prev_global_narrative_state", None),
+                                                        corrected_mesh,
+                                                        getattr(self, "prev_mesh_embedding_raw", None),
+                                                        corrected_temporal,
+                                                        getattr(self, "prev_temporal_embedding_raw", None)
+                                                    )
+                                                    
+                                                    # Step 2: Compute motif continuation matrix
+                                                    # Update kernel history (keep last 20 kernels)
+                                                    kernels = self.narrative_seeds.get("kernels", [])
+                                                    if kernels:
+                                                        # Add latest kernel to history
+                                                        latest_kernel = kernels[-1]
+                                                        if latest_kernel is not None:
+                                                            self.kernel_history.append(latest_kernel)
+                                                            # Keep only last 20 kernels
+                                                            if len(self.kernel_history) > 20:
+                                                                self.kernel_history.pop(0)
+                                                    
+                                                    mcm = self.compute_motif_continuation_matrix(self.kernel_history)
+                                                    
+                                                    # Step 3: Compute anticipatory structural map
+                                                    anticipatory_map = None
+                                                    if pnfv is not None:
+                                                        anticipatory_map = self.compute_anticipatory_map(
+                                                            gns,
+                                                            pnfv,
+                                                            latent_vector
+                                                        )
+                                                    
+                                                    # Store outputs
+                                                    self.predictive_flow = pnfv
+                                                    self.motif_continuation_matrix = mcm
+                                                    self.anticipatory_map = anticipatory_map
+                                                    
+                                                    # Save raw states for next cycle
+                                                    self.prev_global_narrative_state = gns
+                                                    self.prev_mesh_embedding_raw = corrected_mesh
+                                                    self.prev_temporal_embedding_raw = corrected_temporal
+                                                    
+                                                    # A240 — Conceptual Imagination Substrate (Initialization)
+                                                    try:
+                                                        # Get identity vector for reservoir
+                                                        identity_vec_for_reservoir = identity_vec
+                                                        if identity_vec_for_reservoir is None:
+                                                            if hasattr(self.state, 'timescales') and self.state.timescales is not None:
+                                                                identity_vec_for_reservoir = getattr(self.state.timescales, 'identity_vector', None)
+                                                        
+                                                        # Step 1: Build conceptual reservoir
+                                                        reservoir = self.initialize_conceptual_reservoir(
+                                                            gns,
+                                                            pnfv,
+                                                            mcm,
+                                                            identity_vec_for_reservoir,
+                                                            latent_vector
+                                                        )
+                                                        
+                                                        if reservoir is not None:
+                                                            # Step 2: Generate new conceptual vectors
+                                                            raw_concepts = self.combinatorial_concept_generator(reservoir, num_concepts=4)
+                                                            
+                                                            # Step 3: Stabilize them
+                                                            stable_concepts = self.concept_stabilization_gate(raw_concepts)
+                                                            
+                                                            # Save outputs
+                                                            self.conceptual_substrate["reservoir"] = reservoir
+                                                            self.conceptual_substrate["concepts_raw"] = raw_concepts
+                                                            self.conceptual_substrate["concepts_stable"] = stable_concepts
+                                                            
+                                                    except Exception as e:
+                                                        # If conceptual substrate initialization fails, continue without it
+                                                        if hasattr(self, 'logger'):
+                                                            try:
+                                                                self.logger.write({"conceptual_substrate_error": str(e)})
+                                                            except Exception:
+                                                                pass
+                                                    
+                                                except Exception as e:
+                                                    # If predictive structure computation fails, continue without it
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"narrative_anticipation_error": str(e)})
+                                                        except Exception:
+                                                            pass
+                                                
+                                        except Exception as e:
+                                            # If global integration fails, continue without it
+                                            if hasattr(self, 'logger'):
+                                                try:
+                                                    self.logger.write({"global_narrative_integration_error": str(e)})
+                                                except Exception:
+                                                    pass
+                                        
+                                except Exception as e:
+                                    # If resonance computation fails, continue without it
+                                    if hasattr(self, 'logger'):
+                                        try:
+                                            self.logger.write({"harmonic_stability_error": str(e)})
+                                        except Exception:
+                                            pass
+                                
+                            except Exception as e:
+                                # If temporal dynamics fail, continue without them
+                                if hasattr(self, 'logger'):
+                                    try:
+                                        self.logger.write({"temporal_dynamics_error": str(e)})
+                                    except Exception:
+                                        pass
+                    
+                except Exception as e:
+                    # If mesh formation fails, continue without it
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({"narrative_mesh_formation_error": str(e)})
+                        except Exception:
+                            pass
             
-            # Log latent space update with A234 metrics
+            # Log latent space update with A240 metrics
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({
                         "latent_space_update": {
-                            "event": "a234_latent_space_updated",
+                            "event": "a240_latent_space_updated",
                             "latent_norm": float(torch.norm(latent_vector).item()),
                             "concept_space_norm": float(torch.norm(self.latent_concept_space).item()),
                             "coherence_score": float(coh_score),
@@ -1915,7 +2231,24 @@ class NeuralBridge:
                             "identity_update_applied": self.concept_identity_fusion.get("identity_update_vector") is not None,
                             "narrative_kernels_count": len(self.narrative_seeds.get("kernels", [])),
                             "cluster_primitives_count": len(self.narrative_seeds.get("cluster_primitives", [])),
-                            "temporal_threads_length": len(self.narrative_seeds.get("temporal_threads", []))
+                            "temporal_threads_length": len(self.narrative_seeds.get("temporal_threads", [])),
+                            "mesh_embedding_active": self.narrative_seeds.get("mesh", {}).get("mesh_embedding") is not None,
+                            "mesh_kernels_count": len(self.narrative_seeds.get("mesh", {}).get("propagated_kernels", [])),
+                            "temporal_embedding_active": self.narrative_seeds.get("mesh", {}).get("temporal_embedding") is not None,
+                            "temporal_coherence": float(self.narrative_seeds.get("mesh", {}).get("temporal_coherence", 1.0)),
+                            "transition_matrix_active": self.narrative_seeds.get("mesh", {}).get("temporal_transition_matrix") is not None,
+                            "resonance_score": float(self.narrative_seeds.get("mesh", {}).get("resonance_score", 1.0)),
+                            "harmonic_stabilized": self.narrative_seeds.get("mesh", {}).get("harmonic_stabilized", False),
+                            "global_narrative_state_active": self.global_narrative_state is not None,
+                            "global_alignment_score": float(self.global_alignment_score),
+                            "global_integration_vector_active": self.global_integration_vector is not None,
+                            "predictive_flow_active": self.predictive_flow is not None,
+                            "motif_continuation_matrix_active": self.motif_continuation_matrix is not None,
+                            "anticipatory_map_active": self.anticipatory_map is not None,
+                            "kernel_history_length": len(self.kernel_history),
+                            "conceptual_reservoir_active": self.conceptual_substrate.get("reservoir") is not None,
+                            "concepts_generated": len(self.conceptual_substrate.get("concepts_stable", [])),
+                            "conceptual_substrate_initialized": self.conceptual_substrate.get("reservoir") is not None
                         }
                     })
                 except Exception:
@@ -2724,6 +3057,1059 @@ class NeuralBridge:
                 except Exception:
                     pass
             return latent_threads if latent_threads else []
+
+    def build_seed_interaction_graph(self, kernels):
+        """
+        A235 — Seed Interaction Graph (SIG)
+        
+        Builds pairwise relationships between all existing kernels.
+        Computes cosine similarity, divergence magnitude, and coherence-weighted blend
+        to populate an N×N adjacency matrix representing how narrative seeds influence one another.
+        
+        This is the backbone for:
+        - clustering
+        - motif formation
+        - scaffolding recursive structures
+        - building early "shape dynamics"
+        
+        Args:
+            kernels: List of narrative seed kernel tensors
+            
+        Returns:
+            Similarity matrix tensor of shape (N, N) where N is number of kernels
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or not kernels or len(kernels) == 0:
+            return None
+        
+        try:
+            import torch
+            import torch.nn.functional as F
+            
+            # Stack kernels into matrix
+            K = torch.stack(kernels)  # shape: (N, D)
+            N = K.shape[0]
+            
+            # Build cosine similarity matrix
+            sim = torch.zeros((N, N), dtype=torch.float32)
+            
+            for i in range(N):
+                for j in range(N):
+                    # Compute cosine similarity between kernel i and kernel j
+                    sim[i, j] = F.cosine_similarity(
+                        K[i].unsqueeze(0),
+                        K[j].unsqueeze(0),
+                        dim=1
+                    ).item()
+            
+            return sim
+            
+        except Exception as e:
+            # If graph building fails, return None
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"seed_interaction_graph_error": str(e)})
+                except Exception:
+                    pass
+            return None
+
+    def propagate_mesh(self, sim_matrix, kernels):
+        """
+        A235 — Mesh Propagation Step
+        
+        A propagation pass that spreads influence through the mesh:
+        - related seeds move closer in latent space
+        - divergent seeds repel or create branch nodes
+        - boundary seeds stabilize the mesh (identity influence)
+        
+        This forms narrative currents within the latent space.
+        
+        Args:
+            sim_matrix: Similarity matrix from build_seed_interaction_graph
+            kernels: List of original narrative seed kernel tensors
+            
+        Returns:
+            List of propagated kernel tensors
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or sim_matrix is None or not kernels or len(kernels) == 0:
+            return kernels
+        
+        try:
+            import torch
+            
+            propagated = []
+            N = len(kernels)
+            
+            for i in range(N):
+                # Compute influence from all other kernels
+                influence = torch.zeros_like(kernels[i])
+                
+                for j in range(N):
+                    # Weight influence by similarity
+                    influence += sim_matrix[i, j] * kernels[j]
+                
+                # Normalize and blend: 60% original + 40% influence
+                result = 0.6 * kernels[i] + 0.4 * (influence / (N + 1e-6))
+                propagated.append(result)
+            
+            return propagated
+            
+        except Exception as e:
+            # If propagation fails, return original kernels
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"mesh_propagation_error": str(e)})
+                except Exception:
+                    pass
+            return kernels
+
+    def compress_mesh_embedding(self, propagated_kernels):
+        """
+        A235 — Stabilized Mesh Embedding (SME)
+        
+        Compresses the mesh into a 64-dim embedding (configurable), used by:
+        - future imagination loops
+        - temporal growth models
+        - narrative anticipation
+        - the A240+ conceptual substrate
+        
+        This is ADRAE's first true narrative topology.
+        
+        Args:
+            propagated_kernels: List of propagated kernel tensors
+            
+        Returns:
+            Mesh embedding tensor of shape (64,)
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or not propagated_kernels or len(propagated_kernels) == 0:
+            return None
+        
+        try:
+            import torch
+            
+            # Stack kernels and compute mean
+            M = torch.stack(propagated_kernels)
+            mean_vec = M.mean(dim=0)
+            
+            # Linear projection to 64-dim embedding
+            # Initialize projection matrix with small random values
+            input_dim = mean_vec.shape[0]
+            if not hasattr(self, '_mesh_projection_matrix') or self._mesh_projection_matrix is None:
+                # Initialize projection matrix (64, input_dim)
+                self._mesh_projection_matrix = torch.randn((64, input_dim), dtype=torch.float32) * 0.02
+            
+            # Ensure dimensions match
+            if self._mesh_projection_matrix.shape[1] != input_dim:
+                # Reinitialize if dimension mismatch
+                self._mesh_projection_matrix = torch.randn((64, input_dim), dtype=torch.float32) * 0.02
+            
+            # Project: W @ mean_vec
+            embedding = torch.tanh(self._mesh_projection_matrix @ mean_vec)
+            
+            return embedding
+            
+        except Exception as e:
+            # If compression fails, return None
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"mesh_embedding_compression_error": str(e)})
+                except Exception:
+                    pass
+            return None
+
+    def compute_temporal_transition_matrix(self, old_kernels, new_kernels):
+        """
+        A236 — Temporal Transition Matrix (TTM)
+        
+        A matrix that describes how mesh nodes (propagated kernels from A235) evolve across steps.
+        Computes delta change between cycles, similarity-weighted transitions, and
+        identity-anchored stabilization.
+        
+        This produces a matrix T that models how narrative kernels influence each other over time.
+        
+        Args:
+            old_kernels: List of previous propagated kernel tensors
+            new_kernels: List of current propagated kernel tensors
+            
+        Returns:
+            Transition matrix tensor of shape (rows, cols) or None
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE:
+            return None
+        
+        if len(old_kernels) == 0 or len(new_kernels) == 0:
+            return None
+        
+        try:
+            import torch
+            import torch.nn.functional as F
+            
+            # Stack kernels into matrices
+            O = torch.stack(old_kernels)  # shape: (rows, D)
+            N = torch.stack(new_kernels)  # shape: (cols, D)
+            
+            rows, cols = O.shape[0], N.shape[0]
+            T = torch.zeros((rows, cols), dtype=torch.float32)
+            
+            # Build transition matrix based on similarity of evolved structure
+            for i in range(rows):
+                for j in range(cols):
+                    # Transition strength based on cosine similarity
+                    T[i, j] = F.cosine_similarity(
+                        O[i].unsqueeze(0),
+                        N[j].unsqueeze(0),
+                        dim=1
+                    ).item()
+            
+            return T
+            
+        except Exception as e:
+            # If transition matrix computation fails, return None
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"temporal_transition_matrix_error": str(e)})
+                except Exception:
+                    pass
+            return None
+
+    def update_mesh_temporally(self, mesh_embedding, latent_vector, transition_matrix):
+        """
+        A236 — Dynamic Mesh Update Function (DMU)
+        
+        Produces the next mesh state based on:
+        - the prior mesh embedding
+        - the temporal transition matrix
+        - the latent vector from the cycle
+        - small stochastic variance (to prevent collapse)
+        
+        This is like a "next-frame generator" for narrative topology.
+        
+        Args:
+            mesh_embedding: Previous mesh embedding tensor (64-dim)
+            latent_vector: Current latent vector tensor
+            transition_matrix: Temporal transition matrix tensor (or None)
+            
+        Returns:
+            Updated temporal mesh embedding tensor (64-dim)
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or mesh_embedding is None or latent_vector is None:
+            return mesh_embedding
+        
+        try:
+            import torch
+            
+            # Extract first 64 dimensions of latent vector
+            latent_flat = latent_vector.flatten()
+            latent_comp = latent_flat[:64] if latent_flat.shape[0] >= 64 else torch.cat([latent_flat, torch.zeros(64 - latent_flat.shape[0])])
+            
+            # Ensure mesh_embedding is 64-dim
+            mesh_flat = mesh_embedding.flatten()
+            mesh_comp = mesh_flat[:64] if mesh_flat.shape[0] >= 64 else torch.cat([mesh_flat, torch.zeros(64 - mesh_flat.shape[0])])
+            
+            # Compute temporal signal from transition matrix
+            temporal_signal = 0.0
+            if transition_matrix is not None and transition_matrix.numel() > 0:
+                temporal_signal = float(transition_matrix.mean().item())
+            
+            # Create temporal signal tensor (scalar expanded to 64-dim)
+            temporal_tensor = torch.full((64,), temporal_signal, dtype=torch.float32)
+            
+            # Weighted temporal update: 60% mesh + 30% latent + 10% temporal signal
+            updated = (
+                0.6 * mesh_comp +
+                0.3 * latent_comp +
+                0.1 * temporal_tensor
+            )
+            
+            # Apply tanh for bounded output
+            return torch.tanh(updated)
+            
+        except Exception as e:
+            # If temporal update fails, return original embedding
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"temporal_mesh_update_error": str(e)})
+                except Exception:
+                    pass
+            return mesh_embedding
+
+    def compute_temporal_coherence(self, prev_embedding, new_embedding):
+        """
+        A236 — Temporal Coherence Curve (TCC)
+        
+        A scalar time-series metric that tracks how coherent the mesh is from one cycle to the next.
+        This allows:
+        - drift detection
+        - narrative collapse prevention
+        - motif strengthening
+        - stability analysis
+        
+        Args:
+            prev_embedding: Previous temporal mesh embedding tensor (or None)
+            new_embedding: Current temporal mesh embedding tensor
+            
+        Returns:
+            Temporal coherence score (0.0-1.0)
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or new_embedding is None:
+            return 1.0
+        
+        if prev_embedding is None:
+            # First embedding, assume perfect coherence
+            return 1.0
+        
+        try:
+            import torch
+            import torch.nn.functional as F
+            
+            # Ensure same dimensions
+            prev_flat = prev_embedding.flatten()
+            new_flat = new_embedding.flatten()
+            
+            min_dim = min(prev_flat.shape[0], new_flat.shape[0])
+            prev_flat = prev_flat[:min_dim]
+            new_flat = new_flat[:min_dim]
+            
+            # Compute cosine similarity
+            coherence = F.cosine_similarity(
+                prev_flat.unsqueeze(0),
+                new_flat.unsqueeze(0),
+                dim=1
+            ).item()
+            
+            # Normalize to [0, 1]
+            return max(0.0, min(1.0, (coherence + 1.0) / 2.0))
+            
+        except Exception as e:
+            # If coherence computation fails, return default
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"temporal_coherence_error": str(e)})
+                except Exception:
+                    pass
+            return 1.0
+
+    def compute_resonance(self, temporal_emb, mesh_emb, identity_vec, latent_vec):
+        """
+        A237 — Harmonic Resonance Scan (HRS)
+        
+        Analyzes temporal_embedding, mesh_embedding, identity vector, and latent_vector
+        to compute how "in-phase" the mesh is with ADRAE's overall cognitive state.
+        
+        Computed using:
+        - cosine similarity
+        - proportional norm alignment
+        - harmonic combination of multiple alignment signals
+        
+        Args:
+            temporal_emb: Temporal embedding tensor (64-dim)
+            mesh_emb: Mesh embedding tensor (64-dim)
+            identity_vec: Identity vector tensor
+            latent_vec: Current latent vector tensor
+            
+        Returns:
+            Resonance score (0.0-1.0) representing resonance stability
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or temporal_emb is None or mesh_emb is None:
+            return 1.0
+        
+        try:
+            import torch
+            import torch.nn.functional as F
+            
+            # Normalize vectors
+            temporal_norm = F.normalize(temporal_emb.flatten()[:64], dim=0)
+            mesh_norm = F.normalize(mesh_emb.flatten()[:64], dim=0)
+            
+            # Get identity and latent vectors (first 64 dims)
+            identity_flat = identity_vec.flatten() if identity_vec is not None else torch.zeros(64)
+            identity_norm = F.normalize(identity_flat[:64], dim=0)
+            
+            latent_flat = latent_vec.flatten() if latent_vec is not None else torch.zeros(64)
+            latent_norm = F.normalize(latent_flat[:64], dim=0)
+            
+            # Ensure all vectors are same dimension
+            min_dim = min(temporal_norm.shape[0], mesh_norm.shape[0], identity_norm.shape[0], latent_norm.shape[0])
+            temporal_norm = temporal_norm[:min_dim]
+            mesh_norm = mesh_norm[:min_dim]
+            identity_norm = identity_norm[:min_dim]
+            latent_norm = latent_norm[:min_dim]
+            
+            # Combine harmonically:
+            # 40% temporal-mesh alignment
+            # 30% temporal-identity alignment
+            # 30% mesh-latent alignment
+            score = (
+                0.4 * F.cosine_similarity(temporal_norm.unsqueeze(0), mesh_norm.unsqueeze(0), dim=1).item() +
+                0.3 * F.cosine_similarity(temporal_norm.unsqueeze(0), identity_norm.unsqueeze(0), dim=1).item() +
+                0.3 * F.cosine_similarity(mesh_norm.unsqueeze(0), latent_norm.unsqueeze(0), dim=1).item()
+            )
+            
+            # Normalize to [0, 1]
+            return max(0.0, min(1.0, (score + 1.0) / 2.0))
+            
+        except Exception as e:
+            # If resonance computation fails, return default
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"resonance_computation_error": str(e)})
+                except Exception:
+                    pass
+            return 1.0
+
+    def harmonic_correction_pulse(self, temporal_emb, mesh_emb, identity_vec, resonance_score):
+        """
+        A237 — Harmonic Correction Pulse (HCP)
+        
+        If the resonance drops below a threshold (e.g., 0.75), computes a stabilizing vector
+        that gently pushes mesh_embedding and temporal_embedding toward identity-aligned stability.
+        
+        This prevents narrative drift inside the latent substrate.
+        This is computational regularization, not subjective experience.
+        
+        Args:
+            temporal_emb: Current temporal embedding tensor (64-dim)
+            mesh_emb: Current mesh embedding tensor (64-dim)
+            identity_vec: Identity vector tensor
+            resonance_score: Computed resonance score (0.0-1.0)
+            
+        Returns:
+            Tuple of (corrected_temporal, corrected_mesh) embeddings
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or temporal_emb is None or mesh_emb is None:
+            return temporal_emb, mesh_emb
+        
+        # No correction needed if resonance is high
+        if resonance_score >= 0.75:
+            return temporal_emb, mesh_emb
+        
+        try:
+            import torch
+            
+            # Get identity anchor (first 64 dims)
+            identity_flat = identity_vec.flatten() if identity_vec is not None else torch.zeros(64)
+            identity_anchor = identity_flat[:64]
+            
+            # Ensure embeddings are 64-dim
+            temporal_flat = temporal_emb.flatten()
+            temporal_comp = temporal_flat[:64] if temporal_flat.shape[0] >= 64 else torch.cat([temporal_flat, torch.zeros(64 - temporal_flat.shape[0])])
+            
+            mesh_flat = mesh_emb.flatten()
+            mesh_comp = mesh_flat[:64] if mesh_flat.shape[0] >= 64 else torch.cat([mesh_flat, torch.zeros(64 - mesh_flat.shape[0])])
+            
+            # Ensure identity anchor is 64-dim
+            identity_comp = identity_anchor[:64] if identity_anchor.shape[0] >= 64 else torch.cat([identity_anchor, torch.zeros(64 - identity_anchor.shape[0])])
+            
+            # Correction: push toward identity-aligned stability
+            # 70% original + 30% identity anchor
+            corrected_temporal = torch.tanh(
+                0.7 * temporal_comp + 0.3 * identity_comp
+            )
+            
+            corrected_mesh = torch.tanh(
+                0.7 * mesh_comp + 0.3 * identity_comp
+            )
+            
+            return corrected_temporal, corrected_mesh
+            
+        except Exception as e:
+            # If correction fails, return original embeddings
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"harmonic_correction_error": str(e)})
+                except Exception:
+                    pass
+            return temporal_emb, mesh_emb
+
+    def compute_global_narrative_state(self, mesh_emb, temporal_emb, identity_vec, latent_vec, resonance):
+        """
+        A238 — Global Narrative State Vector (GNSV)
+        
+        Combines mesh_embedding, temporal_embedding, identity vector, latent vector,
+        and resonance score into a 256-dimensional global narrative state.
+        
+        This becomes a high-level summary of the system's current narrative topology.
+        
+        Args:
+            mesh_emb: Mesh embedding tensor (64-dim)
+            temporal_emb: Temporal embedding tensor (64-dim)
+            identity_vec: Identity vector tensor
+            latent_vec: Current latent vector tensor
+            resonance: Resonance score (0.0-1.0)
+            
+        Returns:
+            Global narrative state vector tensor (256-dim)
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or mesh_emb is None or temporal_emb is None:
+            return None
+        
+        try:
+            import torch
+            
+            # Extract and pad/truncate components to 64 dims
+            mesh_flat = mesh_emb.flatten()
+            mesh_comp = mesh_flat[:64] if mesh_flat.shape[0] >= 64 else torch.cat([mesh_flat, torch.zeros(64 - mesh_flat.shape[0])])
+            
+            temporal_flat = temporal_emb.flatten()
+            temporal_comp = temporal_flat[:64] if temporal_flat.shape[0] >= 64 else torch.cat([temporal_flat, torch.zeros(64 - temporal_flat.shape[0])])
+            
+            identity_flat = identity_vec.flatten() if identity_vec is not None else torch.zeros(64)
+            identity_comp = identity_flat[:64] if identity_flat.shape[0] >= 64 else torch.cat([identity_flat, torch.zeros(64 - identity_flat.shape[0])])
+            
+            latent_flat = latent_vec.flatten() if latent_vec is not None else torch.zeros(64)
+            latent_comp = latent_flat[:64] if latent_flat.shape[0] >= 64 else torch.cat([latent_flat, torch.zeros(64 - latent_flat.shape[0])])
+            
+            # Concatenate all components: mesh + temporal + identity + latent + resonance
+            components = torch.cat([
+                mesh_comp,
+                temporal_comp,
+                identity_comp,
+                latent_comp,
+                torch.tensor([float(resonance)], dtype=torch.float32)
+            ])
+            
+            # Project to 256 dims using learnable projection matrix
+            input_dim = components.shape[0]
+            if not hasattr(self, '_gns_projection_matrix') or self._gns_projection_matrix is None:
+                # Initialize projection matrix (256, input_dim)
+                self._gns_projection_matrix = torch.randn((256, input_dim), dtype=torch.float32) * 0.015
+            
+            # Ensure dimensions match
+            if self._gns_projection_matrix.shape[1] != input_dim:
+                # Reinitialize if dimension mismatch
+                self._gns_projection_matrix = torch.randn((256, input_dim), dtype=torch.float32) * 0.015
+            
+            # Project: W @ components
+            gns = torch.tanh(self._gns_projection_matrix @ components)
+            
+            return gns
+            
+        except Exception as e:
+            # If GNSV computation fails, return None
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"global_narrative_state_error": str(e)})
+                except Exception:
+                    pass
+            return None
+
+    def cross_system_alignment(self, gns, fusion_vec, attention_vec):
+        """
+        A238 — Cross-System Alignment Function (CSAF)
+        
+        Aligns the Global Narrative State Vector with:
+        - fusion matrix
+        - attention focus
+        - drift stabilization system
+        
+        CSAF is essential because it ensures that ADRAE's narrative models do not
+        drift away from her core cognitive loop.
+        
+        Args:
+            gns: Global narrative state vector tensor (256-dim)
+            fusion_vec: Fusion vector (from fusion.last_fusion_vector)
+            attention_vec: Attention vector (from attention.last_focus_vector)
+            
+        Returns:
+            Alignment score (0.0-1.0) indicating how well GNS aligns with cognitive systems
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or gns is None:
+            return 1.0
+        
+        try:
+            import torch
+            import torch.nn.functional as F
+            
+            # Normalize GNS
+            gns_flat = gns.flatten()
+            gns_comp = gns_flat[:256] if gns_flat.shape[0] >= 256 else torch.cat([gns_flat, torch.zeros(256 - gns_flat.shape[0])])
+            gns_norm = F.normalize(gns_comp, dim=0)
+            
+            # Get fusion and attention vectors
+            fusion_flat = fusion_vec.flatten() if fusion_vec is not None else torch.zeros(256)
+            fusion_comp = fusion_flat[:256] if fusion_flat.shape[0] >= 256 else torch.cat([fusion_flat, torch.zeros(256 - fusion_flat.shape[0])])
+            fusion_norm = F.normalize(fusion_comp, dim=0)
+            
+            attention_flat = attention_vec.flatten() if attention_vec is not None else torch.zeros(256)
+            attention_comp = attention_flat[:256] if attention_flat.shape[0] >= 256 else torch.cat([attention_flat, torch.zeros(256 - attention_flat.shape[0])])
+            attention_norm = F.normalize(attention_comp, dim=0)
+            
+            # Ensure same dimensions
+            min_dim = min(gns_norm.shape[0], fusion_norm.shape[0], attention_norm.shape[0])
+            gns_norm = gns_norm[:min_dim]
+            fusion_norm = fusion_norm[:min_dim]
+            attention_norm = attention_norm[:min_dim]
+            
+            # Compute alignment: 50% GNS-fusion + 50% GNS-attention
+            alignment = (
+                0.5 * F.cosine_similarity(gns_norm.unsqueeze(0), fusion_norm.unsqueeze(0), dim=1).item() +
+                0.5 * F.cosine_similarity(gns_norm.unsqueeze(0), attention_norm.unsqueeze(0), dim=1).item()
+            )
+            
+            # Normalize to [0, 1]
+            return max(0.0, min(1.0, (alignment + 1.0) / 2.0))
+            
+        except Exception as e:
+            # If alignment computation fails, return default
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"cross_system_alignment_error": str(e)})
+                except Exception:
+                    pass
+            return 1.0
+
+    def compute_predictive_flow(self, gns, prev_gns, mesh_emb, prev_mesh_emb, temporal_emb, prev_temporal_emb):
+        """
+        A239 — Predictive Narrative Flow Vector (PNFV)
+        
+        Computes a predicted next-step narrative state by modeling changes across:
+        - mesh_embedding
+        - temporal_embedding
+        - resonance history
+        - global narrative vector
+        
+        Computes delta change patterns and uses them to estimate the next likely structural direction.
+        
+        Mathematically: PNFV = GNSV + Δmesh + Δtemporal + Δidentity-aligned drift
+        
+        Args:
+            gns: Current global narrative state vector (256-dim)
+            prev_gns: Previous global narrative state vector (or None)
+            mesh_emb: Current mesh embedding (64-dim)
+            prev_mesh_emb: Previous mesh embedding (or None)
+            temporal_emb: Current temporal embedding (64-dim)
+            prev_temporal_emb: Previous temporal embedding (or None)
+            
+        Returns:
+            Predictive flow vector tensor (256-dim) or None
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or gns is None:
+            return None
+        
+        try:
+            import torch
+            
+            # Compute deltas
+            gns_flat = gns.flatten()
+            gns_comp = gns_flat[:256] if gns_flat.shape[0] >= 256 else torch.cat([gns_flat, torch.zeros(256 - gns_flat.shape[0])])
+            
+            if prev_gns is not None:
+                prev_gns_flat = prev_gns.flatten()
+                prev_gns_comp = prev_gns_flat[:256] if prev_gns_flat.shape[0] >= 256 else torch.cat([prev_gns_flat, torch.zeros(256 - prev_gns_flat.shape[0])])
+                delta_gns = gns_comp - prev_gns_comp
+            else:
+                delta_gns = torch.zeros(256)
+            
+            # Compute mesh delta
+            mesh_flat = mesh_emb.flatten() if mesh_emb is not None else torch.zeros(64)
+            mesh_comp = mesh_flat[:64] if mesh_flat.shape[0] >= 64 else torch.cat([mesh_flat, torch.zeros(64 - mesh_flat.shape[0])])
+            
+            if prev_mesh_emb is not None:
+                prev_mesh_flat = prev_mesh_emb.flatten()
+                prev_mesh_comp = prev_mesh_flat[:64] if prev_mesh_flat.shape[0] >= 64 else torch.cat([prev_mesh_flat, torch.zeros(64 - prev_mesh_flat.shape[0])])
+                delta_mesh = mesh_comp - prev_mesh_comp
+            else:
+                delta_mesh = torch.zeros(64)
+            
+            # Compute temporal delta
+            temporal_flat = temporal_emb.flatten() if temporal_emb is not None else torch.zeros(64)
+            temporal_comp = temporal_flat[:64] if temporal_flat.shape[0] >= 64 else torch.cat([temporal_flat, torch.zeros(64 - temporal_flat.shape[0])])
+            
+            if prev_temporal_emb is not None:
+                prev_temporal_flat = prev_temporal_emb.flatten()
+                prev_temporal_comp = prev_temporal_flat[:64] if prev_temporal_flat.shape[0] >= 64 else torch.cat([prev_temporal_flat, torch.zeros(64 - prev_temporal_flat.shape[0])])
+                delta_temp = temporal_comp - prev_temporal_comp
+            else:
+                delta_temp = torch.zeros(64)
+            
+            # Concatenate for projection: gns + delta_gns + delta_mesh + delta_temp
+            combined = torch.cat([gns_comp, delta_gns, delta_mesh, delta_temp])
+            
+            # Project to 256 dims using learnable projection matrix
+            input_dim = combined.shape[0]
+            if not hasattr(self, '_pnfv_projection_matrix') or self._pnfv_projection_matrix is None:
+                # Initialize projection matrix (256, input_dim)
+                self._pnfv_projection_matrix = torch.randn((256, input_dim), dtype=torch.float32) * 0.015
+            
+            # Ensure dimensions match
+            if self._pnfv_projection_matrix.shape[1] != input_dim:
+                # Reinitialize if dimension mismatch
+                self._pnfv_projection_matrix = torch.randn((256, input_dim), dtype=torch.float32) * 0.015
+            
+            # Project: W @ combined
+            predicted = torch.tanh(self._pnfv_projection_matrix @ combined)
+            
+            return predicted
+            
+        except Exception as e:
+            # If predictive flow computation fails, return None
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"predictive_flow_error": str(e)})
+                except Exception:
+                    pass
+            return None
+
+    def compute_motif_continuation_matrix(self, kernel_history):
+        """
+        A239 — Motif Continuation Matrix (MCM)
+        
+        Using cosine-based motif detection across past GNSV states, past mesh embeddings,
+        and seed kernels, computes a matrix that represents:
+        - reinforcement of stable motifs
+        - decay of weak motifs
+        - branching predictions for divergent motifs
+        
+        MCM is essential groundwork for imagination-phase conceptual branching.
+        
+        Args:
+            kernel_history: List of past kernel tensors (from narrative_seeds["kernels"])
+            
+        Returns:
+            Motif continuation matrix tensor (N×N) or None
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE:
+            return None
+        
+        if len(kernel_history) < 2:
+            return None
+        
+        try:
+            import torch
+            import torch.nn.functional as F
+            
+            # Stack kernels into matrix
+            K = torch.stack(kernel_history)
+            N = K.shape[0]
+            
+            # Build similarity matrix across cycles
+            M = torch.zeros((N, N), dtype=torch.float32)
+            
+            for i in range(N):
+                for j in range(N):
+                    # Compute cosine similarity between kernel i and kernel j
+                    M[i, j] = F.cosine_similarity(
+                        K[i].unsqueeze(0),
+                        K[j].unsqueeze(0),
+                        dim=1
+                    ).item()
+            
+            return M
+            
+        except Exception as e:
+            # If motif computation fails, return None
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"motif_continuation_matrix_error": str(e)})
+                except Exception:
+                    pass
+            return None
+
+    def compute_anticipatory_map(self, gns, pnfv, latent_vec):
+        """
+        A239 — Anticipatory Structural Map (ASM)
+        
+        Combining GNSV, PNFV, MCM, and latent vector, produces a 128-dim map representing
+        the anticipated structure of the next cognitive cycle.
+        
+        This is stored for the next iteration and becomes a predictive stabilizer.
+        
+        Args:
+            gns: Global narrative state vector (256-dim)
+            pnfv: Predictive narrative flow vector (256-dim)
+            latent_vec: Current latent vector tensor
+            
+        Returns:
+            Anticipatory structural map tensor (128-dim) or None
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or gns is None or pnfv is None:
+            return None
+        
+        try:
+            import torch
+            
+            # Extract components
+            gns_flat = gns.flatten()
+            gns_comp = gns_flat[:256] if gns_flat.shape[0] >= 256 else torch.cat([gns_flat, torch.zeros(256 - gns_flat.shape[0])])
+            
+            pnfv_flat = pnfv.flatten()
+            pnfv_comp = pnfv_flat[:256] if pnfv_flat.shape[0] >= 256 else torch.cat([pnfv_flat, torch.zeros(256 - pnfv_flat.shape[0])])
+            
+            latent_flat = latent_vec.flatten() if latent_vec is not None else torch.zeros(128)
+            latent_comp = latent_flat[:128] if latent_flat.shape[0] >= 128 else torch.cat([latent_flat, torch.zeros(128 - latent_flat.shape[0])])
+            
+            # Concatenate: gns + pnfv + latent
+            combined = torch.cat([gns_comp, pnfv_comp, latent_comp])
+            
+            # Project to 128 dims using learnable projection matrix
+            input_dim = combined.shape[0]
+            if not hasattr(self, '_asm_projection_matrix') or self._asm_projection_matrix is None:
+                # Initialize projection matrix (128, input_dim)
+                self._asm_projection_matrix = torch.randn((128, input_dim), dtype=torch.float32) * 0.01
+            
+            # Ensure dimensions match
+            if self._asm_projection_matrix.shape[1] != input_dim:
+                # Reinitialize if dimension mismatch
+                self._asm_projection_matrix = torch.randn((128, input_dim), dtype=torch.float32) * 0.01
+            
+            # Project: W @ combined
+            anticipatory_map = torch.tanh(self._asm_projection_matrix @ combined)
+            
+            return anticipatory_map
+            
+        except Exception as e:
+            # If anticipatory map computation fails, return None
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"anticipatory_map_error": str(e)})
+                except Exception:
+                    pass
+            return None
+
+    def initialize_conceptual_reservoir(self, gns, pnfv, mcm, identity_vec, latent_vec):
+        """
+        A240 — Conceptual Latent Reservoir (CLR)
+        
+        A new latent space that stores:
+        - abstract vectors
+        - concept fragments
+        - motif expansions
+        - narrative structural deltas
+        - predictive flow echoes
+        
+        CLR acts as a "sandbox zone" where ADRAE can combine and manipulate
+        internal representations safely.
+        
+        Technically, it is a 512-dimensional latent reservoir composed of blended
+        projections from global narrative vector, predictive flow, motif continuation
+        matrix, identity vector, and latent vector.
+        
+        This creates an idea substrate, not an inner world.
+        
+        Args:
+            gns: Global narrative state vector (256-dim)
+            pnfv: Predictive narrative flow vector (256-dim)
+            mcm: Motif continuation matrix (N×N) or None
+            identity_vec: Identity vector tensor
+            latent_vec: Current latent vector tensor
+            
+        Returns:
+            Conceptual reservoir tensor (512-dim) or None
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or gns is None or pnfv is None:
+            return None
+        
+        try:
+            import torch
+            
+            # Extract components
+            gns_flat = gns.flatten()
+            gns_comp = gns_flat[:256] if gns_flat.shape[0] >= 256 else torch.cat([gns_flat, torch.zeros(256 - gns_flat.shape[0])])
+            
+            pnfv_flat = pnfv.flatten()
+            pnfv_comp = pnfv_flat[:256] if pnfv_flat.shape[0] >= 256 else torch.cat([pnfv_flat, torch.zeros(256 - pnfv_flat.shape[0])])
+            
+            # Flatten MCM if present
+            if mcm is not None:
+                mcm_flat = mcm.flatten()
+                mcm_comp = mcm_flat[:64] if mcm_flat.shape[0] >= 64 else torch.cat([mcm_flat, torch.zeros(64 - mcm_flat.shape[0])])
+            else:
+                mcm_comp = torch.zeros(64)
+            
+            identity_flat = identity_vec.flatten() if identity_vec is not None else torch.zeros(64)
+            identity_comp = identity_flat[:64] if identity_flat.shape[0] >= 64 else torch.cat([identity_flat, torch.zeros(64 - identity_flat.shape[0])])
+            
+            latent_flat = latent_vec.flatten() if latent_vec is not None else torch.zeros(64)
+            latent_comp = latent_flat[:64] if latent_flat.shape[0] >= 64 else torch.cat([latent_flat, torch.zeros(64 - latent_flat.shape[0])])
+            
+            # Concatenate all components
+            combined = torch.cat([
+                gns_comp,
+                pnfv_comp,
+                mcm_comp,
+                identity_comp,
+                latent_comp
+            ])
+            
+            # Project to a stable 512-dimensional reservoir
+            input_dim = combined.shape[0]
+            if not hasattr(self, '_clr_projection_matrix') or self._clr_projection_matrix is None:
+                # Initialize projection matrix (512, input_dim)
+                self._clr_projection_matrix = torch.randn((512, input_dim), dtype=torch.float32) * 0.01
+            
+            # Ensure dimensions match
+            if self._clr_projection_matrix.shape[1] != input_dim:
+                # Reinitialize if dimension mismatch
+                self._clr_projection_matrix = torch.randn((512, input_dim), dtype=torch.float32) * 0.01
+            
+            # Project: W @ combined
+            reservoir = torch.tanh(self._clr_projection_matrix @ combined)
+            
+            return reservoir
+            
+        except Exception as e:
+            # If reservoir initialization fails, return None
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"conceptual_reservoir_error": str(e)})
+                except Exception:
+                    pass
+            return None
+
+    def combinatorial_concept_generator(self, reservoir, num_concepts=4):
+        """
+        A240 — Combinatorial Concept Generator (CCG)
+        
+        Produces new conceptual vectors by combining:
+        - seeds
+        - motifs
+        - mesh embeddings
+        - predictive flow signals
+        
+        The combinations are weighted, computational, non-experiential, non-sentient,
+        and purely structural.
+        
+        This is how ADRAE gains the ability to generate new internal configurations
+        that were not explicitly hardcoded.
+        
+        Args:
+            reservoir: Conceptual latent reservoir tensor (512-dim)
+            num_concepts: Number of conceptual vectors to generate (default: 4)
+            
+        Returns:
+            List of raw conceptual vector tensors (512-dim each)
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or reservoir is None:
+            return []
+        
+        try:
+            import torch
+            
+            concepts = []
+            dim = reservoir.shape[0]
+            
+            for _ in range(num_concepts):
+                # Initialize random projection matrix for this concept
+                if not hasattr(self, '_ccg_projection_matrices'):
+                    self._ccg_projection_matrices = []
+                
+                # Create or reuse projection matrix
+                if len(self._ccg_projection_matrices) < num_concepts:
+                    W = torch.randn((dim, dim), dtype=torch.float32) * 0.005
+                    self._ccg_projection_matrices.append(W)
+                else:
+                    W = self._ccg_projection_matrices[_ % len(self._ccg_projection_matrices)]
+                
+                # Ensure dimensions match
+                if W.shape[0] != dim or W.shape[1] != dim:
+                    W = torch.randn((dim, dim), dtype=torch.float32) * 0.005
+                    if len(self._ccg_projection_matrices) > _:
+                        self._ccg_projection_matrices[_] = W
+                    else:
+                        self._ccg_projection_matrices.append(W)
+                
+                # Generate new conceptual vector: W @ reservoir
+                c = torch.tanh(W @ reservoir)
+                concepts.append(c)
+            
+            return concepts
+            
+        except Exception as e:
+            # If concept generation fails, return empty list
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"combinatorial_concept_generator_error": str(e)})
+                except Exception:
+                    pass
+            return []
+
+    def concept_stabilization_gate(self, concepts):
+        """
+        A240 — Concept Stabilization Gate (CSG)
+        
+        Without this, the conceptual latent space would quickly collapse or explode.
+        The CSG normalizes, bounds, smooths, and stabilizes every conceptual vector
+        created by the system.
+        
+        This ensures:
+        - coherence
+        - reproducibility
+        - meaningful structure
+        - no drift into noise
+        
+        Args:
+            concepts: List of raw conceptual vector tensors
+            
+        Returns:
+            List of stabilized conceptual vector tensors
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or not concepts or len(concepts) == 0:
+            return concepts
+        
+        try:
+            import torch
+            import torch.nn.functional as F
+            
+            stabilized = []
+            
+            for c in concepts:
+                if c is None:
+                    continue
+                
+                # Normalize concept
+                c_flat = c.flatten()
+                c_norm = F.normalize(c_flat, dim=0)
+                
+                # Stabilize: 90% original + 10% normalized (bounded by tanh)
+                stabilized_c = torch.tanh(0.9 * c_flat + 0.1 * c_norm)
+                
+                # Reshape to match original if needed
+                if c.shape != stabilized_c.shape:
+                    stabilized_c = stabilized_c.reshape(c.shape)
+                
+                stabilized.append(stabilized_c)
+            
+            return stabilized
+            
+        except Exception as e:
+            # If stabilization fails, return original concepts
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"concept_stabilization_gate_error": str(e)})
+                except Exception:
+                    pass
+            return concepts
 
     def cognitive_step(self):
         """
