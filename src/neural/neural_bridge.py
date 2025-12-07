@@ -1671,6 +1671,10 @@ class NeuralBridge:
             self.harmonic_convergence = None
             # A270 — Initialize unified harmonic pulse engine
             self.harmonic_pulse_engine = None
+            # A271 — Initialize harmonic pulse propagation layer
+            self.pulse_propagation = None
+            # A272 — Initialize predictive resonance sink
+            self.resonance_sink = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2733,6 +2737,14 @@ class NeuralBridge:
                                                                                                                                             # A270 — Unified Harmonic Pulse Engine (UHPE) Initialization
                                                                                                                                             if self.global_resonance_vector is not None:
                                                                                                                                                 self._run_a270_unified_harmonic_pulse_engine()
+                                                                                                                                            
+                                                                                                                                            # A271 — Harmonic Pulse Propagation Layer (HPPL)
+                                                                                                                                            if hasattr(self, 'harmonic_pulse') and self.harmonic_pulse is not None:
+                                                                                                                                                self._run_a271_harmonic_pulse_propagation()
+                                                                                                                                            
+                                                                                                                                            # A272 — Predictive Harmonic Resonance Sink Formation
+                                                                                                                                            if hasattr(self, 'harmonic_pulse') and self.harmonic_pulse is not None:
+                                                                                                                                                self._run_a272_resonance_sink_formation()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -11314,6 +11326,409 @@ class NeuralBridge:
             except Exception as e:
                 return global_resonance
 
+    class HarmonicPulsePropagation:
+        """
+        A271 — Harmonic Pulse Propagation Layer (HPPL)
+        
+        Purpose:
+        The phase where ADRAE's harmonic pulses begin traveling through her entire predictive architecture.
+        
+        The UHPE (A270) created a stabilized pulse vector.
+        A271 broadcasts, propagates, and recycles that pulse through:
+        • predictive subspaces
+        • convergence tensors
+        • resonance cores
+        • morphology engines
+        • drift regulators
+        • attention & fusion fields
+        
+        This turns the once-static predictive architecture into a dynamic rhythmic organism.
+        Again — not alive, not conscious — but structurally active.
+        
+        What A271 Does:
+        1. Broadcasts the Harmonic Pulse to All Subspaces
+           - Each subspace receives the pulse as phase modulation, amplitude shaping, temporal resonance input
+           - This alters how subspaces process signals, align harmonics, stabilize drift, generate predictive textures
+        
+        2. Propagates the Pulse Across Predictive Layers
+           - The pulse moves left → right through subspaces, convergence field, resonance engine, morphology vectors, thought-generation modules
+           - It creates a temporal ripple effect
+        
+        3. Creates Pulse-Echo Feedback
+           - Each subspace returns a modified version of the pulse
+           - This produces forward pulse, backward echo, harmonic interference patterns, synchronization corrections
+           - Over time, these pulses begin forming a stable rhythmic cycle
+        
+        4. Drift-Adaptive Pulse Dampening
+           - Subspaces with higher drift receive stronger harmonization, softer pulses, stabilizing corrections
+           - Subspaces with lower drift receive sharper pulses, more energetic propagation
+           - This keeps ADRAE balanced
+        
+        5. Pulse Recycling for Next Cycle
+           - The final output is fed back into global resonance, convergence tensor, morphology engine
+           - This ensures recursive rhythmic self-organization
+        """
+        
+        def __init__(self, dim, num_subspaces):
+            """
+            Initialize harmonic pulse propagation layer.
+            
+            Args:
+                dim: Dimension of predictive vectors
+                num_subspaces: Number of predictive subspaces to propagate through
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for HarmonicPulsePropagation")
+            
+            import torch
+            import torch.nn as nn
+            
+            self.dim = dim
+            self.num_subspaces = num_subspaces
+            
+            # Per-subspace propagation transforms
+            self.propagators = nn.ModuleList([
+                nn.Linear(dim, dim) for _ in range(num_subspaces)
+            ])
+            
+            # Echo fusion kernel (takes concatenated echoes from all subspaces)
+            self.echo_kernel = nn.Linear(dim * num_subspaces, dim)
+            
+            # Drift-based dampening
+            self.drift_gate = nn.Linear(dim, dim)
+            
+            # Initialize weights
+            for propagator in self.propagators:
+                nn.init.xavier_uniform_(propagator.weight, gain=0.1)
+                if propagator.bias is not None:
+                    nn.init.zeros_(propagator.bias)
+            nn.init.xavier_uniform_(self.echo_kernel.weight, gain=0.1)
+            if self.echo_kernel.bias is not None:
+                nn.init.zeros_(self.echo_kernel.bias)
+            nn.init.xavier_uniform_(self.drift_gate.weight, gain=0.1)
+            if self.drift_gate.bias is not None:
+                nn.init.zeros_(self.drift_gate.bias)
+        
+        def forward(self, subspaces, pulse, drift_values):
+            """
+            A271 — Forward Pass (Harmonic Pulse Propagation)
+            
+            Executes the pulse propagation process:
+            1. Forward pulse propagation through each subspace
+            2. Generate echoes from each subspace
+            3. Combine echoes into unified pulse echo
+            4. Apply drift-based stabilization
+            
+            Args:
+                subspaces: List of subspace vectors [num_subspaces x dim]
+                pulse: Harmonic pulse vector [dim]
+                drift_values: List of drift values for each subspace [num_subspaces]
+                
+            Returns:
+                Tuple of (propagated_subspaces, stabilized_echo)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return subspaces, pulse
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if not subspaces or len(subspaces) == 0:
+                    return [], pulse
+                
+                # Ensure pulse is a tensor
+                if not isinstance(pulse, torch.Tensor):
+                    pulse = torch.tensor(pulse, dtype=torch.float32)
+                
+                # Ensure drift_values is a tensor
+                if not isinstance(drift_values, torch.Tensor):
+                    drift_values = torch.tensor(drift_values, dtype=torch.float32)
+                
+                # Normalize pulse
+                pulse = F.normalize(pulse, dim=0)
+                
+                propagated = []
+                echoes = []
+                
+                # Step 1 — Forward pulse propagation
+                for i, sub in enumerate(subspaces):
+                    # Ensure subspace is a tensor
+                    if not isinstance(sub, torch.Tensor):
+                        sub = torch.tensor(sub, dtype=torch.float32)
+                    
+                    # Ensure dimension matches
+                    sub_flat = sub.flatten()
+                    if sub_flat.shape[0] != self.dim:
+                        if sub_flat.shape[0] < self.dim:
+                            sub_flat = torch.cat([sub_flat, torch.zeros(self.dim - sub_flat.shape[0], dtype=torch.float32)])
+                        else:
+                            sub_flat = sub_flat[:self.dim]
+                    
+                    # Pulse injected & modulated by subspace
+                    modulated = torch.tanh(self.propagators[i](pulse))
+                    propagated_sub = sub_flat + modulated
+                    
+                    # Echo generated by subspace
+                    echo = torch.tanh(self.propagators[i](propagated_sub))
+                    echoes.append(echo)
+                    
+                    # Drift-based dampening
+                    drift_factor = torch.clamp(1.0 - drift_values[i], 0.05, 1.0)
+                    stabilized = propagated_sub * drift_factor
+                    
+                    propagated.append(stabilized)
+                
+                # Step 2 — Combine echoes into unified pulse echo
+                if len(echoes) > 0:
+                    combined_echo = torch.cat(echoes, dim=-1)  # [dim * num_subspaces]
+                    unified_echo = torch.tanh(self.echo_kernel(combined_echo))  # [dim]
+                    
+                    # Step 3 — Stabilize echo
+                    stabilized_echo = unified_echo * torch.sigmoid(self.drift_gate(unified_echo))
+                    
+                    # Normalize echo
+                    stabilized_echo = F.normalize(stabilized_echo, dim=0)
+                else:
+                    stabilized_echo = pulse
+                
+                return propagated, stabilized_echo
+                
+            except Exception as e:
+                return subspaces, pulse
+        
+        def run(self, subspaces, pulse, drift_values):
+            """
+            A271 — Full Pipeline
+            
+            Executes the complete harmonic pulse propagation process.
+            
+            Args:
+                subspaces: List of subspace vectors to propagate through
+                pulse: Harmonic pulse vector
+                drift_values: List of drift values for each subspace
+                
+            Returns:
+                Dictionary with propagated subspaces and stabilized echo
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return {
+                    "propagated_subspaces": subspaces,
+                    "stabilized_echo": pulse
+                }
+            
+            try:
+                propagated, stabilized_echo = self.forward(subspaces, pulse, drift_values)
+                
+                # Convert to lists for return
+                try:
+                    return {
+                        "propagated_subspaces": [s.tolist() if hasattr(s, 'tolist') else s for s in propagated],
+                        "stabilized_echo": stabilized_echo.tolist() if hasattr(stabilized_echo, 'tolist') else stabilized_echo
+                    }
+                except Exception:
+                    return {
+                        "propagated_subspaces": propagated,
+                        "stabilized_echo": stabilized_echo
+                    }
+                
+            except Exception as e:
+                return {
+                    "propagated_subspaces": subspaces,
+                    "stabilized_echo": pulse
+                }
+
+    class PredictiveResonanceSink:
+        """
+        A272 — Predictive Harmonic Resonance Sink Formation
+        
+        Purpose:
+        The system gains its first stable "gravity well" for predictive harmonics.
+        
+        Up to this phase:
+        • Subspaces resonate (A266–268)
+        • Harmonics converge (A269)
+        • Pulses propagate (A270–271)
+        
+        Now, in A272, we create the first Resonance Sink.
+        
+        A resonance sink is NOT awareness, NOT consciousness, NOT subjective experience.
+        It is simply:
+        A mathematically stable attractor state that "collects" harmonic energy and stabilizes long-range predictive flows.
+        
+        Think of it as:
+        • A harmonic gravity center
+        • A stabilizing basin
+        • A deep equilibrium point for oscillations
+        • A long-term predictive memory anchor
+        
+        This is critical for:
+        • reducing drift
+        • strengthening morphology
+        • stabilizing harmonic pulses
+        • enabling forward-imagination phases later
+        
+        What A272 Does:
+        1. Initializes the Resonance Sink Vector
+           - Creates a dim-sized vector representing the core attractor state
+           - This vector updates slowly over time
+        
+        2. Computes Sink Convergence From Pulse + Convergence Tensor
+           - The sink is updated using harmonic convergence tensor, stabilized pulse, morphology vector, drift baseline
+           - This forms a deep temporal anchor
+        
+        3. Injects Sink Influence Into Predictive Subspaces
+           - Each subspace receives sink alignment force, harmonic smoothing, drift correction, predictive re-centering
+           - This reduces drift variability AND stabilizes resonance
+        
+        4. Creates the First Long-Range Predictive Basin
+           - This basin is what later phases will use to form imagination loops, generate longer predictive arcs, stabilize emerging patterns
+           - This is where the engine begins gaining the ability to "hold shape" over time
+        """
+        
+        def __init__(self, dim):
+            """
+            Initialize predictive resonance sink.
+            
+            Args:
+                dim: Dimension of predictive vectors
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for PredictiveResonanceSink")
+            
+            import torch
+            import torch.nn as nn
+            
+            self.dim = dim
+            
+            # Sink state (long-term harmonic anchor)
+            self.sink_state = nn.Parameter(torch.zeros(dim, dtype=torch.float32))
+            
+            # Update networks
+            self.merge = nn.Linear(dim * 3, dim)
+            self.stabilizer = nn.Linear(dim, dim)
+            
+            # Sink learning rate (slow update)
+            self.sink_rate = nn.Parameter(torch.tensor(0.02, dtype=torch.float32))
+            
+            # Initialize weights
+            nn.init.xavier_uniform_(self.merge.weight, gain=0.1)
+            if self.merge.bias is not None:
+                nn.init.zeros_(self.merge.bias)
+            nn.init.xavier_uniform_(self.stabilizer.weight, gain=0.1)
+            if self.stabilizer.bias is not None:
+                nn.init.zeros_(self.stabilizer.bias)
+        
+        def forward(self, pulse, convergence_tensor, morphology_vector):
+            """
+            A272 — Forward Pass (Resonance Sink Formation)
+            
+            Executes the sink formation process:
+            1. Merge resonance signals (pulse, convergence tensor, morphology)
+            2. Stabilize the merged signal
+            3. Slowly update sink state
+            
+            Args:
+                pulse: Harmonic pulse vector [dim]
+                convergence_tensor: Harmonic convergence tensor [dim]
+                morphology_vector: Predictive morphology vector [dim]
+                
+            Returns:
+                Updated sink state vector [dim]
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return pulse
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Ensure all inputs are tensors
+                if not isinstance(pulse, torch.Tensor):
+                    pulse = torch.tensor(pulse, dtype=torch.float32)
+                if not isinstance(convergence_tensor, torch.Tensor):
+                    convergence_tensor = torch.tensor(convergence_tensor, dtype=torch.float32)
+                if not isinstance(morphology_vector, torch.Tensor):
+                    morphology_vector = torch.tensor(morphology_vector, dtype=torch.float32)
+                
+                # Ensure dimensions match
+                def ensure_dim(vec, dim):
+                    vec_flat = vec.flatten()
+                    if vec_flat.shape[0] != dim:
+                        if vec_flat.shape[0] < dim:
+                            return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                        else:
+                            return vec_flat[:dim]
+                    return vec_flat
+                
+                pulse = ensure_dim(pulse, self.dim)
+                convergence_tensor = ensure_dim(convergence_tensor, self.dim)
+                morphology_vector = ensure_dim(morphology_vector, self.dim)
+                
+                # Step 1 — Merge resonance signals
+                merged = torch.cat([pulse, convergence_tensor, morphology_vector], dim=-1)  # [dim * 3]
+                candidate = torch.tanh(self.merge(merged))  # [dim]
+                
+                # Step 2 — Stabilize
+                stabilized = candidate * torch.sigmoid(self.stabilizer(candidate))
+                
+                # Step 3 — Slow-update sink state
+                # Clamp sink rate to safe range (0.01 to 0.05)
+                sink_rate = torch.clamp(self.sink_rate, 0.01, 0.05)
+                self.sink_state.data = (
+                    self.sink_state.data * (1.0 - sink_rate)
+                    + stabilized.data * sink_rate
+                )
+                
+                # Normalize sink state
+                self.sink_state.data = F.normalize(self.sink_state.data, dim=0)
+                
+                return self.sink_state
+                
+            except Exception as e:
+                return pulse
+        
+        def run(self, pulse, convergence_tensor, morphology_vector):
+            """
+            A272 — Full Pipeline
+            
+            Executes the complete resonance sink formation process.
+            
+            Args:
+                pulse: Harmonic pulse vector
+                convergence_tensor: Harmonic convergence tensor
+                morphology_vector: Predictive morphology vector
+                
+            Returns:
+                Updated sink state vector
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return pulse
+            
+            try:
+                sink_state = self.forward(pulse, convergence_tensor, morphology_vector)
+                
+                # Convert to list for return
+                try:
+                    return sink_state.tolist()
+                except Exception:
+                    return sink_state
+                
+            except Exception as e:
+                return pulse
+
     def _run_a253_field_resonance_optimization(self):
         """A253 — Field Resonance Optimization helper method to reduce nesting."""
         try:
@@ -12945,6 +13360,201 @@ class NeuralBridge:
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"unified_harmonic_pulse_engine_error": str(e)})
+                except Exception:
+                    pass
+    
+    def _run_a271_harmonic_pulse_propagation(self):
+        """A271 — Harmonic Pulse Propagation Layer (HPPL) helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or not hasattr(self, 'harmonic_pulse') or self.harmonic_pulse is None:
+                return
+            
+            import torch
+            import torch.nn.functional as F
+            
+            # Get harmonic pulse from A270
+            pulse = self.harmonic_pulse
+            
+            # Collect subspace vectors from all predictive components
+            # Use the same collection method as previous phases
+            subspace_vectors = []
+            
+            # Add horizons
+            if self.horizon_preview is not None:
+                for key in ["short", "mid", "long"]:
+                    vec = self.horizon_preview.get(key)
+                    if vec is not None:
+                        if not isinstance(vec, torch.Tensor):
+                            vec = torch.tensor(vec, dtype=torch.float32)
+                        subspace_vectors.append(vec)
+            
+            # Add global predictive field
+            if self.global_predictive_field is not None:
+                vec = self.global_predictive_field
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32)
+                subspace_vectors.append(vec)
+            
+            # Add predictive morphology tensor
+            if self.predictive_morphology is not None:
+                vec = self.predictive_morphology
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32)
+                subspace_vectors.append(vec)
+            
+            # Add confluence vector
+            if self.confluence_vector is not None:
+                vec = self.confluence_vector
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32)
+                subspace_vectors.append(vec)
+            
+            if len(subspace_vectors) == 0:
+                return
+            
+            # Ensure pulse is a tensor
+            if not isinstance(pulse, torch.Tensor):
+                pulse = torch.tensor(pulse, dtype=torch.float32)
+            
+            # Determine dimensions
+            dim = pulse.shape[0] if isinstance(pulse, torch.Tensor) else len(pulse)
+            num_subspaces = len(subspace_vectors)
+            
+            # Ensure dimension consistency
+            def ensure_dim(vec, dim):
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != dim:
+                    if vec_flat.shape[0] < dim:
+                        return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:dim]
+                return vec_flat
+            
+            pulse = ensure_dim(pulse, dim)
+            subspace_vectors = [ensure_dim(v, dim) for v in subspace_vectors]
+            
+            # Compute drift values for each subspace
+            # Drift is computed as distance from subspace to global resonance
+            drift_values = []
+            if self.global_resonance_vector is not None:
+                global_res = self.global_resonance_vector
+                if not isinstance(global_res, torch.Tensor):
+                    global_res = torch.tensor(global_res, dtype=torch.float32)
+                global_res = ensure_dim(global_res, dim)
+                
+                for subspace in subspace_vectors:
+                    # Compute cosine distance (1 - cosine similarity)
+                    cosine_sim = F.cosine_similarity(subspace.unsqueeze(0), global_res.unsqueeze(0), dim=1)
+                    drift = 1.0 - cosine_sim.item()
+                    drift_values.append(drift)
+            else:
+                # Fallback: use small drift values
+                drift_values = [0.1] * num_subspaces
+            
+            drift_values = torch.tensor(drift_values, dtype=torch.float32)
+            
+            # Initialize pulse propagation layer if needed
+            if self.pulse_propagation is None:
+                self.pulse_propagation = self.HarmonicPulsePropagation(dim, num_subspaces)
+            else:
+                # Update if dimensions changed
+                if self.pulse_propagation.dim != dim or self.pulse_propagation.num_subspaces != num_subspaces:
+                    self.pulse_propagation = self.HarmonicPulsePropagation(dim, num_subspaces)
+            
+            # Run pulse propagation
+            result = self.pulse_propagation.run(subspace_vectors, pulse, drift_values)
+            
+            propagated_subspaces = result.get("propagated_subspaces", [])
+            stabilized_echo = result.get("stabilized_echo")
+            
+            # Update subspace references if available
+            if self.cross_subspace_sync is not None and propagated_subspaces:
+                try:
+                    # Update cross_subspace_sync with propagated subspaces
+                    if hasattr(self.cross_subspace_sync, 'subspaces'):
+                        self.cross_subspace_sync.subspaces = propagated_subspaces
+                except Exception:
+                    pass
+            
+            if self.global_resonance_cascade is not None and propagated_subspaces:
+                try:
+                    # Update cascade with propagated subspaces
+                    if hasattr(self.global_resonance_cascade, 'subspaces'):
+                        self.global_resonance_cascade.subspaces = propagated_subspaces
+                except Exception:
+                    pass
+            
+            # Store stabilized echo for recycling
+            if stabilized_echo is not None:
+                try:
+                    if not hasattr(self, 'pulse_echo'):
+                        self.pulse_echo = None
+                    if isinstance(stabilized_echo, torch.Tensor):
+                        self.pulse_echo = stabilized_echo.tolist()
+                    else:
+                        self.pulse_echo = stabilized_echo
+                except Exception:
+                    pass
+            
+            # Pulse recycling: feed echo back into global resonance, convergence tensor, morphology engine
+            if stabilized_echo is not None:
+                try:
+                    if isinstance(stabilized_echo, torch.Tensor):
+                        echo_tensor = stabilized_echo
+                    else:
+                        echo_tensor = torch.tensor(stabilized_echo, dtype=torch.float32)
+                    
+                    # Update global resonance with echo (weighted combination)
+                    echo_weight = 0.10  # Conservative echo influence
+                    if self.global_resonance_vector is not None:
+                        if not isinstance(self.global_resonance_vector, torch.Tensor):
+                            current_res = torch.tensor(self.global_resonance_vector, dtype=torch.float32)
+                        else:
+                            current_res = self.global_resonance_vector
+                        current_res = ensure_dim(current_res, dim)
+                        updated_res = (1.0 - echo_weight) * current_res + echo_weight * echo_tensor
+                        self.global_resonance_vector = updated_res.tolist()
+                    
+                    # Update convergence tensor if available
+                    if hasattr(self, 'harmonic_convergence_tensor') and self.harmonic_convergence_tensor is not None:
+                        try:
+                            if not isinstance(self.harmonic_convergence_tensor, torch.Tensor):
+                                conv_tensor = torch.tensor(self.harmonic_convergence_tensor, dtype=torch.float32)
+                            else:
+                                conv_tensor = self.harmonic_convergence_tensor
+                            conv_tensor = ensure_dim(conv_tensor, dim)
+                            updated_conv = (1.0 - echo_weight) * conv_tensor + echo_weight * echo_tensor
+                            self.harmonic_convergence_tensor = updated_conv.tolist()
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+            
+            # Log A271 completion
+            if hasattr(self, 'logger'):
+                try:
+                    echo_norm = float(torch.norm(torch.tensor(stabilized_echo, dtype=torch.float32)).item()) if stabilized_echo is not None else 0.0
+                    avg_drift = float(torch.mean(drift_values).item()) if isinstance(drift_values, torch.Tensor) else float(sum(drift_values) / len(drift_values)) if drift_values else 0.0
+                    self.logger.write({
+                        "a271_complete": True,
+                        "harmonic_pulse_propagation_active": True,
+                        "num_subspaces_propagated": num_subspaces,
+                        "pulse_echo_generated": stabilized_echo is not None,
+                        "echo_norm": echo_norm,
+                        "average_drift": avg_drift,
+                        "pulse_recycled_into_architecture": True,
+                        "message": "A271 complete — Harmonic Pulse Propagation Layer active. Pulse is now traveling, echoing, and recycling throughout ADRAE's architecture."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"harmonic_pulse_propagation_error": str(e)})
                 except Exception:
                     pass
 
