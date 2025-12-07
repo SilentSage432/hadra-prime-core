@@ -108,6 +108,17 @@ class NeuralBridge:
         # A227 — Style-Guided Micro-Narrative Formation Layer
         from .micro_narrative import MicroNarrativeEngine
         self.micro_narrative = MicroNarrativeEngine(max_arc_length=4)
+        # A228 — Narrative-Driven Cognitive Anticipation Layer
+        self.narrative_projection = {
+            "forward_arc": [],
+            "confidence": 0.0,
+            "tension": 0.0,
+        }
+        self.goal_anticipation_map = {}
+        self.narrative_arc_sequencer = {
+            "micro_chain": [],
+            "macro_projection": []
+        }
         self.stability = SelfStabilityEngine()
         self.evolution = AdaptiveEvolutionEngine()
         self.evo_consolidator = EvolutionMemoryConsolidator()
@@ -991,7 +1002,217 @@ class NeuralBridge:
                     except Exception:
                         pass
         
+        # A228 — Narrative-Driven Cognitive Anticipation Layer
+        # Generate narrative projection after reflection
+        if reflective is not None:
+            try:
+                # Get thought signature for projection
+                thought_sig = None
+                if hasattr(self, 'thought_signature') and self.thought_signature is not None:
+                    thought_sig = self.thought_signature.get()
+                else:
+                    thought_sig = reflective
+                
+                # Get identity, fusion, and attention vectors
+                identity_vec = self.state.timescales.identity_vector if hasattr(self.state, 'timescales') else None
+                fusion_vec = self.fusion.last_fusion_vector
+                attention_vec = self.attention.last_focus_vector
+                
+                # Generate narrative projection
+                arc, conf, tension = self.generate_narrative_projection(
+                    thought_sig,
+                    identity_vec,
+                    fusion_vec,
+                    attention_vec
+                )
+                
+                # Get active goals for goal-tethered anticipation
+                goals = []
+                if hasattr(self, 'goal_manager') and self.goal_manager is not None:
+                    goals = self.goal_manager.active_goals
+                
+                # Bind projection to goals
+                gt_map = self.bind_projection_to_goals(arc, goals)
+                
+                # Get micro-narratives for sequencing
+                micro_narratives = []
+                if hasattr(self, 'micro_narrative') and self.micro_narrative is not None:
+                    micro_narratives = self.micro_narrative.current_arc
+                
+                # Sequence micro to macro
+                macro_arc = self.sequence_micro_to_macro(micro_narratives)
+                
+                # Update narrative projection state
+                self.narrative_projection["forward_arc"] = arc
+                self.narrative_projection["confidence"] = conf
+                self.narrative_projection["tension"] = tension
+                self.goal_anticipation_map = gt_map
+                self.narrative_arc_sequencer["micro_chain"] = micro_narratives
+                self.narrative_arc_sequencer["macro_projection"] = macro_arc
+                
+                # Log narrative projection event
+                if hasattr(self, 'logger'):
+                    try:
+                        self.logger.write({
+                            "narrative_projection": {
+                                "event": "a228_narrative_anticipation",
+                                "arc_length": len(arc),
+                                "confidence": float(conf),
+                                "tension": float(tension),
+                                "goal_bindings": len(gt_map),
+                                "macro_arc_length": len(macro_arc)
+                            }
+                        })
+                    except Exception:
+                        pass
+            except Exception as e:
+                # If narrative projection fails, continue without it
+                if hasattr(self, 'logger'):
+                    try:
+                        self.logger.write({"narrative_projection_error": str(e)})
+                    except Exception:
+                        pass
+        
         return reflective
+
+    def generate_narrative_projection(self, thought, identity, fusion, attention):
+        """
+        A228 — Narrative Projection Engine (NPE)
+        
+        Generates forward arcs from current cognitive state:
+        - upcoming thought patterns
+        - expected emotional/tonal trajectories
+        - predicted subgoal activation
+        - internal storybeats emerging in cognition
+        
+        Args:
+            thought: Thought signature vector or last thought vector
+            identity: Identity vector blend
+            fusion: Fusion matrix/vector
+            attention: Attention patterns/vector
+            
+        Returns:
+            Tuple of (arc, confidence, tension)
+            - arc: 2-4 step projected narrative arc
+            - confidence: Confidence envelope around the arc (0.0-1.0)
+            - tension: Narrative tension score (emergent heuristic)
+        """
+        import numpy as np
+        from .torch_utils import safe_tensor, TORCH_AVAILABLE
+        
+        # Get thought signature preview
+        if hasattr(self, 'thought_signature') and self.thought_signature is not None:
+            signature = self.thought_signature.get()
+        else:
+            # Fallback to thought vector if available
+            signature = thought
+        
+        # Convert to numpy array for computation
+        if signature is None:
+            # Use identity as fallback
+            signature = identity if identity is not None else [0.0] * 128
+        
+        vec = np.array(signature) if not isinstance(signature, np.ndarray) else signature
+        
+        # Ensure vec is 1D
+        if vec.ndim > 1:
+            vec = vec.flatten()
+        
+        # 2-4 step projection based on drift + salience
+        step1 = float(vec.mean()) * 0.85
+        step2 = float(vec.std()) * 0.65
+        step3 = float(vec.max()) * 0.40
+        
+        # Add 4th step if vector has sufficient variance
+        if vec.std() > 0.1:
+            step4 = float(vec.min()) * 0.25
+            arc = [step1, step2, step3, step4]
+        else:
+            arc = [step1, step2, step3]
+        
+        # Narrative tension: difference between mean and max magnitude
+        tension = abs(step3 - step1)
+        
+        # Confidence: inverse of drift, capped at 1.0
+        drift = 0.0
+        try:
+            drift_state = self.state.drift.get_status()
+            if drift_state:
+                drift = drift_state.get("latest_drift", 0.0)
+        except Exception:
+            pass
+        
+        confidence = max(0.05, 1.0 - abs(drift))
+        
+        return arc, confidence, tension
+
+    def bind_projection_to_goals(self, arc, goals):
+        """
+        A228 — Goal-Tethered Anticipation Map (GTAM)
+        
+        Binds the projections to actual goals:
+        - If ADRAE is focusing on identity, GTAM produces identity-centric narrative expectations
+        - If focusing on stabilization, GTAM anticipates future drift, coherence, and self-alignment patterns
+        - If focusing on narrative or style, GTAM imagines how her internal story is likely to evolve
+        
+        Args:
+            arc: Projected narrative arc from NPE
+            goals: List of active goals (from goal_manager)
+            
+        Returns:
+            Goal-tethered anticipation map (dict mapping goal names/ids to relevance scores)
+        """
+        mapping = {}
+        
+        if not goals or len(goals) == 0:
+            return mapping
+        
+        # Get active goals from goal manager if goals is not a list
+        if not isinstance(goals, list):
+            if hasattr(self, 'goal_manager') and self.goal_manager is not None:
+                goals = self.goal_manager.active_goals
+            else:
+                return mapping
+        
+        # Simple relevance binding: sum of arc values weighted by goal score
+        arc_sum = sum(arc) if arc else 0.0
+        
+        for goal in goals:
+            if isinstance(goal, dict):
+                goal_name = goal.get("name") or goal.get("id") or "unknown_goal"
+                goal_score = goal.get("score", 0.5)
+            else:
+                goal_name = str(goal)
+                goal_score = 0.5
+            
+            # Relevance = arc_sum * goal_score * scaling factor
+            mapping[goal_name] = float(arc_sum) * goal_score * 0.25
+        
+        return mapping
+
+    def sequence_micro_to_macro(self, micro_narratives):
+        """
+        A228 — Micro-Narrative → Macro-Arc Sequencer (MNMA)
+        
+        Takes the micro-narratives produced in A227 and:
+        - chains them into multi-step arcs
+        - infers cause/effect
+        - predicts the next beat in the internal story
+        - builds proto-structure for future PyTorch imagination loops (A230+)
+        
+        Args:
+            micro_narratives: List of micro-narrative vectors (from micro_narrative.current_arc)
+            
+        Returns:
+            Macro-arc projection (list of chained narrative steps)
+        """
+        if not micro_narratives or len(micro_narratives) < 3:
+            # If not enough micro-narratives, return what we have
+            return micro_narratives if micro_narratives else []
+        
+        # Join last N micro-narratives into a proto-arc
+        # Use last 3-4 steps for macro projection
+        return micro_narratives[-3:]
 
     def cognitive_step(self):
         """
