@@ -467,6 +467,59 @@ class CognitiveLoopOrchestrator:
             else:
                 chosen_embedding = result
                 dbg = {"note": "No debug info available"}
+        
+        # A221 — Update Thought Signature after selection
+        signature_vec = None
+        signature_preview = None
+        if chosen_embedding is not None:
+            try:
+                signature_vec = self.bridge.thought_signature.update(
+                    chosen_embedding,
+                    synergy_bonus
+                )
+                # Attach signature preview to debug info
+                if dbg is None:
+                    dbg = {}
+                if isinstance(signature_vec, list):
+                    dbg["thought_signature_preview"] = signature_vec[:8]
+                    signature_preview = signature_vec[:12]
+                else:
+                    # Handle tensor case
+                    try:
+                        import torch
+                        if isinstance(signature_vec, torch.Tensor):
+                            dbg["thought_signature_preview"] = signature_vec[:8].tolist()
+                            signature_preview = signature_vec[:12].tolist()
+                        else:
+                            sig_list = list(signature_vec)[:12] if hasattr(signature_vec, '__iter__') else []
+                            dbg["thought_signature_preview"] = sig_list[:8]
+                            signature_preview = sig_list
+                    except:
+                        dbg["thought_signature_preview"] = []
+                        signature_preview = []
+                
+                # A221 — Log signature update to memory store
+                if signature_preview is not None:
+                    try:
+                        if hasattr(self.bridge, 'memory_store') and self.bridge.memory_store is not None:
+                            if hasattr(self.bridge.memory_store, 'log_thought_event'):
+                                self.bridge.memory_store.log_thought_event({
+                                    "type": "thought_signature_update",
+                                    "signature_preview": signature_preview,
+                                    "synergy_bonus": round(synergy_bonus, 4)
+                                })
+                    except Exception:
+                        pass
+                
+                # Store signature preview for output
+                self._signature_preview = signature_preview
+            except Exception as e:
+                # If signature update fails, continue without it
+                if hasattr(self.bridge, 'logger'):
+                    try:
+                        self.bridge.logger.write({"thought_signature_update_error": str(e)})
+                    except Exception:
+                        pass
 
         # -----------------------------------------
         # 🔥 CRITICAL FIX: Inject chosen thought
@@ -1554,6 +1607,11 @@ class CognitiveLoopOrchestrator:
                 "bonus": round(getattr(self, '_synergy_bonus', 0.0), 4),
                 "edge_count": len(getattr(self, '_synergy_edges', []))
             } if hasattr(self, '_synergy_edges') else None,  # A220 — Competency synergy
+            "thought_signature": {
+                "preview": getattr(self, '_signature_preview', None),
+                "synergy_bonus": round(getattr(self, '_synergy_bonus', 0.0), 4),
+                "active": hasattr(self.bridge, 'thought_signature') and self.bridge.thought_signature is not None
+            } if hasattr(self, '_signature_preview') else {"active": False},  # A221 — Thought Signature
             "self_model": self.bridge.self_model.summary(),
         }
 

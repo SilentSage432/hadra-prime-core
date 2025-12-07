@@ -50,7 +50,7 @@ class NeuralThoughtSelector:
 
         self.salience_weight = salience_weight
 
-    def score_thought(self, embedding, fusion_vec, attention_engine, memory_manager, skill_bias=0.0, synergy_bias=0.0):
+    def score_thought(self, embedding, fusion_vec, attention_engine, memory_manager, skill_bias=0.0, synergy_bias=0.0, signature=None):
 
         """
 
@@ -58,6 +58,7 @@ class NeuralThoughtSelector:
         
         A217 — Now includes skill bias influence.
         A220 — Now includes synergy bias influence.
+        A221 — Now includes signature alignment influence.
 
         """
 
@@ -96,6 +97,14 @@ class NeuralThoughtSelector:
         
         # A220 — Synergy bias (weighted influence from competency synergy)
         synergy_weight = 0.20  # 20% weight for synergy influence
+        
+        # A221 — Signature alignment (how well thought matches cognitive fingerprint)
+        signature_align = 0.0
+        signature_weight = 0.25  # 25% weight for signature alignment
+        if signature is not None:
+            signature_align = safe_cosine_similarity(emb, signature) if signature is not None else 0.0
+            if signature_align is None:
+                signature_align = 0.0
 
         # Weighted total score
 
@@ -109,7 +118,9 @@ class NeuralThoughtSelector:
 
             skill_weight * skill_bias +
 
-            synergy_weight * synergy_bias
+            synergy_weight * synergy_bias +
+            
+            signature_weight * signature_align  # A221 — Signature alignment
 
         )
 
@@ -124,12 +135,14 @@ class NeuralThoughtSelector:
             "skill_bias": skill_bias,  # A217 — Skill bias (may include competency bias)
 
             "synergy_bias": synergy_bias,  # A220 — Competency synergy bias
+            
+            "signature_align": signature_align,  # A221 — Signature alignment
 
             "total": score
 
         }
 
-    def select(self, candidate_embeddings, fusion_vec, attention_engine, memory_manager, goal_modulation=None, competency_bias=0.0, synergy_bias=0.0):
+    def select(self, candidate_embeddings, fusion_vec, attention_engine, memory_manager, goal_modulation=None, competency_bias=0.0, synergy_bias=0.0, signature=None):
 
         """
 
@@ -141,6 +154,7 @@ class NeuralThoughtSelector:
         A218 — Now includes competency bias.
         A219 — Now includes competency activation bias.
         A220 — Now includes competency synergy bias.
+        A221 — Now includes signature alignment bias.
 
         """
 
@@ -231,7 +245,7 @@ class NeuralThoughtSelector:
             # This is the bias from activated competencies (separate from centroid similarity)
             final_bias = combined_bias + (competency_bias * 0.3)  # 30% weight for activation bias
             
-            score, dbg = self.score_thought(emb, fusion_vec, attention_engine, memory_manager, skill_bias=final_bias, synergy_bias=synergy_bias)
+            score, dbg = self.score_thought(emb, fusion_vec, attention_engine, memory_manager, skill_bias=final_bias, synergy_bias=synergy_bias, signature=signature)
             
             # === A204: Inject goal modulation influence ===
             if goal_modulation is not None:

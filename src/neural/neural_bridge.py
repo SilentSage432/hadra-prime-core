@@ -90,6 +90,9 @@ class NeuralBridge:
         # A218 — Skill Specialization & Competency Clustering
         from .competency_manager import CompetencyManager
         self.competencies = CompetencyManager()
+        # A221 — Synergy-Based Thought Signature Stabilizer
+        from .thought_signature import ThoughtSignature
+        self.thought_signature = ThoughtSignature(dim=128)
         self.stability = SelfStabilityEngine()
         self.evolution = AdaptiveEvolutionEngine()
         self.evo_consolidator = EvolutionMemoryConsolidator()
@@ -393,6 +396,11 @@ class NeuralBridge:
     def select_thought(self, candidate_embeddings, competency_bias=0.0, synergy_bias=0.0):
 
         fusion = self.fusion.last_fusion_vector
+        
+        # A221 — Get current thought signature for biasing
+        signature = None
+        if hasattr(self, 'thought_signature'):
+            signature = self.thought_signature.get()
 
         return self.selector.select(
 
@@ -406,7 +414,8 @@ class NeuralBridge:
 
             goal_modulation=self.last_goal_modulation,  # A204 — Goal modulation
             competency_bias=competency_bias,  # A219 — Competency activation bias
-            synergy_bias=synergy_bias  # A220 — Competency synergy bias
+            synergy_bias=synergy_bias,  # A220 — Competency synergy bias
+            signature=signature  # A221 — Thought signature for consistency
 
         )
 
