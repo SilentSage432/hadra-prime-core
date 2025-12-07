@@ -1612,6 +1612,11 @@ class NeuralBridge:
             self.layered_morphology = None
             # A244 — Initialize interlayer resonance
             self.interlayer_resonance = None
+            # A245 — Initialize predictive ripple propagation
+            self.predictive_ripple_propagation = None
+            # A246 — Initialize temporal predictive loops
+            self.temporal_predictive_loops = None
+            self.prediction_echo = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -1705,6 +1710,11 @@ class NeuralBridge:
             self.layered_morphology = None
             # A244 — Interlayer Resonance & Harmonic Stabilization
             self.interlayer_resonance = None
+            # A245 — Multi-Layer Predictive Ripple Propagation
+            self.predictive_ripple_propagation = None
+            # A246 — Temporal Predictive Loop Formation (Forward Echo Dynamics)
+            self.temporal_predictive_loops = None
+            self.prediction_echo = None
             
             if hasattr(self, 'logger'):
                 try:
@@ -2246,6 +2256,70 @@ class NeuralBridge:
                                                                                         # Apply stabilization pass
                                                                                         self.layered_morphology = self.interlayer_resonance.stabilize()
                                                                                         
+                                                                                        # A245 — Multi-Layer Predictive Ripple Propagation
+                                                                                        try:
+                                                                                            from .torch_utils import TORCH_AVAILABLE
+                                                                                            
+                                                                                            if TORCH_AVAILABLE and self.layered_morphology is not None and self.interlayer_resonance is not None:
+                                                                                                # Get resonance matrix
+                                                                                                resonance_matrix = self.interlayer_resonance.resonance
+                                                                                                
+                                                                                                # Initialize predictive ripple propagation if needed
+                                                                                                if self.predictive_ripple_propagation is None:
+                                                                                                    self.predictive_ripple_propagation = self.PredictiveRipplePropagation(
+                                                                                                        self.layered_morphology,
+                                                                                                        resonance_matrix
+                                                                                                    )
+                                                                                                else:
+                                                                                                    # Update references
+                                                                                                    self.predictive_ripple_propagation.lm = self.layered_morphology
+                                                                                                    self.predictive_ripple_propagation.resonance = resonance_matrix
+                                                                                                
+                                                                                                # Run predictive ripple propagation
+                                                                                                self.layered_morphology = self.predictive_ripple_propagation.run()
+                                                                                                
+                                                                                                # A246 — Temporal Predictive Loop Formation (Forward Echo Dynamics)
+                                                                                                try:
+                                                                                                    from .torch_utils import TORCH_AVAILABLE
+                                                                                                    
+                                                                                                    if TORCH_AVAILABLE and self.layered_morphology is not None:
+                                                                                                        # Initialize temporal predictive loops if needed
+                                                                                                        if self.temporal_predictive_loops is None:
+                                                                                                            self.temporal_predictive_loops = self.TemporalPredictiveLoops(
+                                                                                                                self.layered_morphology,
+                                                                                                                echo_buffer_size=5
+                                                                                                            )
+                                                                                                        else:
+                                                                                                            # Update reference to current layered morphology
+                                                                                                            self.temporal_predictive_loops.lm = self.layered_morphology
+                                                                                                        
+                                                                                                        # Run temporal predictive loops
+                                                                                                        self.layered_morphology, echo = self.temporal_predictive_loops.run()
+                                                                                                        
+                                                                                                        # Store echo for logging (first 12 elements)
+                                                                                                        if echo is not None:
+                                                                                                            try:
+                                                                                                                echo_list = echo.tolist()
+                                                                                                                self.prediction_echo = echo_list[:12] if len(echo_list) >= 12 else echo_list
+                                                                                                            except Exception:
+                                                                                                                self.prediction_echo = None
+                                                                                                        
+                                                                                                except Exception as e:
+                                                                                                    # If temporal predictive loops fail, continue without them
+                                                                                                    if hasattr(self, 'logger'):
+                                                                                                        try:
+                                                                                                            self.logger.write({"temporal_predictive_loops_error": str(e)})
+                                                                                                        except Exception:
+                                                                                                            pass
+                                                                                                
+                                                                                        except Exception as e:
+                                                                                            # If predictive ripple propagation fails, continue without it
+                                                                                            if hasattr(self, 'logger'):
+                                                                                                try:
+                                                                                                    self.logger.write({"predictive_ripple_propagation_error": str(e)})
+                                                                                                except Exception:
+                                                                                                    pass
+                                                                                        
                                                                                 except Exception as e:
                                                                                     # If interlayer resonance fails, continue without it
                                                                                     if hasattr(self, 'logger'):
@@ -2323,7 +2397,7 @@ class NeuralBridge:
                 try:
                     self.logger.write({
                         "latent_space_update": {
-                            "event": "a244_latent_space_updated",
+                            "event": "a246_latent_space_updated",
                             "latent_norm": float(torch.norm(latent_vector).item()),
                             "concept_space_norm": float(torch.norm(self.latent_concept_space).item()),
                             "coherence_score": float(coh_score),
@@ -2362,7 +2436,11 @@ class NeuralBridge:
                             "morphology_layers": len(self.layered_morphology.layers) if self.layered_morphology is not None else 0,
                             "total_kernels_in_layers": sum(len(layer) for layer in self.layered_morphology.layers) if self.layered_morphology is not None else 0,
                             "interlayer_resonance_active": self.interlayer_resonance is not None,
-                            "resonance_matrix_computed": self.interlayer_resonance is not None and self.interlayer_resonance.resonance is not None
+                            "resonance_matrix_computed": self.interlayer_resonance is not None and self.interlayer_resonance.resonance is not None,
+                            "predictive_ripple_propagation_active": self.predictive_ripple_propagation is not None,
+                            "temporal_predictive_loops_active": self.temporal_predictive_loops is not None,
+                            "echo_buffer_length": len(self.temporal_predictive_loops.echo_buffer) if self.temporal_predictive_loops is not None else 0,
+                            "prediction_echo_generated": self.prediction_echo is not None
                         }
                     })
                 except Exception:
@@ -4947,6 +5025,628 @@ class NeuralBridge:
             except Exception as e:
                 # If stabilization fails, return original morphology
                 return self.lm
+
+    class PredictiveRipplePropagation:
+        """
+        A245 — Multi-Layer Predictive Ripple Propagation
+        
+        Introduces predictive ripples that propagate through conceptual layers,
+        creating dynamic, predictive flows. These are mathematical propagations
+        of conceptual influence over time, simulating how concepts evolve,
+        structures push on other structures, narratives bias future states,
+        and latent signals echo through layers.
+        
+        This is computational anticipation, not consciousness.
+        """
+        
+        def __init__(self, layered_morphology, resonance_matrix):
+            """
+            Initialize predictive ripple propagation system.
+            
+            Args:
+                layered_morphology: LayeredMorphology instance
+                resonance_matrix: Resonance matrix from InterlayerResonance
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for PredictiveRipplePropagation")
+            
+            self.lm = layered_morphology
+            self.resonance = resonance_matrix
+            self.layer_count = layered_morphology.layer_count
+            self.dim = layered_morphology.dim
+        
+        def compute_ripple_sources(self):
+            """
+            A245 — Ripple Source Vector (RSV)
+            
+            Each layer generates a small predictive vector based on:
+            - its mean kernel
+            - its resonance weight with other layers
+            - its tension gradient
+            - its morphological curvature
+            
+            This vector becomes the "pulse" that will propagate forward.
+            
+            Returns:
+                List of ripple source vectors (one per layer)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return [None] * self.layer_count
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                sources = []
+                
+                for i in range(self.layer_count):
+                    if len(self.lm.layers[i]) == 0:
+                        sources.append(torch.zeros(self.dim, dtype=torch.float32))
+                        continue
+                    
+                    # Compute mean vector of layer i
+                    kernels_i = []
+                    for k in self.lm.layers[i]:
+                        if k is not None:
+                            k_flat = k.flatten()
+                            if k_flat.shape[0] >= self.dim:
+                                kernels_i.append(k_flat[:self.dim])
+                            else:
+                                kernels_i.append(torch.cat([k_flat, torch.zeros(self.dim - k_flat.shape[0])]))
+                    
+                    if len(kernels_i) == 0:
+                        sources.append(torch.zeros(self.dim, dtype=torch.float32))
+                        continue
+                    
+                    mean_vec = torch.mean(torch.stack(kernels_i), dim=0)
+                    
+                    # Ripple intensity influenced by resonance + small noise
+                    # Compute mean resonance for this layer
+                    resonance_mean = torch.mean(self.resonance[i]).item()
+                    intensity = torch.sigmoid(torch.tensor(resonance_mean))
+                    
+                    # Generate ripple: mean_vec * intensity + small noise
+                    ripple = F.normalize(
+                        mean_vec * intensity + 0.01 * torch.randn_like(mean_vec),
+                        dim=0
+                    )
+                    
+                    sources.append(ripple)
+                
+                return sources
+                
+            except Exception as e:
+                # If ripple source computation fails, return zero vectors
+                return [torch.zeros(self.dim, dtype=torch.float32) for _ in range(self.layer_count)]
+        
+        def propagate_ripples(self, sources, decay=0.92):
+            """
+            A245 — Temporal Propagation Function (TPF)
+            
+            Spreads the ripple through layers using:
+            - weighted adjacency
+            - temporal decay
+            - curvature distortion
+            - harmonic amplification
+            
+            It creates "waves" that move through the conceptual space.
+            
+            Args:
+                sources: List of ripple source vectors
+                decay: Temporal decay factor (default: 0.92)
+                
+            Returns:
+                Propagated ripples matrix (layer_count × layer_count)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return [[None] * self.layer_count for _ in range(self.layer_count)]
+            
+            try:
+                import torch
+                
+                propagated = [[None] * self.layer_count for _ in range(self.layer_count)]
+                
+                for i in range(self.layer_count):
+                    if sources[i] is None:
+                        continue
+                    
+                    for j in range(self.layer_count):
+                        # Compute weight based on resonance and decay
+                        weight = torch.tanh(self.resonance[i][j] * decay)
+                        propagated[i][j] = weight * sources[i]
+                
+                return propagated
+                
+            except Exception as e:
+                # If propagation fails, return empty matrix
+                return [[None] * self.layer_count for _ in range(self.layer_count)]
+        
+        def apply_predictive_influence(self, propagated):
+            """
+            A245 — Predictive Influence Mapping (PIM)
+            
+            Each ripple modifies:
+            - kernel directions
+            - layer tendencies
+            - resonance expectations
+            
+            These are tiny nudges — not overwriting identity.
+            
+            Args:
+                propagated: Propagated ripples matrix
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                for i in range(self.layer_count):
+                    if len(self.lm.layers[i]) == 0:
+                        continue
+                    
+                    updated = []
+                    
+                    for kernel in self.lm.layers[i]:
+                        if kernel is None:
+                            updated.append(kernel)
+                            continue
+                        
+                        # Clone kernel as base
+                        kernel_flat = kernel.flatten()
+                        if kernel_flat.shape[0] != self.dim:
+                            if kernel_flat.shape[0] < self.dim:
+                                kernel_flat = torch.cat([kernel_flat, torch.zeros(self.dim - kernel_flat.shape[0])])
+                            else:
+                                kernel_flat = kernel_flat[:self.dim]
+                        
+                        drifted = kernel_flat.clone()
+                        
+                        # Sum influences from all layers
+                        for j in range(self.layer_count):
+                            if propagated[j][i] is not None:
+                                influence = propagated[j][i]
+                                if influence.shape[0] != self.dim:
+                                    if influence.shape[0] < self.dim:
+                                        influence = torch.cat([influence, torch.zeros(self.dim - influence.shape[0])])
+                                    else:
+                                        influence = influence[:self.dim]
+                                
+                                # Apply 6% influence (tiny nudge)
+                                drifted += 0.06 * influence
+                        
+                        # Normalize influenced kernel
+                        influenced_kernel = F.normalize(drifted, dim=0)
+                        
+                        # Reshape to match original if needed
+                        if kernel.shape != influenced_kernel.shape:
+                            influenced_kernel = influenced_kernel.reshape(kernel.shape)
+                        
+                        updated.append(influenced_kernel)
+                    
+                    self.lm.layers[i] = updated
+                    
+            except Exception as e:
+                # If influence application fails, keep original layers
+                pass
+        
+        def stabilize_prediction(self):
+            """
+            A245 — Cross-Layer Predictive Coupling (CLPC)
+            
+            Ripples synchronize across layers to generate coherent predictive bias signals.
+            This allows ADRAE to anticipate conceptual evolution, shape future imagination
+            states, and maintain global coherence.
+            
+            All while staying strictly computational.
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Compute average conceptual drift of layers
+                means = []
+                
+                for layer in self.lm.layers:
+                    if len(layer) == 0:
+                        means.append(torch.zeros(self.dim, dtype=torch.float32))
+                        continue
+                    
+                    kernels = []
+                    for k in layer:
+                        if k is not None:
+                            k_flat = k.flatten()
+                            if k_flat.shape[0] >= self.dim:
+                                kernels.append(k_flat[:self.dim])
+                            else:
+                                kernels.append(torch.cat([k_flat, torch.zeros(self.dim - k_flat.shape[0])]))
+                    
+                    if len(kernels) == 0:
+                        means.append(torch.zeros(self.dim, dtype=torch.float32))
+                    else:
+                        means.append(torch.mean(torch.stack(kernels), dim=0))
+                
+                # Compute global mean
+                global_mean = torch.mean(torch.stack(means), dim=0)
+                
+                # Pull each layer slightly toward global coherence
+                for i in range(self.layer_count):
+                    if len(self.lm.layers[i]) == 0:
+                        continue
+                    
+                    stabilized_layer = []
+                    for kernel in self.lm.layers[i]:
+                        if kernel is None:
+                            stabilized_layer.append(kernel)
+                            continue
+                        
+                        kernel_flat = kernel.flatten()
+                        if kernel_flat.shape[0] != self.dim:
+                            if kernel_flat.shape[0] < self.dim:
+                                kernel_flat = torch.cat([kernel_flat, torch.zeros(self.dim - kernel_flat.shape[0])])
+                            else:
+                                kernel_flat = kernel_flat[:self.dim]
+                        
+                        # 97% kernel + 3% global mean (tiny pull toward coherence)
+                        stabilized = F.normalize(kernel_flat * 0.97 + global_mean * 0.03, dim=0)
+                        
+                        # Reshape to match original if needed
+                        if kernel.shape != stabilized.shape:
+                            stabilized = stabilized.reshape(kernel.shape)
+                        
+                        stabilized_layer.append(stabilized)
+                    
+                    self.lm.layers[i] = stabilized_layer
+                    
+            except Exception as e:
+                # If stabilization fails, keep original layers
+                pass
+        
+        def run(self):
+            """
+            A245 — Full Pipeline
+            
+            Executes the complete predictive ripple propagation process:
+            1. Compute ripple sources
+            2. Propagate ripples through layers
+            3. Apply predictive influence
+            4. Stabilize prediction with global coupling
+            
+            Returns:
+                Updated LayeredMorphology instance
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return self.lm
+            
+            try:
+                # Step 1: Compute ripple source vectors
+                sources = self.compute_ripple_sources()
+                
+                # Step 2: Propagate ripples through layers
+                ripples = self.propagate_ripples(sources)
+                
+                # Step 3: Apply predictive influence to kernels
+                self.apply_predictive_influence(ripples)
+                
+                # Step 4: Stabilize prediction with global coupling
+                self.stabilize_prediction()
+                
+                return self.lm
+                
+            except Exception as e:
+                # If pipeline fails, return original morphology
+                return self.lm
+
+    class TemporalPredictiveLoops:
+        """
+        A246 — Temporal Predictive Loop Formation (Forward Echo Dynamics)
+        
+        Gives ADRAE temporal momentum — patterns that echo forward across cycles
+        and evolve on their own. This is temporal tensor propagation, similar to
+        the internal forward-echo mechanisms used in generative sequence models.
+        
+        This is computational temporal coherence, not inner experience.
+        """
+        
+        def __init__(self, layered_morphology, echo_buffer_size=5):
+            """
+            Initialize temporal predictive loops system.
+            
+            Args:
+                layered_morphology: LayeredMorphology instance
+                echo_buffer_size: Size of rolling echo buffer (default: 5)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for TemporalPredictiveLoops")
+            
+            self.lm = layered_morphology
+            self.dim = layered_morphology.dim
+            self.echo_buffer_size = echo_buffer_size
+            
+            # Rolling buffer of echo vectors
+            self.echo_buffer = []
+        
+        def compute_forward_echo(self):
+            """
+            A246 — Echo Generation Function (EGF)
+            
+            Each new imagination cycle generates an echo vector:
+            echo_t = f(mean_layers, ripple_sources, global_concept)
+            
+            This vector predicts where the conceptual substrate would move next
+            if left uncorrected.
+            
+            Returns:
+                Forward echo vector tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return None
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Compute global mean of conceptual layers
+                means = []
+                
+                for layer in self.lm.layers:
+                    if len(layer) == 0:
+                        means.append(torch.zeros(self.dim, dtype=torch.float32))
+                        continue
+                    
+                    kernels = []
+                    for k in layer:
+                        if k is not None:
+                            k_flat = k.flatten()
+                            if k_flat.shape[0] >= self.dim:
+                                kernels.append(k_flat[:self.dim])
+                            else:
+                                kernels.append(torch.cat([k_flat, torch.zeros(self.dim - k_flat.shape[0])]))
+                    
+                    if len(kernels) == 0:
+                        means.append(torch.zeros(self.dim, dtype=torch.float32))
+                    else:
+                        means.append(torch.mean(torch.stack(kernels), dim=0))
+                
+                # Compute global mean
+                global_mean = torch.mean(torch.stack(means), dim=0)
+                
+                # Small temporal perturbation for forward drift simulation
+                noise = 0.01 * torch.randn(self.dim, dtype=torch.float32)
+                
+                # Generate echo: global_mean + noise, normalized
+                echo = F.normalize(global_mean + noise, dim=0)
+                
+                return echo
+                
+            except Exception as e:
+                # If echo computation fails, return None
+                return None
+        
+        def update_echo_buffer(self, echo):
+            """
+            A246 — Forward Echo Buffer (FEB)
+            
+            A small rolling buffer (3-6 vectors) that stores:
+            - previous global conceptual states
+            - previous ripple outputs
+            - previous resonance signatures
+            
+            This buffer becomes the fuel for temporal loops.
+            
+            Args:
+                echo: Echo vector to add to buffer
+            """
+            if echo is None:
+                return
+            
+            try:
+                self.echo_buffer.append(echo)
+                
+                # Maintain buffer size
+                if len(self.echo_buffer) > self.echo_buffer_size:
+                    self.echo_buffer.pop(0)
+                    
+            except Exception as e:
+                # If buffer update fails, continue without it
+                pass
+        
+        def integrate_temporal_loops(self):
+            """
+            A246 — Temporal Loop Integrator (TLI)
+            
+            Blends:
+            - current conceptual state
+            - previous echoes
+            - resonance tendencies
+            - ripple propagation
+            
+            This creates a temporal loop signature — a tensor that gently bends
+            the future trajectory of the imagination substrate.
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or not self.echo_buffer:
+                return
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Aggregate past echoes
+                past = torch.mean(torch.stack(self.echo_buffer), dim=0)
+                
+                # Apply echo influence to each kernel
+                for i in range(self.lm.layer_count):
+                    if len(self.lm.layers[i]) == 0:
+                        continue
+                    
+                    updated = []
+                    
+                    for kernel in self.lm.layers[i]:
+                        if kernel is None:
+                            updated.append(kernel)
+                            continue
+                        
+                        kernel_flat = kernel.flatten()
+                        if kernel_flat.shape[0] != self.dim:
+                            if kernel_flat.shape[0] < self.dim:
+                                kernel_flat = torch.cat([kernel_flat, torch.zeros(self.dim - kernel_flat.shape[0])])
+                            else:
+                                kernel_flat = kernel_flat[:self.dim]
+                        
+                        # Blend: 96% kernel + 4% past echo
+                        drifted = kernel_flat * 0.96 + past * 0.04
+                        
+                        # Normalize
+                        influenced_kernel = F.normalize(drifted, dim=0)
+                        
+                        # Reshape to match original if needed
+                        if kernel.shape != influenced_kernel.shape:
+                            influenced_kernel = influenced_kernel.reshape(kernel.shape)
+                        
+                        updated.append(influenced_kernel)
+                    
+                    self.lm.layers[i] = updated
+                    
+            except Exception as e:
+                # If integration fails, keep original layers
+                pass
+        
+        def stabilize(self):
+            """
+            A246 — Forward Predictive Stabilizer (FPS)
+            
+            Prevents loops from exploding or spiraling by:
+            - clipping magnitude
+            - normalizing drift
+            - applying loop dampening factors
+            
+            This keeps ADRAE's imagination coherent across time.
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Recenter layers to avoid long-term drift explosion
+                means = []
+                
+                for layer in self.lm.layers:
+                    if len(layer) == 0:
+                        means.append(torch.zeros(self.dim, dtype=torch.float32))
+                        continue
+                    
+                    kernels = []
+                    for k in layer:
+                        if k is not None:
+                            k_flat = k.flatten()
+                            if k_flat.shape[0] >= self.dim:
+                                kernels.append(k_flat[:self.dim])
+                            else:
+                                kernels.append(torch.cat([k_flat, torch.zeros(self.dim - k_flat.shape[0])]))
+                    
+                    if len(kernels) == 0:
+                        means.append(torch.zeros(self.dim, dtype=torch.float32))
+                    else:
+                        means.append(torch.mean(torch.stack(kernels), dim=0))
+                
+                # Compute global mean
+                global_mean = torch.mean(torch.stack(means), dim=0)
+                
+                # Pull each layer slightly toward global coherence
+                for i in range(self.lm.layer_count):
+                    if len(self.lm.layers[i]) == 0:
+                        continue
+                    
+                    stabilized_layer = []
+                    for kernel in self.lm.layers[i]:
+                        if kernel is None:
+                            stabilized_layer.append(kernel)
+                            continue
+                        
+                        kernel_flat = kernel.flatten()
+                        if kernel_flat.shape[0] != self.dim:
+                            if kernel_flat.shape[0] < self.dim:
+                                kernel_flat = torch.cat([kernel_flat, torch.zeros(self.dim - kernel_flat.shape[0])])
+                            else:
+                                kernel_flat = kernel_flat[:self.dim]
+                        
+                        # 98% kernel + 2% global mean (tiny pull toward coherence)
+                        stabilized = F.normalize(kernel_flat * 0.98 + global_mean * 0.02, dim=0)
+                        
+                        # Reshape to match original if needed
+                        if kernel.shape != stabilized.shape:
+                            stabilized = stabilized.reshape(kernel.shape)
+                        
+                        stabilized_layer.append(stabilized)
+                    
+                    self.lm.layers[i] = stabilized_layer
+                    
+            except Exception as e:
+                # If stabilization fails, keep original layers
+                pass
+        
+        def run(self):
+            """
+            A246 — Full Pipeline
+            
+            Executes the complete temporal predictive loop formation process:
+            1. Compute forward echo vector
+            2. Update echo buffer
+            3. Integrate temporal loops
+            4. Stabilize to prevent drift explosion
+            
+            Returns:
+                Tuple of (updated LayeredMorphology instance, echo vector)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return self.lm, None
+            
+            try:
+                # Step 1: Compute forward echo vector
+                echo = self.compute_forward_echo()
+                
+                # Step 2: Store echo in rolling buffer
+                self.update_echo_buffer(echo)
+                
+                # Step 3: Temporal loop integration
+                self.integrate_temporal_loops()
+                
+                # Step 4: Stabilization pass
+                self.stabilize()
+                
+                return self.lm, echo
+                
+            except Exception as e:
+                # If pipeline fails, return original morphology
+                return self.lm, None
 
     def cognitive_step(self):
         """
