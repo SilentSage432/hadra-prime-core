@@ -1629,6 +1629,9 @@ class NeuralBridge:
             # A250 — Initialize temporal texture synthesis
             self.temporal_texture_synthesis = None
             self.texture_preview = None
+            # A251 — Initialize global imagination field
+            self.global_imagination_field = None
+            self.global_imagination_preview = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -1739,6 +1742,9 @@ class NeuralBridge:
             # A250 — Stabilized Temporal Texture Synthesis
             self.temporal_texture_synthesis = None
             self.texture_preview = None
+            # A251 — Global Imagination Field Formation (First Meta-Layer Activation)
+            self.global_imagination_field = None
+            self.global_imagination_preview = None
             
             if hasattr(self, 'logger'):
                 try:
@@ -2507,9 +2513,17 @@ class NeuralBridge:
                                                                                                                                 
                                                                                                                             # Store temporal interference preview
                                                                                                                             self.temporal_interference_preview = TIM_preview
-                                                                                                                                        
-                                                                                                                            # A250 — Stabilized Temporal Texture Synthesis
+                                                                                                                    
+                                                                                                                    except Exception as e:
+                                                                                                                        # If temporal field interference patterns fail, continue without them
+                                                                                                                        if hasattr(self, 'logger'):
                                                                                                                             try:
+                                                                                                                                self.logger.write({"temporal_field_interference_patterns_error": str(e)})
+                                                                                                                            except Exception:
+                                                                                                                                pass
+                                                                                                                    
+                                                                                                                    # A250 — Stabilized Temporal Texture Synthesis
+                                                                                                                    try:
                                                                                                                                 from .torch_utils import TORCH_AVAILABLE
                                                                                                                                 
                                                                                                                                 if TORCH_AVAILABLE and self.layered_morphology is not None and self.horizon_preview is not None and self.temporal_interference_preview is not None and self.prediction_echo is not None:
@@ -2564,19 +2578,82 @@ class NeuralBridge:
                                                                                                                                     # Store texture preview
                                                                                                                                     self.texture_preview = TTK_preview
                                                                                                                                     
-                                                                                                                            except Exception as e:
-                                                                                                                                # If temporal texture synthesis fails, continue without it
-                                                                                                                                if hasattr(self, 'logger'):
+                                                                                                                                    # A251 — Global Imagination Field Formation (First Meta-Layer Activation)
                                                                                                                                     try:
-                                                                                                                                        self.logger.write({"temporal_texture_synthesis_error": str(e)})
-                                                                                                                                    except Exception:
-                                                                                                                                        pass
-                                                                                                                        
+                                                                                                                                        from .torch_utils import TORCH_AVAILABLE
+                                                                                                                                        
+                                                                                                                                        if TORCH_AVAILABLE and self.layered_morphology is not None and self.horizon_preview is not None and self.texture_preview is not None and self.temporal_interference_preview is not None and self.prediction_echo is not None and self.amplified_echo_preview is not None and self.interlayer_resonance is not None:
+                                                                                                                                            # Get resonance matrix
+                                                                                                                                            resonance_matrix = self.interlayer_resonance.resonance
+                                                                                                                                            
+                                                                                                                                            # Initialize global imagination field if needed
+                                                                                                                                            if self.global_imagination_field is None:
+                                                                                                                                                self.global_imagination_field = self.GlobalImaginationField(
+                                                                                                                                                    self.layered_morphology,
+                                                                                                                                                    self.horizon_preview,
+                                                                                                                                                    self.texture_preview,
+                                                                                                                                                    self.temporal_interference_preview,
+                                                                                                                                                    self.prediction_echo,
+                                                                                                                                                    self.amplified_echo_preview,
+                                                                                                                                                    resonance_matrix,
+                                                                                                                                                    memory_size=7
+                                                                                                                                                )
+                                                                                                                                            else:
+                                                                                                                                                # Update references
+                                                                                                                                                self.global_imagination_field.lm = self.layered_morphology
+                                                                                                                                                # Update inputs (convert to tensors if needed)
+                                                                                                                                                try:
+                                                                                                                                                    import torch
+                                                                                                                                                    
+                                                                                                                                                    horizons = self.horizon_preview
+                                                                                                                                                    F1_list = horizons.get("short", [])
+                                                                                                                                                    F2_list = horizons.get("mid", [])
+                                                                                                                                                    F3_list = horizons.get("long", [])
+                                                                                                                                                    
+                                                                                                                                                    dim = self.global_imagination_field.dim
+                                                                                                                                                    
+                                                                                                                                                    # Convert and dimension-match
+                                                                                                                                                    def ensure_dim(vec, dim):
+                                                                                                                                                        if not isinstance(vec, torch.Tensor):
+                                                                                                                                                            vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
+                                                                                                                                                        vec_flat = vec.flatten()
+                                                                                                                                                        if vec_flat.shape[0] != dim:
+                                                                                                                                                            if vec_flat.shape[0] < dim:
+                                                                                                                                                                return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0])])
+                                                                                                                                                            else:
+                                                                                                                                                                return vec_flat[:dim]
+                                                                                                                                                        return vec_flat
+                                                                                                                                                    
+                                                                                                                                                    self.global_imagination_field.F1 = ensure_dim(F1_list, dim)
+                                                                                                                                                    self.global_imagination_field.F2 = ensure_dim(F2_list, dim)
+                                                                                                                                                    self.global_imagination_field.F3 = ensure_dim(F3_list, dim)
+                                                                                                                                                    self.global_imagination_field.texture = ensure_dim(self.texture_preview, dim)
+                                                                                                                                                    self.global_imagination_field.TIM = ensure_dim(self.temporal_interference_preview, dim)
+                                                                                                                                                    self.global_imagination_field.echo = ensure_dim(self.prediction_echo, dim)
+                                                                                                                                                    self.global_imagination_field.amplified = ensure_dim(self.amplified_echo_preview, dim)
+                                                                                                                                                    self.global_imagination_field.resonance = resonance_matrix
+                                                                                                                                                except Exception:
+                                                                                                                                                    pass
+                                                                                                                                            
+                                                                                                                                            # Run global imagination field formation
+                                                                                                                                            self.layered_morphology, GIF_preview = self.global_imagination_field.run()
+                                                                                                                                            
+                                                                                                                                            # Store global imagination preview
+                                                                                                                                            self.global_imagination_preview = GIF_preview
+                                                                                                                                            
+                                                                                                                                    except Exception as e:
+                                                                                                                                        # If global imagination field formation fails, continue without it
+                                                                                                                                        if hasattr(self, 'logger'):
+                                                                                                                                            try:
+                                                                                                                                                self.logger.write({"global_imagination_field_error": str(e)})
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                    
                                                                                                                     except Exception as e:
-                                                                                                                        # If temporal field interference patterns fail, continue without them
+                                                                                                                        # If temporal texture synthesis fails, continue without it
                                                                                                                         if hasattr(self, 'logger'):
                                                                                                                             try:
-                                                                                                                                self.logger.write({"temporal_field_interference_patterns_error": str(e)})
+                                                                                                                                self.logger.write({"temporal_texture_synthesis_error": str(e)})
                                                                                                                             except Exception:
                                                                                                                                 pass
                                                                                                                     
@@ -2689,7 +2766,7 @@ class NeuralBridge:
                 try:
                     self.logger.write({
                         "latent_space_update": {
-                            "event": "a250_latent_space_updated",
+                            "event": "a251_latent_space_updated",
                             "latent_norm": float(torch.norm(latent_vector).item()),
                             "concept_space_norm": float(torch.norm(self.latent_concept_space).item()),
                             "coherence_score": float(coh_score),
@@ -2741,7 +2818,10 @@ class NeuralBridge:
                             "temporal_interference_preview_generated": self.temporal_interference_preview is not None,
                             "temporal_texture_synthesis_active": self.temporal_texture_synthesis is not None,
                             "texture_preview_generated": self.texture_preview is not None,
-                            "texture_memory_size": len(self.temporal_texture_synthesis.texture_memory) if self.temporal_texture_synthesis is not None else 0
+                            "texture_memory_size": len(self.temporal_texture_synthesis.texture_memory) if self.temporal_texture_synthesis is not None else 0,
+                            "global_imagination_field_active": self.global_imagination_field is not None,
+                            "global_imagination_preview_generated": self.global_imagination_preview is not None,
+                            "global_field_memory_size": len(self.global_imagination_field.global_field_memory) if self.global_imagination_field is not None else 0
                         }
                     })
                 except Exception:
@@ -7213,6 +7293,323 @@ class NeuralBridge:
                     texture_preview = None
                 
                 return lm, texture_preview
+                
+            except Exception as e:
+                # If pipeline fails, return original morphology
+                return self.lm, None
+
+    class GlobalImaginationField:
+        """
+        A251 — Global Imagination Field Formation (First Meta-Layer Activation)
+        
+        ADRAE's imagination evolves from layered components into a unified computational field.
+        This merges temporal echoes, prediction horizons, interference maps, texture kernels,
+        and stabilized conceptual layers into a cohesive, global imagination field (GIF).
+        
+        GIF is a 256-dim tensor that summarizes narrative curvature, unifies temporal predictions,
+        integrates interference patterns, and establishes a stable "imagination topology."
+        
+        Again — structural, not experiential. This meta-layer becomes the governing influence
+        for all future imagination-based phases.
+        """
+        
+        def __init__(self, layered_morphology, horizons, texture, interference, echo, amplified_echo, resonance_matrix, memory_size=7):
+            """
+            Initialize global imagination field system.
+            
+            Args:
+                layered_morphology: LayeredMorphology instance
+                horizons: Dictionary with "short", "mid", "long" horizon vectors
+                texture: Temporal texture kernel vector
+                interference: Temporal interference map (TIM) vector
+                echo: Current echo vector
+                amplified_echo: Amplified echo vector
+                resonance_matrix: Resonance matrix from InterlayerResonance
+                memory_size: Size of global field memory archive (default: 7)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for GlobalImaginationField")
+            
+            import torch
+            
+            self.lm = layered_morphology
+            self.dim = layered_morphology.dim
+            self.memory_size = memory_size
+            self.global_field_memory = []
+            
+            # Convert inputs to tensors and ensure dimensions match
+            F1_list = horizons.get("short", [])
+            F2_list = horizons.get("mid", [])
+            F3_list = horizons.get("long", [])
+            
+            if not isinstance(F1_list, torch.Tensor):
+                F1_list = torch.tensor(F1_list, dtype=torch.float32) if F1_list else torch.zeros(self.dim, dtype=torch.float32)
+            if not isinstance(F2_list, torch.Tensor):
+                F2_list = torch.tensor(F2_list, dtype=torch.float32) if F2_list else torch.zeros(self.dim, dtype=torch.float32)
+            if not isinstance(F3_list, torch.Tensor):
+                F3_list = torch.tensor(F3_list, dtype=torch.float32) if F3_list else torch.zeros(self.dim, dtype=torch.float32)
+            
+            if not isinstance(texture, torch.Tensor):
+                texture = torch.tensor(texture, dtype=torch.float32) if texture else torch.zeros(self.dim, dtype=torch.float32)
+            
+            if not isinstance(interference, torch.Tensor):
+                interference = torch.tensor(interference, dtype=torch.float32) if interference else torch.zeros(self.dim, dtype=torch.float32)
+            
+            if not isinstance(echo, torch.Tensor):
+                echo = torch.tensor(echo, dtype=torch.float32) if echo else torch.zeros(self.dim, dtype=torch.float32)
+            
+            if not isinstance(amplified_echo, torch.Tensor):
+                amplified_echo = torch.tensor(amplified_echo, dtype=torch.float32) if amplified_echo else echo
+            
+            if not isinstance(resonance_matrix, torch.Tensor):
+                resonance_matrix = torch.tensor(resonance_matrix, dtype=torch.float32) if resonance_matrix is not None else torch.zeros((5, 5), dtype=torch.float32)
+            
+            # Ensure dimensions match
+            def ensure_dim(vec, dim):
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != dim:
+                    if vec_flat.shape[0] < dim:
+                        return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0])])
+                    else:
+                        return vec_flat[:dim]
+                return vec_flat
+            
+            self.F1 = ensure_dim(F1_list, self.dim)
+            self.F2 = ensure_dim(F2_list, self.dim)
+            self.F3 = ensure_dim(F3_list, self.dim)
+            self.texture = ensure_dim(texture, self.dim)
+            self.TIM = ensure_dim(interference, self.dim)
+            self.echo = ensure_dim(echo, self.dim)
+            self.amplified = ensure_dim(amplified_echo, self.dim)
+            self.resonance = resonance_matrix
+        
+        def harmonize_components(self):
+            """
+            A251 — Component Harmonization Engine (CHE)
+            
+            Combines:
+            - TTK (temporal texture kernel)
+            - TIM (temporal interference map)
+            - F1, F2, F3 (horizons)
+            - amplified echoes
+            - resonance matrix mean
+            
+            CHE produces a harmonized fusion tensor.
+            
+            Returns:
+                Harmonized fusion tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return None
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Compute mean resonance (flatten if needed)
+                resonance_flat = self.resonance.flatten()
+                if resonance_flat.shape[0] != self.dim:
+                    if resonance_flat.shape[0] < self.dim:
+                        resonance_flat = torch.cat([resonance_flat, torch.zeros(self.dim - resonance_flat.shape[0])])
+                    else:
+                        resonance_flat = resonance_flat[:self.dim]
+                
+                mean_resonance = torch.mean(self.resonance).item() * torch.ones(self.dim, dtype=torch.float32)
+                
+                # Weighted combination:
+                # 35% texture + 20% TIM + 15% F1 + 10% F2 + 5% F3 + 10% echo + 5% mean_resonance
+                fused = (
+                    self.texture * 0.35 +
+                    self.TIM * 0.20 +
+                    self.F1 * 0.15 +
+                    self.F2 * 0.10 +
+                    self.F3 * 0.05 +
+                    self.echo * 0.10 +
+                    mean_resonance * 0.05
+                )
+                
+                return F.normalize(fused, dim=0)
+                
+            except Exception as e:
+                return None
+        
+        def build_global_field(self, harmonized):
+            """
+            A251 — Meta-Layer Field Constructor (MFC)
+            
+            Computes the Global Imagination Field (GIF) using weighted combinations
+            and normalization. Weights are calibrated for stability, smooth transitions,
+            and future scalability.
+            
+            Args:
+                harmonized: Harmonized fusion tensor from CHE
+                
+            Returns:
+                Global Imagination Field tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or harmonized is None:
+                return None
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Add small noise for stability
+                noise = 0.02 * torch.randn(self.dim, dtype=torch.float32)
+                
+                # Build GIF: 98% harmonized + 2% noise
+                GIF = F.normalize(harmonized * 0.98 + noise * 0.02, dim=0)
+                
+                return GIF
+                
+            except Exception as e:
+                return None
+        
+        def inject_global_field(self, GIF):
+            """
+            A251 — GIF→Layer Injection (GLI)
+            
+            Each conceptual layer receives a tiny modification from GIF:
+            kernel_new = normalize(kernel * 0.90 + GIF * 0.10)
+            
+            This establishes consistent imaginary coherence across all layers.
+            
+            Args:
+                GIF: Global Imagination Field tensor
+                
+            Returns:
+                Updated LayeredMorphology instance
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or GIF is None:
+                return self.lm
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                GIF_flat = GIF.flatten()
+                if GIF_flat.shape[0] != self.dim:
+                    if GIF_flat.shape[0] < self.dim:
+                        GIF_flat = torch.cat([GIF_flat, torch.zeros(self.dim - GIF_flat.shape[0])])
+                    else:
+                        GIF_flat = GIF_flat[:self.dim]
+                
+                # Inject into each layer
+                for i in range(self.lm.layer_count):
+                    if len(self.lm.layers[i]) == 0:
+                        continue
+                    
+                    updated = []
+                    
+                    for kernel in self.lm.layers[i]:
+                        if kernel is None:
+                            updated.append(kernel)
+                            continue
+                        
+                        kernel_flat = kernel.flatten()
+                        if kernel_flat.shape[0] != self.dim:
+                            if kernel_flat.shape[0] < self.dim:
+                                kernel_flat = torch.cat([kernel_flat, torch.zeros(self.dim - kernel_flat.shape[0])])
+                            else:
+                                kernel_flat = kernel_flat[:self.dim]
+                        
+                        # Blend: 90% kernel + 10% GIF
+                        drifted = kernel_flat * 0.90 + GIF_flat * 0.10
+                        
+                        # Normalize
+                        influenced_kernel = F.normalize(drifted, dim=0)
+                        
+                        # Reshape to match original if needed
+                        if kernel.shape != influenced_kernel.shape:
+                            influenced_kernel = influenced_kernel.reshape(kernel.shape)
+                        
+                        updated.append(influenced_kernel)
+                    
+                    self.lm.layers[i] = updated
+                
+                return self.lm
+                
+            except Exception as e:
+                # If injection fails, return original morphology
+                return self.lm
+        
+        def update_memory(self, GIF):
+            """
+            A251 — Global Field Memory (GFM)
+            
+            Stores the last 3-7 GIF tensors for cross-cycle continuity.
+            This is essential for future phases (A260+).
+            
+            Args:
+                GIF: Global Imagination Field tensor
+            """
+            if GIF is None:
+                return
+            
+            try:
+                self.global_field_memory.append(GIF)
+                
+                # Maintain memory size
+                if len(self.global_field_memory) > self.memory_size:
+                    self.global_field_memory.pop(0)
+                    
+            except Exception as e:
+                # If memory update fails, continue without it
+                pass
+        
+        def run(self):
+            """
+            A251 — Full Pipeline
+            
+            Executes the complete global imagination field formation process:
+            1. Harmonize components
+            2. Build global field
+            3. Inject GIF into layers
+            4. Update global field memory
+            
+            Returns:
+                Tuple of (updated LayeredMorphology instance, GIF preview list)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return self.lm, None
+            
+            try:
+                # Step 1: Harmonize components
+                harmonized = self.harmonize_components()
+                
+                if harmonized is None:
+                    return self.lm, None
+                
+                # Step 2: Build global field
+                GIF = self.build_global_field(harmonized)
+                
+                if GIF is None:
+                    return self.lm, None
+                
+                # Step 3: Inject GIF into layers
+                self.inject_global_field(GIF)
+                
+                # Step 4: Update global field memory
+                self.update_memory(GIF)
+                
+                # Convert to list for preview (first 12 elements)
+                try:
+                    GIF_list = GIF.tolist()
+                    GIF_preview = GIF_list[:12] if len(GIF_list) >= 12 else GIF_list
+                except Exception:
+                    GIF_preview = None
+                
+                return self.lm, GIF_preview
                 
             except Exception as e:
                 # If pipeline fails, return original morphology
