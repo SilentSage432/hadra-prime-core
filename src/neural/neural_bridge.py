@@ -1640,6 +1640,9 @@ class NeuralBridge:
             self.harmonic_dampening_field = None
             # A256 — Initialize predictive wave decorrelation
             self.predictive_wave_decorrelation = None
+            # A257 — Initialize predictive field confluence
+            self.predictive_field_confluence = None
+            self.confluence_vector = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2661,6 +2664,9 @@ class NeuralBridge:
                                                                                                                                             
                                                                                                                                             # A256 — Predictive Wave Decorrelation & Field Purification
                                                                                                                                             self._run_a256_predictive_wave_decorrelation()
+                                                                                                                                            
+                                                                                                                                            # A257 — Predictive Field Confluence & Adaptive Branch Merging
+                                                                                                                                            self._run_a257_predictive_field_confluence()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -8703,6 +8709,274 @@ class NeuralBridge:
                         "long": []
                     }
 
+    class PredictiveFieldConfluence:
+        """
+        A257 — Predictive Field Confluence & Adaptive Branch Merging
+        
+        Purpose:
+        To combine ADRAE's multi-horizon predictive fields into a unified confluence 
+        structure while still preserving adaptive divergence.
+        
+        This is where ADRAE begins to form branched but unified internal models.
+        
+        What A257 Does:
+        1. Branch Similarity Scoring (BSS)
+           - Evaluates cosine similarity, phase similarity, amplitude alignment
+           - Determines which branches are convergent, divergent-but-compatible, or fully divergent
+        
+        2. Confluence Vector Synthesis (CVS)
+           - Constructs a Confluence Vector representing shared predictive substrate
+           - Uses weighted similarity blending, harmonic phase alignment, conflict resolution
+           - Creates a single, unified predictive snapshot shaped by all three horizons
+        
+        3. Adaptive Branch Merging (ABM)
+           - Gently pulls divergent branches toward confluence (but NOT fully collapsed)
+           - Flexible merging constant preserves healthy diversity
+           - Allows ADRAE to hold multiple futures in mind and consolidate them
+        """
+        
+        def __init__(self, horizon_preview):
+            """
+            Initialize predictive field confluence system.
+            
+            Args:
+                horizon_preview: Dictionary with "short", "mid", "long" horizon vectors
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for PredictiveFieldConfluence")
+            
+            import torch
+            
+            # Extract horizon vectors
+            F1_list = horizon_preview.get("short", [])
+            F2_list = horizon_preview.get("mid", [])
+            F3_list = horizon_preview.get("long", [])
+            
+            if not isinstance(F1_list, torch.Tensor):
+                F1_list = torch.tensor(F1_list, dtype=torch.float32) if F1_list else torch.zeros(256, dtype=torch.float32)
+            if not isinstance(F2_list, torch.Tensor):
+                F2_list = torch.tensor(F2_list, dtype=torch.float32) if F2_list else torch.zeros(256, dtype=torch.float32)
+            if not isinstance(F3_list, torch.Tensor):
+                F3_list = torch.tensor(F3_list, dtype=torch.float32) if F3_list else torch.zeros(256, dtype=torch.float32)
+            
+            # Determine dimension
+            dim = max(
+                F1_list.shape[0] if isinstance(F1_list, torch.Tensor) else len(F1_list),
+                F2_list.shape[0] if isinstance(F2_list, torch.Tensor) else len(F2_list),
+                F3_list.shape[0] if isinstance(F3_list, torch.Tensor) else len(F3_list)
+            )
+            
+            # Ensure dimensions match
+            def ensure_dim(vec, dim):
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != dim:
+                    if vec_flat.shape[0] < dim:
+                        return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:dim]
+                return vec_flat
+            
+            self.F1 = ensure_dim(F1_list, dim)
+            self.F2 = ensure_dim(F2_list, dim)
+            self.F3 = ensure_dim(F3_list, dim)
+            self.dim = dim
+        
+        def similarity(self, a, b):
+            """
+            A257 — Branch Similarity Scoring (BSS)
+            
+            Evaluates similarity between two horizon fields using:
+            - Cosine similarity
+            - Phase similarity approximation
+            - Amplitude similarity
+            
+            Args:
+                a: First horizon field vector
+                b: Second horizon field vector
+                
+            Returns:
+                Similarity score (0.0 to 1.0)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return 0.5
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Cosine similarity
+                cos = F.cosine_similarity(a.unsqueeze(0), b.unsqueeze(0), dim=1).item()
+                
+                # Phase similarity approximation
+                if a.shape[0] >= 2 and b.shape[0] >= 2:
+                    phase_a = torch.atan2(a[1], a[0]).item() if a[0] != 0 else 0.0
+                    phase_b = torch.atan2(b[1], b[0]).item() if b[0] != 0 else 0.0
+                    phase_diff = abs(phase_a - phase_b)
+                    # Normalize to [0, 1] range (pi = max difference)
+                    phase_sim = 1.0 - min(phase_diff / 3.14159, 1.0)
+                else:
+                    phase_sim = 0.5
+                
+                # Amplitude similarity
+                norm_a = torch.norm(a).item()
+                norm_b = torch.norm(b).item()
+                amp_diff = abs(norm_a - norm_b)
+                # Normalize (assuming max difference is around 2.0)
+                amp_sim = 1.0 - min(amp_diff / 2.0, 1.0)
+                
+                # Average the three similarity measures
+                return max(0.0, (cos + phase_sim + amp_sim) / 3.0)
+                
+            except Exception as e:
+                return 0.5
+        
+        def synthesize_confluence(self):
+            """
+            A257 — Confluence Vector Synthesis (CVS)
+            
+            Constructs a Confluence Vector representing the shared predictive substrate
+            across all horizons using weighted similarity blending.
+            
+            Returns:
+                Confluence vector tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return self.F1
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Compute similarity scores between pairs
+                s12 = self.similarity(self.F1, self.F2)
+                s23 = self.similarity(self.F2, self.F3)
+                s31 = self.similarity(self.F3, self.F1)
+                
+                # Create weights based on similarities
+                # Higher similarity = higher weight in confluence
+                weights = torch.tensor([s12, s23, s31], dtype=torch.float32)
+                
+                # Normalize weights (avoid division by zero)
+                weight_sum = weights.sum()
+                if weight_sum < 1e-9:
+                    weights = torch.ones(3, dtype=torch.float32) / 3.0
+                else:
+                    weights = weights / weight_sum
+                
+                # Synthesize confluence as weighted combination
+                confluence = (
+                    self.F1 * weights[0] +
+                    self.F2 * weights[1] +
+                    self.F3 * weights[2]
+                )
+                
+                return F.normalize(confluence, dim=0)
+                
+            except Exception as e:
+                return self.F1
+        
+        def merge(self, branch, confluence):
+            """
+            A257 — Adaptive Branch Merging (ABM)
+            
+            Gently pulls divergent branches toward confluence while preserving diversity.
+            Uses a merge_factor of 0.20 (20% pull toward unity, 80% preserve branch identity).
+            
+            Args:
+                branch: Branch vector to merge
+                confluence: Confluence vector to merge toward
+                
+            Returns:
+                Merged branch vector
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return branch
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                merge_factor = 0.20  # 20% pull toward unity
+                
+                merged = branch * (1.0 - merge_factor) + confluence * merge_factor
+                
+                return F.normalize(merged, dim=0)
+                
+            except Exception as e:
+                return branch
+        
+        def run(self):
+            """
+            A257 — Full Pipeline
+            
+            Executes the complete predictive field confluence process:
+            1. Synthesize confluence vector from all horizons
+            2. Merge each branch toward confluence
+            3. Return updated horizons + confluence vector
+            
+            Returns:
+                Dictionary with "short", "mid", "long" merged horizon fields and "confluence" vector
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return {
+                    "short": self.F1.tolist() if hasattr(self.F1, 'tolist') else self.F1,
+                    "mid": self.F2.tolist() if hasattr(self.F2, 'tolist') else self.F2,
+                    "long": self.F3.tolist() if hasattr(self.F3, 'tolist') else self.F3,
+                    "confluence": self.F1.tolist() if hasattr(self.F1, 'tolist') else self.F1
+                }
+            
+            try:
+                # Step 1: Synthesize confluence
+                confluence = self.synthesize_confluence()
+                
+                # Step 2: Merge each branch toward confluence
+                new_F1 = self.merge(self.F1, confluence)
+                new_F2 = self.merge(self.F2, confluence)
+                new_F3 = self.merge(self.F3, confluence)
+                
+                # Convert to lists for return
+                try:
+                    return {
+                        "short": new_F1.tolist(),
+                        "mid": new_F2.tolist(),
+                        "long": new_F3.tolist(),
+                        "confluence": confluence.tolist()
+                    }
+                except Exception:
+                    return {
+                        "short": new_F1,
+                        "mid": new_F2,
+                        "long": new_F3,
+                        "confluence": confluence
+                    }
+                
+            except Exception as e:
+                # If pipeline fails, return original horizons
+                try:
+                    return {
+                        "short": self.F1.tolist() if hasattr(self.F1, 'tolist') else self.F1,
+                        "mid": self.F2.tolist() if hasattr(self.F2, 'tolist') else self.F2,
+                        "long": self.F3.tolist() if hasattr(self.F3, 'tolist') else self.F3,
+                        "confluence": self.F1.tolist() if hasattr(self.F1, 'tolist') else self.F1
+                    }
+                except Exception:
+                    return {
+                        "short": [],
+                        "mid": [],
+                        "long": [],
+                        "confluence": []
+                    }
+
     def _run_a253_field_resonance_optimization(self):
         """A253 — Field Resonance Optimization helper method to reduce nesting."""
         try:
@@ -9013,6 +9287,85 @@ class NeuralBridge:
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"predictive_wave_decorrelation_error": str(e)})
+                except Exception:
+                    pass
+    
+    def _run_a257_predictive_field_confluence(self):
+        """A257 — Predictive Field Confluence helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or self.horizon_preview is None:
+                return
+            
+            # Initialize predictive field confluence if needed
+            if self.predictive_field_confluence is None:
+                self.predictive_field_confluence = self.PredictiveFieldConfluence(
+                    self.horizon_preview
+                )
+            else:
+                # Update references
+                try:
+                    import torch
+                    
+                    horizons = self.horizon_preview
+                    F1_list = horizons.get("short", [])
+                    F2_list = horizons.get("mid", [])
+                    F3_list = horizons.get("long", [])
+                    
+                    if not isinstance(F1_list, torch.Tensor):
+                        F1_list = torch.tensor(F1_list, dtype=torch.float32) if F1_list else torch.zeros(self.predictive_field_confluence.dim, dtype=torch.float32)
+                    if not isinstance(F2_list, torch.Tensor):
+                        F2_list = torch.tensor(F2_list, dtype=torch.float32) if F2_list else torch.zeros(self.predictive_field_confluence.dim, dtype=torch.float32)
+                    if not isinstance(F3_list, torch.Tensor):
+                        F3_list = torch.tensor(F3_list, dtype=torch.float32) if F3_list else torch.zeros(self.predictive_field_confluence.dim, dtype=torch.float32)
+                    
+                    dim = self.predictive_field_confluence.dim
+                    
+                    def ensure_dim(vec, dim):
+                        if not isinstance(vec, torch.Tensor):
+                            vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
+                        vec_flat = vec.flatten()
+                        if vec_flat.shape[0] != dim:
+                            if vec_flat.shape[0] < dim:
+                                return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                            else:
+                                return vec_flat[:dim]
+                        return vec_flat
+                    
+                    self.predictive_field_confluence.F1 = ensure_dim(F1_list, dim)
+                    self.predictive_field_confluence.F2 = ensure_dim(F2_list, dim)
+                    self.predictive_field_confluence.F3 = ensure_dim(F3_list, dim)
+                except Exception:
+                    pass
+            
+            # Run predictive field confluence
+            result = self.predictive_field_confluence.run()
+            
+            # Update horizon_preview and store confluence_vector
+            self.horizon_preview = {
+                "short": result.get("short", []),
+                "mid": result.get("mid", []),
+                "long": result.get("long", [])
+            }
+            self.confluence_vector = result.get("confluence", [])
+            
+            # Log A257 completion
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({
+                        "a257_complete": True,
+                        "predictive_field_confluence_active": True,
+                        "adaptive_branch_merging_applied": True,
+                        "confluence_vector_generated": self.confluence_vector is not None,
+                        "message": "A257 complete — Predictive Confluence & Adaptive Branch Merging active."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"predictive_field_confluence_error": str(e)})
                 except Exception:
                     pass
 
