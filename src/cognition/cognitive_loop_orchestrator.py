@@ -535,6 +535,34 @@ class CognitiveLoopOrchestrator:
                         self.bridge.logger.write({"chosen_thought_harmonization_error": str(e)})
                     except Exception:
                         pass
+        
+        # A223 — Apply personality flow field to chosen thought
+        if chosen_embedding is not None:
+            try:
+                if hasattr(self.bridge, 'flow') and self.bridge.flow is not None:
+                    flow_applied = self.bridge.flow.apply_flow(chosen_embedding)
+                    if flow_applied is not None:
+                        chosen_embedding = flow_applied
+            except Exception as e:
+                # If flow application fails, continue with original chosen_embedding
+                if hasattr(self.bridge, 'logger'):
+                    try:
+                        self.bridge.logger.write({"flow_application_error": str(e)})
+                    except Exception:
+                        pass
+        
+        # A223 — Update flow field with chosen thought
+        if chosen_embedding is not None:
+            try:
+                if hasattr(self.bridge, 'flow') and self.bridge.flow is not None:
+                    self.bridge.flow.update_flow(chosen_embedding)
+            except Exception as e:
+                # If flow update fails, continue without it
+                if hasattr(self.bridge, 'logger'):
+                    try:
+                        self.bridge.logger.write({"flow_update_error": str(e)})
+                    except Exception:
+                        pass
 
         # -----------------------------------------
         # 🔥 CRITICAL FIX: Inject chosen thought
@@ -1627,6 +1655,7 @@ class CognitiveLoopOrchestrator:
                 "synergy_bonus": round(getattr(self, '_synergy_bonus', 0.0), 4),
                 "active": hasattr(self.bridge, 'thought_signature') and self.bridge.thought_signature is not None
             } if hasattr(self, '_signature_preview') else {"active": False},  # A221 — Thought Signature
+            "personality_flow_field": self.bridge.flow.debug_status() if hasattr(self.bridge, 'flow') and self.bridge.flow is not None else {"active": False},  # A223 — Personality Flow Field
             "self_model": self.bridge.self_model.summary(),
         }
 

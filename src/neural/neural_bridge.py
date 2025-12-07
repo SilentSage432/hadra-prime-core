@@ -96,6 +96,9 @@ class NeuralBridge:
         # A222 — Signature-Guided Thought Harmonization Layer
         from .signature_harmonizer import SignatureHarmonizer
         self.harmonizer = SignatureHarmonizer(strength=0.15)
+        # A223 — Emergent Personality Flow Fields
+        from .personality_flow_field import PersonalityFlowField
+        self.flow = PersonalityFlowField(influence=0.12, memory_length=50)
         self.stability = SelfStabilityEngine()
         self.evolution = AdaptiveEvolutionEngine()
         self.evo_consolidator = EvolutionMemoryConsolidator()
@@ -593,6 +596,25 @@ class NeuralBridge:
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"harmonization_error": str(e)})
+                except Exception:
+                    pass
+        
+        # A223 — Apply personality flow field to candidate thoughts
+        try:
+            if hasattr(self, 'flow') and self.flow is not None:
+                flow_candidates = []
+                for c in candidates:
+                    if c is not None:
+                        flow_applied = self.flow.apply_flow(c)
+                        flow_candidates.append(flow_applied if flow_applied is not None else c)
+                    else:
+                        flow_candidates.append(c)
+                candidates = flow_candidates
+        except Exception as e:
+            # If flow application fails, continue with original candidates
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"flow_candidate_error": str(e)})
                 except Exception:
                     pass
         
