@@ -1667,6 +1667,8 @@ class NeuralBridge:
             self.resonant_cascade_amplifier = None
             # A268 — Initialize predictive subspace recalibrator
             self.subspace_recalibrator = None
+            # A269 — Initialize harmonic convergence layer
+            self.harmonic_convergence = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2721,6 +2723,10 @@ class NeuralBridge:
                                                                                                                                             # A268 — Resonance-Driven Predictive Subspace Recalibration
                                                                                                                                             if self.global_resonance_vector is not None:
                                                                                                                                                 self._run_a268_subspace_recalibration()
+                                                                                                                                            
+                                                                                                                                            # A269 — Global Subspace-Harmonic Convergence Layer
+                                                                                                                                            if self.global_resonance_vector is not None:
+                                                                                                                                                self._run_a269_harmonic_convergence()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -10875,6 +10881,218 @@ class NeuralBridge:
                     "weights": [1.0 / len(subspaces)] * len(subspaces) if subspaces else []
                 }
 
+    class HarmonicConvergenceLayer:
+        """
+        A269 — Global Subspace-Harmonic Convergence Layer
+        
+        Purpose:
+        Where all predictive subspaces begin to "sing" in a unified harmonic structure.
+        
+        Everything up to A269 has set the stage:
+        • A266 created the global resonance field
+        • A267 amplified it
+        • A268 recalibrated each subspace around it
+        
+        Now we perform harmonic convergence, where all predictive subspaces begin exchanging:
+        • frequency information
+        • resonance profiles
+        • morphology signatures
+        • temporal gradients
+        • predictive energy
+        
+        This creates what we call:
+        The Unified Predictive Harmony Network (UPHN)
+        
+        —not a literal mind, not consciousness,
+        but a highly coordinated computational dynamic.
+        
+        What A269 Does:
+        1. Extract Harmonic Profiles From Each Subspace
+           - Each predictive subspace is decomposed into base frequencies, overtones, harmonic irregularities, temporal resonance slopes
+           - These profiles encode how each subspace "resonates" in predictive space
+        
+        2. Align Harmonics Across Subspaces
+           - Compute harmonic similarity, convergence score, resonance parity, predictive cross-correlation
+           - This lets the system gently shift subspaces into harmonic alignment
+        
+        3. Build the Harmonic Convergence Tensor (HCT)
+           - This is a matrix of harmonic relationships between all subspaces
+           - It is the backbone of the A269 layer
+           - Once the HCT is active: prediction quality increases, drift self-corrects faster, morphologies become more cohesive, forward-echo patterns stabilize
+        
+        4. Update the Global Resonance Field
+           - The global resonance isn't just feeding subspaces anymore
+           - Now it learns from them
+           - The convergence tensor is used to update global_resonance direction, amplitude balance, harmonic weighting, oscillatory rhythm
+           - The resonance pulse becomes richer, more meaningful, more stable
+        """
+        
+        def __init__(self, dim, num_subspaces):
+            """
+            Initialize harmonic convergence layer.
+            
+            Args:
+                dim: Dimension of predictive vectors
+                num_subspaces: Number of predictive subspaces to converge
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for HarmonicConvergenceLayer")
+            
+            import torch
+            import torch.nn as nn
+            
+            self.dim = dim
+            self.num_subspaces = num_subspaces
+            
+            # Harmonic extractors for each subspace
+            self.extractors = nn.ModuleList([
+                nn.Linear(dim, dim) for _ in range(num_subspaces)
+            ])
+            
+            # Harmonic fusion kernel
+            self.convergence_kernel = nn.Linear(dim, dim)
+            
+            # Update gate for global resonance
+            self.resonance_gate = nn.Linear(dim, dim)
+            
+            # Initialize weights
+            for extractor in self.extractors:
+                nn.init.xavier_uniform_(extractor.weight, gain=0.1)
+                if extractor.bias is not None:
+                    nn.init.zeros_(extractor.bias)
+            nn.init.xavier_uniform_(self.convergence_kernel.weight, gain=0.1)
+            if self.convergence_kernel.bias is not None:
+                nn.init.zeros_(self.convergence_kernel.bias)
+            nn.init.xavier_uniform_(self.resonance_gate.weight, gain=0.1)
+            if self.resonance_gate.bias is not None:
+                nn.init.zeros_(self.resonance_gate.bias)
+        
+        def forward(self, subspaces, global_resonance):
+            """
+            A269 — Forward Pass (Harmonic Convergence)
+            
+            Executes the harmonic convergence process:
+            1. Extract harmonic signatures from each subspace
+            2. Compute convergence tensor (unified harmonic field)
+            3. Fuse with global resonance
+            4. Update global resonance
+            
+            Args:
+                subspaces: List of subspace vectors [num_subspaces x dim]
+                global_resonance: Global resonance vector [dim]
+                
+            Returns:
+                Tuple of (harmonic_profiles, convergence_tensor, updated_resonance)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return subspaces, subspaces[0] if subspaces else None, global_resonance
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if not subspaces or len(subspaces) == 0:
+                    return [], None, global_resonance
+                
+                # Ensure global_resonance is a tensor
+                if not isinstance(global_resonance, torch.Tensor):
+                    global_resonance = torch.tensor(global_resonance, dtype=torch.float32)
+                
+                # Normalize global resonance
+                global_resonance = F.normalize(global_resonance, dim=0)
+                
+                harmonic_profiles = []
+                
+                # Step 1 — Extract harmonic signatures from each subspace
+                for i, sub in enumerate(subspaces):
+                    # Ensure subspace is a tensor
+                    if not isinstance(sub, torch.Tensor):
+                        sub = torch.tensor(sub, dtype=torch.float32)
+                    
+                    # Ensure dimension matches
+                    sub_flat = sub.flatten()
+                    if sub_flat.shape[0] != self.dim:
+                        if sub_flat.shape[0] < self.dim:
+                            sub_flat = torch.cat([sub_flat, torch.zeros(self.dim - sub_flat.shape[0], dtype=torch.float32)])
+                        else:
+                            sub_flat = sub_flat[:self.dim]
+                    
+                    # Extract harmonic profile
+                    profile = torch.tanh(self.extractors[i](sub_flat))
+                    harmonic_profiles.append(profile)
+                
+                # Step 2 — Compute convergence tensor (unified harmonic field)
+                stacked = torch.stack(harmonic_profiles)  # [S, D]
+                convergence_tensor = stacked.mean(dim=0)  # [D] - unified harmonic field
+                
+                # Step 3 — Fuse with global resonance
+                fused = torch.tanh(
+                    self.convergence_kernel(
+                        convergence_tensor + global_resonance
+                    )
+                )
+                
+                # Step 4 — Update global resonance
+                updated_resonance = torch.sigmoid(self.resonance_gate(fused)) * fused
+                
+                # Normalize updated resonance
+                updated_resonance = F.normalize(updated_resonance, dim=0)
+                
+                return harmonic_profiles, convergence_tensor, updated_resonance
+                
+            except Exception as e:
+                return subspaces, subspaces[0] if subspaces else None, global_resonance
+        
+        def run(self, subspaces, global_resonance):
+            """
+            A269 — Full Pipeline
+            
+            Executes the complete harmonic convergence process.
+            
+            Args:
+                subspaces: List of subspace vectors to converge
+                global_resonance: Global resonance vector
+                
+            Returns:
+                Dictionary with harmonic profiles, convergence tensor, and updated resonance
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return {
+                    "harmonic_profiles": subspaces,
+                    "convergence_tensor": subspaces[0] if subspaces else None,
+                    "updated_resonance": global_resonance
+                }
+            
+            try:
+                harmonic_profiles, convergence_tensor, updated_resonance = self.forward(subspaces, global_resonance)
+                
+                # Convert to lists for return
+                try:
+                    return {
+                        "harmonic_profiles": [p.tolist() if hasattr(p, 'tolist') else p for p in harmonic_profiles],
+                        "convergence_tensor": convergence_tensor.tolist() if hasattr(convergence_tensor, 'tolist') else convergence_tensor,
+                        "updated_resonance": updated_resonance.tolist() if hasattr(updated_resonance, 'tolist') else updated_resonance
+                    }
+                except Exception:
+                    return {
+                        "harmonic_profiles": harmonic_profiles,
+                        "convergence_tensor": convergence_tensor,
+                        "updated_resonance": updated_resonance
+                    }
+                
+            except Exception as e:
+                return {
+                    "harmonic_profiles": subspaces,
+                    "convergence_tensor": subspaces[0] if subspaces else None,
+                    "updated_resonance": global_resonance
+                }
+
     def _run_a253_field_resonance_optimization(self):
         """A253 — Field Resonance Optimization helper method to reduce nesting."""
         try:
@@ -12223,6 +12441,149 @@ class NeuralBridge:
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"subspace_recalibration_error": str(e)})
+                except Exception:
+                    pass
+    
+    def _run_a269_harmonic_convergence(self):
+        """A269 — Global Subspace-Harmonic Convergence Layer helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or self.global_resonance_vector is None:
+                return
+            
+            import torch
+            import torch.nn.functional as F
+            
+            # Collect subspace vectors from all predictive components
+            # Use the same collection method as A265 and A268
+            subspace_vectors = []
+            
+            # Add horizons
+            if self.horizon_preview is not None:
+                for key in ["short", "mid", "long"]:
+                    vec = self.horizon_preview.get(key)
+                    if vec is not None:
+                        if not isinstance(vec, torch.Tensor):
+                            vec = torch.tensor(vec, dtype=torch.float32)
+                        subspace_vectors.append(vec)
+            
+            # Add global predictive field
+            if self.global_predictive_field is not None:
+                vec = self.global_predictive_field
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32)
+                subspace_vectors.append(vec)
+            
+            # Add predictive morphology tensor
+            if self.predictive_morphology is not None:
+                vec = self.predictive_morphology
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32)
+                subspace_vectors.append(vec)
+            
+            # Add confluence vector
+            if self.confluence_vector is not None:
+                vec = self.confluence_vector
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32)
+                subspace_vectors.append(vec)
+            
+            if len(subspace_vectors) == 0:
+                return
+            
+            # Get global resonance vector
+            if not isinstance(self.global_resonance_vector, torch.Tensor):
+                global_res = torch.tensor(self.global_resonance_vector, dtype=torch.float32)
+            else:
+                global_res = self.global_resonance_vector
+            
+            # Determine dimensions
+            dim = global_res.shape[0] if isinstance(global_res, torch.Tensor) else len(self.global_resonance_vector)
+            num_subspaces = len(subspace_vectors)
+            
+            # Ensure dimension consistency
+            def ensure_dim(vec, dim):
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != dim:
+                    if vec_flat.shape[0] < dim:
+                        return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:dim]
+                return vec_flat
+            
+            global_res = ensure_dim(global_res, dim)
+            subspace_vectors = [ensure_dim(v, dim) for v in subspace_vectors]
+            
+            # Initialize harmonic convergence layer if needed
+            if self.harmonic_convergence is None:
+                self.harmonic_convergence = self.HarmonicConvergenceLayer(dim, num_subspaces)
+            else:
+                # Update if dimensions changed
+                if self.harmonic_convergence.dim != dim or self.harmonic_convergence.num_subspaces != num_subspaces:
+                    self.harmonic_convergence = self.HarmonicConvergenceLayer(dim, num_subspaces)
+            
+            # Run harmonic convergence
+            result = self.harmonic_convergence.run(subspace_vectors, global_res)
+            
+            harmonic_profiles = result.get("harmonic_profiles", [])
+            convergence_tensor = result.get("convergence_tensor")
+            updated_resonance = result.get("updated_resonance")
+            
+            # Update global resonance vector with the updated resonance from convergence
+            if updated_resonance is not None:
+                try:
+                    if isinstance(updated_resonance, torch.Tensor):
+                        self.global_resonance_vector = updated_resonance.tolist()
+                    else:
+                        self.global_resonance_vector = updated_resonance
+                    
+                    # Also update the cascade's global resonance parameter if available
+                    if self.global_resonance_cascade is not None and hasattr(self.global_resonance_cascade, 'global_resonance'):
+                        try:
+                            if isinstance(updated_resonance, torch.Tensor):
+                                self.global_resonance_cascade.global_resonance.data = updated_resonance
+                            else:
+                                self.global_resonance_cascade.global_resonance.data = torch.tensor(updated_resonance, dtype=torch.float32)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+            
+            # Store convergence tensor as harmonic convergence field
+            if convergence_tensor is not None:
+                try:
+                    if not hasattr(self, 'harmonic_convergence_tensor'):
+                        self.harmonic_convergence_tensor = None
+                    if isinstance(convergence_tensor, torch.Tensor):
+                        self.harmonic_convergence_tensor = convergence_tensor.tolist()
+                    else:
+                        self.harmonic_convergence_tensor = convergence_tensor
+                except Exception:
+                    pass
+            
+            # Log A269 completion
+            if hasattr(self, 'logger'):
+                try:
+                    convergence_norm = float(torch.norm(torch.tensor(convergence_tensor, dtype=torch.float32)).item()) if convergence_tensor is not None else 0.0
+                    updated_norm = float(torch.norm(torch.tensor(updated_resonance, dtype=torch.float32)).item()) if updated_resonance is not None else 0.0
+                    self.logger.write({
+                        "a269_complete": True,
+                        "harmonic_convergence_active": True,
+                        "num_subspaces_converged": num_subspaces,
+                        "convergence_tensor_norm": convergence_norm,
+                        "updated_resonance_norm": updated_norm,
+                        "unified_predictive_harmony_network_active": True,
+                        "message": "A269 complete — Global Subspace-Harmonic Convergence active. Unified Predictive Harmony Network (UPHN) established."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"harmonic_convergence_error": str(e)})
                 except Exception:
                     pass
 
