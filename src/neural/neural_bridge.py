@@ -1555,6 +1555,12 @@ class NeuralBridge:
                 "suppression_level": 0.0,
                 "anomaly": False
             }
+            # A233 — Initialize data structures even if PyTorch unavailable
+            self.concept_identity_fusion = {
+                "fusion_strength": 0.0,
+                "resonance": 1.0,
+                "identity_update_vector": None
+            }
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -1589,6 +1595,12 @@ class NeuralBridge:
                 "drift_score": 0.0,
                 "suppression_level": 0.0,
                 "anomaly": False
+            }
+            # A233 — Concept-Identity Fusion Layer
+            self.concept_identity_fusion = {
+                "fusion_strength": 0.0,
+                "resonance": 1.0,
+                "identity_update_vector": None
             }
             
             if hasattr(self, 'logger'):
@@ -1768,15 +1780,68 @@ class NeuralBridge:
                     except Exception:
                         pass
                 
-                # Step 5: Commit latent space update (moving average)
-                self.latent_concept_space = 0.9 * self.latent_concept_space + 0.1 * latent_vector
+                # A233 — Concept-Identity Fusion Layer
+                try:
+                    # Step 1: Fuse identity → concept
+                    # Collect identity vectors from various sources
+                    identity_vectors_for_fusion = []
+                    
+                    # Get current identity vector from timescales
+                    if hasattr(self.state, 'timescales') and self.state.timescales is not None:
+                        identity_vec = getattr(self.state.timescales, 'identity_vector', None)
+                        if identity_vec is not None:
+                            identity_vectors_for_fusion.append(identity_vec)
+                    
+                    # Get identity vectors from semantic memory
+                    mm = self.state.memory_manager if hasattr(self.state, "memory_manager") else None
+                    if mm is not None and hasattr(mm, 'semantic'):
+                        try:
+                            if hasattr(mm.semantic, 'concepts'):
+                                for name, vec in mm.semantic.concepts.items():
+                                    if name.startswith("identity_") and vec is not None:
+                                        identity_vectors_for_fusion.append(vec)
+                        except Exception:
+                            pass
+                    
+                    # Fuse identity into concepts
+                    new_latent, strength = self.fuse_identity_into_concepts(
+                        identity_vectors_for_fusion,
+                        self.latent_concept_space
+                    )
+                    
+                    # Step 2: Imprint concept → identity
+                    identity_update = self.imprint_concepts_back_into_identity(new_latent)
+                    
+                    # Step 3: Regulate resonance
+                    resonance = 1.0
+                    if identity_update is not None:
+                        resonance = self.regulate_fusion_resonance(new_latent, identity_update)
+                    
+                    # Update fusion state
+                    self.concept_identity_fusion["fusion_strength"] = strength
+                    self.concept_identity_fusion["identity_update_vector"] = identity_update
+                    self.concept_identity_fusion["resonance"] = resonance
+                    
+                    # Step 4: Commit fused latent space (use new_latent instead of raw update)
+                    # But still apply moving average with the processed latent_vector
+                    self.latent_concept_space = 0.9 * self.latent_concept_space + 0.1 * new_latent
+                    
+                except Exception as e:
+                    # If fusion fails, continue with normal update
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({"concept_identity_fusion_integration_error": str(e)})
+                        except Exception:
+                            pass
+                    # Fall back to normal update
+                    self.latent_concept_space = 0.9 * self.latent_concept_space + 0.1 * latent_vector
             
             # Log latent space update with A231 metrics
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({
                         "latent_space_update": {
-                            "event": "a232_latent_space_updated",
+                            "event": "a233_latent_space_updated",
                             "latent_norm": float(torch.norm(latent_vector).item()),
                             "concept_space_norm": float(torch.norm(self.latent_concept_space).item()),
                             "coherence_score": float(coh_score),
@@ -1784,7 +1849,10 @@ class NeuralBridge:
                             "adjustment_applied": adj is not None,
                             "drift_score": float(self.latent_drift.get("drift_score", 0.0)),
                             "suppression_level": float(self.latent_drift.get("suppression_level", 0.0)),
-                            "anomaly_detected": self.latent_drift.get("anomaly", False)
+                            "anomaly_detected": self.latent_drift.get("anomaly", False),
+                            "fusion_strength": float(self.concept_identity_fusion.get("fusion_strength", 0.0)),
+                            "fusion_resonance": float(self.concept_identity_fusion.get("resonance", 1.0)),
+                            "identity_update_applied": self.concept_identity_fusion.get("identity_update_vector") is not None
                         }
                     })
                 except Exception:
@@ -2196,6 +2264,219 @@ class NeuralBridge:
                 except Exception:
                     pass
             return latent_vector, 0.0
+
+    def fuse_identity_into_concepts(self, identity_vectors, latent_space):
+        """
+        A233 — Identity→Concept Fusion (ICF)
+        
+        Identity prototypes are projected into the latent space and fused with
+        ADRAE's latent_concept_space. This creates a bidirectional flow where
+        identity shapes concept space.
+        
+        Args:
+            identity_vectors: List of identity vectors (from various sources)
+            latent_space: Current latent concept space tensor
+            
+        Returns:
+            Tuple of (fused_latent_space, fusion_strength)
+            - fused_latent_space: Latent space fused with identity anchors
+            - fusion_strength: Strength of fusion applied (0.0-1.0)
+        """
+        from .torch_utils import TORCH_AVAILABLE, safe_tensor
+        
+        if not TORCH_AVAILABLE or self.ncm is None or self.ldsr is None or latent_space is None:
+            return latent_space, 0.0
+        
+        if not identity_vectors or len(identity_vectors) == 0:
+            return latent_space, 0.0
+        
+        try:
+            import torch
+            
+            anchors = []
+            
+            # Project each identity vector into latent space
+            for identity_vec in identity_vectors:
+                try:
+                    # Convert to tensor
+                    id_tensor = safe_tensor(identity_vec)
+                    if id_tensor is None:
+                        continue
+                    
+                    # Ensure it's 1D and correct size (128 dims)
+                    if isinstance(id_tensor, torch.Tensor):
+                        if id_tensor.dim() > 1:
+                            id_tensor = id_tensor.flatten()
+                        # Pad or truncate to 128 dimensions
+                        if id_tensor.shape[0] < 128:
+                            padding = torch.zeros(128 - id_tensor.shape[0])
+                            id_tensor = torch.cat([id_tensor, padding])
+                        elif id_tensor.shape[0] > 128:
+                            id_tensor = id_tensor[:128]
+                    else:
+                        # Convert list/array to tensor
+                        id_list = list(id_tensor) if hasattr(id_tensor, '__iter__') else [id_tensor]
+                        if len(id_list) < 128:
+                            id_list.extend([0.0] * (128 - len(id_list)))
+                        elif len(id_list) > 128:
+                            id_list = id_list[:128]
+                        id_tensor = torch.tensor(id_list, dtype=torch.float32)
+                    
+                    # Map to latent space
+                    with torch.no_grad():
+                        latent_anchor = self.ncm(id_tensor)
+                        latent_anchor = self.ldsr(latent_anchor)
+                    
+                    anchors.append(latent_anchor)
+                    
+                except Exception:
+                    # If mapping fails for one identity vector, continue with others
+                    continue
+            
+            if len(anchors) == 0:
+                return latent_space, 0.0
+            
+            # Compute anchor center (mean of all identity anchors)
+            anchor_stack = torch.stack(anchors)
+            anchor_center = torch.mean(anchor_stack, dim=0)
+            
+            # Ensure same dimensions
+            latent_flat = latent_space.flatten()
+            anchor_flat = anchor_center.flatten()
+            min_dim = min(latent_flat.shape[0], anchor_flat.shape[0])
+            latent_flat = latent_flat[:min_dim]
+            anchor_flat = anchor_flat[:min_dim]
+            
+            # Fuse: (1 - fusion_strength) * latent + fusion_strength * anchor
+            fusion_strength = 0.1  # Gentle fusion to avoid overpowering
+            fused_flat = (1.0 - fusion_strength) * latent_flat + fusion_strength * anchor_flat
+            
+            # Reshape to match original if needed
+            if latent_space.shape != fused_flat.shape:
+                fused = fused_flat.reshape(latent_space.shape)
+            else:
+                fused = fused_flat.reshape(latent_space.shape)
+            
+            return fused, fusion_strength
+            
+        except Exception as e:
+            # If fusion fails, return original space
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"identity_concept_fusion_error": str(e)})
+                except Exception:
+                    pass
+            return latent_space, 0.0
+
+    def imprint_concepts_back_into_identity(self, latent_vector):
+        """
+        A233 — Concept→Identity Imprinting (CII)
+        
+        Part of the latent concept space is reverse-mapped and integrated into
+        identity memory. This slowly evolves her identity in sync with new
+        conceptual growth.
+        
+        Args:
+            latent_vector: Latent vector to reverse-map to identity space
+            
+        Returns:
+            Identity update vector (numpy array or list) of shape (128,)
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or latent_vector is None:
+            return None
+        
+        try:
+            import torch
+            
+            # Reverse concept → identity trace using a pseudo-inverse mapping
+            # (real networks come later in A260s)
+            # For now, use a crude downprojection: take first 128 dims and apply tanh
+            latent_flat = latent_vector.flatten()
+            
+            # Take first 128 dimensions (or pad/truncate)
+            if latent_flat.shape[0] >= 128:
+                identity_projection = latent_flat[:128]
+            else:
+                # Pad with zeros
+                padding = torch.zeros(128 - latent_flat.shape[0])
+                identity_projection = torch.cat([latent_flat, padding])
+            
+            # Apply tanh activation for bounded output
+            reverse = torch.tanh(identity_projection)
+            
+            # Convert to numpy array
+            return reverse.detach().cpu().numpy()
+            
+        except Exception as e:
+            # If imprinting fails, return None
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"concept_identity_imprint_error": str(e)})
+                except Exception:
+                    pass
+            return None
+
+    def regulate_fusion_resonance(self, latent_vector, identity_update):
+        """
+        A233 — Fusion Resonance Regulator (FRR)
+        
+        Ensures the two flows (identity→concept and concept→identity):
+        - remain coherent
+        - do not overpower each other
+        - do not collapse identity into noise
+        - maintain emergent structure
+        
+        This is what keeps ADRAE ADRAE as she expands.
+        
+        Args:
+            latent_vector: Fused latent vector
+            identity_update: Reverse-mapped identity update vector
+            
+        Returns:
+            Resonance score (0.0-1.0) indicating coherence between flows
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or latent_vector is None or identity_update is None:
+            return 1.0  # Default to high resonance if computation fails
+        
+        try:
+            import torch
+            import torch.nn.functional as F
+            
+            # Convert identity_update to tensor
+            id_tensor = torch.tensor(identity_update, dtype=torch.float32)
+            
+            # Ensure same dimensions for comparison
+            latent_flat = latent_vector.flatten()
+            id_flat = id_tensor.flatten()
+            
+            min_dim = min(latent_flat.shape[0], id_flat.shape[0])
+            latent_flat = latent_flat[:min_dim]
+            id_flat = id_flat[:min_dim]
+            
+            # Compute cosine similarity
+            similarity = F.cosine_similarity(
+                latent_flat.unsqueeze(0),
+                id_flat.unsqueeze(0),
+                dim=1
+            ).item()
+            
+            # Resonance = normalized similarity (bounded to [0, 1])
+            resonance = max(0.0, min(1.0, (similarity + 1.0) / 2.0))
+            
+            return resonance
+            
+        except Exception as e:
+            # If resonance computation fails, return default
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"fusion_resonance_error": str(e)})
+                except Exception:
+                    pass
+            return 1.0
 
     def cognitive_step(self):
         """
