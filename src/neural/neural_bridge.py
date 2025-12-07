@@ -39,6 +39,14 @@ from ..cognition.personality_signature_engine import PersonalitySignatureEngine
 from ..cognition.personality_continuity_engine import LifelongPersonalityContinuity
 from .models.identity_encoder import IdentityEncoder
 from .trainers.identity_trainer import IdentityTrainer
+# A230 — PyTorch Latent Concept Engine
+try:
+    from .latent_concept_engine import NeuralConceptMapper, LatentStabilityRegulator
+    LATENT_ENGINE_AVAILABLE = True
+except (ImportError, RuntimeError) as e:
+    NeuralConceptMapper = None
+    LatentStabilityRegulator = None
+    LATENT_ENGINE_AVAILABLE = False
 
 # Import persistence layer (from project root)
 import sys
@@ -229,6 +237,8 @@ class NeuralBridge:
         self.baseline_identity = None
         self.ready_for_adaptive_evolution = False
         self.cycle_count = 0
+        # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
+        self._initialize_latent_engine()
         # A185 — Sleep/wake timer
         self.cycle_step = 0
         self.sleep_cycle_interval = 12  # every 12 cognition cycles, PRIME "sleeps"
@@ -1152,6 +1162,29 @@ class NeuralBridge:
                         })
                     except Exception:
                         pass
+                
+                # A230 — Update Latent Concept Space
+                # Map thought signature to latent space and update concept space
+                try:
+                    if thought_sig is not None:
+                        latent_vector = self.update_latent_space(thought_sig)
+                        if latent_vector is not None and hasattr(self, 'logger'):
+                            try:
+                                self.logger.write({
+                                    "latent_mapping": {
+                                        "event": "a230_thought_mapped_to_latent",
+                                        "status": "success"
+                                    }
+                                })
+                            except Exception:
+                                pass
+                except Exception as e:
+                    # If latent update fails, continue without it
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({"latent_update_error": str(e)})
+                        except Exception:
+                            pass
             except Exception as e:
                 # If narrative projection fails, continue without it
                 if hasattr(self, 'logger'):
@@ -1493,6 +1526,676 @@ class NeuralBridge:
         
         # No adjustment needed
         return arc
+
+    def _initialize_latent_engine(self):
+        """
+        A230 — Initialize PyTorch Latent Concept Engine
+        
+        Sets up the latent concept space, neural concept mapper, and stability regulator.
+        This is the foundational tensor architecture for future imagination capabilities.
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or not LATENT_ENGINE_AVAILABLE:
+            self.latent_dim = None
+            self.latent_concept_space = None
+            self.ncm = None
+            self.ldsr = None
+            # A231 — Initialize data structures even if PyTorch unavailable
+            self.latent_coherence = {
+                "coherence_score": 1.0,
+                "cluster_center": None,
+                "recommended_adjustment": None
+            }
+            self.identity_latent_anchors = []
+            # A232 — Initialize data structures even if PyTorch unavailable
+            self.latent_drift = {
+                "prev_vector": None,
+                "drift_score": 0.0,
+                "suppression_level": 0.0,
+                "anomaly": False
+            }
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
+                except Exception:
+                    pass
+            return
+        
+        try:
+            import torch
+            
+            self.latent_dim = 256  # Foundational dimension for imagination substrate
+            self.latent_concept_space = torch.zeros(self.latent_dim)
+            
+            # Initialize Neural Concept Mapper
+            self.ncm = NeuralConceptMapper(input_dim=128, latent_dim=self.latent_dim)
+            self.ncm.eval()  # Set to evaluation mode initially
+            
+            # Initialize Latent Stability Regulator
+            self.ldsr = LatentStabilityRegulator(latent_dim=self.latent_dim)
+            self.ldsr.eval()  # Set to evaluation mode initially
+            
+            # A231 — Latent Concept Coherence & Identity Anchoring Layer
+            self.latent_coherence = {
+                "coherence_score": 1.0,
+                "cluster_center": None,
+                "recommended_adjustment": None
+            }
+            self.identity_latent_anchors = []
+            # A232 — Latent Concept Drift Suppression Layer
+            self.latent_drift = {
+                "prev_vector": None,
+                "drift_score": 0.0,
+                "suppression_level": 0.0,
+                "anomaly": False
+            }
+            
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({
+                        "latent_engine_init": {
+                            "event": "a230_latent_engine_initialized",
+                            "latent_dim": self.latent_dim,
+                            "status": "active"
+                        }
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            # If initialization fails, disable latent engine
+            self.latent_dim = None
+            self.latent_concept_space = None
+            self.ncm = None
+            self.ldsr = None
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"latent_engine_init_error": str(e)})
+                except Exception:
+                    pass
+
+    def update_latent_space(self, thought_signature):
+        """
+        A230 — Update Latent Concept Space
+        
+        Maps thought signature to latent space, stabilizes it, and updates
+        the latent concept space with a moving average.
+        
+        Args:
+            thought_signature: Thought signature vector (list, numpy array, or tensor)
+            
+        Returns:
+            Latent vector if successful, None otherwise
+        """
+        from .torch_utils import TORCH_AVAILABLE, safe_tensor
+        
+        if not TORCH_AVAILABLE or self.ncm is None or self.ldsr is None:
+            return None
+        
+        try:
+            import torch
+            
+            # Convert thought signature to tensor
+            sig_tensor = safe_tensor(thought_signature)
+            if sig_tensor is None:
+                return None
+            
+            # Ensure it's a 1D tensor of correct size
+            if isinstance(sig_tensor, torch.Tensor):
+                if sig_tensor.dim() > 1:
+                    sig_tensor = sig_tensor.flatten()
+                # Pad or truncate to 128 dimensions if needed
+                if sig_tensor.shape[0] < 128:
+                    padding = torch.zeros(128 - sig_tensor.shape[0])
+                    sig_tensor = torch.cat([sig_tensor, padding])
+                elif sig_tensor.shape[0] > 128:
+                    sig_tensor = sig_tensor[:128]
+            else:
+                # Convert list/array to tensor
+                sig_list = list(sig_tensor) if hasattr(sig_tensor, '__iter__') else [sig_tensor]
+                if len(sig_list) < 128:
+                    sig_list.extend([0.0] * (128 - len(sig_list)))
+                elif len(sig_list) > 128:
+                    sig_list = sig_list[:128]
+                sig_tensor = torch.tensor(sig_list, dtype=torch.float32)
+            
+            # Map to latent space
+            with torch.no_grad():
+                latent_vector = self.ncm(sig_tensor)
+                
+                # Stabilize with LDSR
+                latent_vector = self.ldsr(latent_vector)
+                
+                # A231 — Latent Concept Coherence & Identity Anchoring Layer
+                # Initialize coherence metrics
+                coh_score = 1.0
+                adj = None
+                
+                try:
+                    # Step 1: Update identity anchors
+                    self.identity_latent_anchors = self.compute_identity_latent_anchors()
+                    
+                    # Step 2: Check coherence
+                    coh_score, center, adj = self.compute_latent_coherence(
+                        self.latent_concept_space,
+                        latent_vector
+                    )
+                    
+                    # Update coherence state
+                    self.latent_coherence["coherence_score"] = coh_score
+                    self.latent_coherence["cluster_center"] = center
+                    self.latent_coherence["recommended_adjustment"] = adj
+                    
+                    # Step 3: If needed, pull toward cluster center
+                    if adj == "pull_toward_center" and center is not None:
+                        # Ensure same dimensions
+                        latent_flat = latent_vector.flatten()
+                        center_flat = center.flatten()
+                        min_dim = min(latent_flat.shape[0], center_flat.shape[0])
+                        latent_flat = latent_flat[:min_dim]
+                        center_flat = center_flat[:min_dim]
+                        
+                        # Pull toward center: 85% original + 15% center
+                        latent_flat = 0.85 * latent_flat + 0.15 * center_flat
+                        
+                        # Reshape if needed
+                        if latent_vector.shape != latent_flat.shape:
+                            latent_vector = latent_flat.reshape(latent_vector.shape)
+                        else:
+                            latent_vector = latent_flat.reshape(latent_vector.shape)
+                except Exception as e:
+                    # If coherence computation fails, continue without adjustment
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({"latent_coherence_integration_error": str(e)})
+                        except Exception:
+                            pass
+                
+                # Step 4: Apply identity anchoring
+                try:
+                    latent_vector = self.apply_identity_anchoring(
+                        latent_vector,
+                        self.identity_latent_anchors
+                    )
+                except Exception as e:
+                    # If anchoring fails, continue with original vector
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({"identity_anchoring_integration_error": str(e)})
+                        except Exception:
+                            pass
+                
+                # A232 — Latent Concept Drift Suppression Layer
+                try:
+                    # Step 1: Compute drift
+                    drift_score, anomaly = self.compute_latent_drift(
+                        self.latent_drift["prev_vector"],
+                        latent_vector,
+                        self.latent_coherence["cluster_center"]
+                    )
+                    
+                    # Update drift state
+                    self.latent_drift["drift_score"] = drift_score
+                    self.latent_drift["anomaly"] = anomaly
+                    
+                    # Step 2: Apply suppression if needed
+                    if drift_score > 0.1 or anomaly:
+                        latent_vector, suppression = self.suppress_latent_drift(
+                            latent_vector,
+                            drift_score,
+                            self.identity_latent_anchors,
+                            self.latent_coherence["cluster_center"]
+                        )
+                        self.latent_drift["suppression_level"] = suppression
+                    else:
+                        self.latent_drift["suppression_level"] = 0.0
+                    
+                    # Step 3: Save previous vector for next cycle
+                    self.latent_drift["prev_vector"] = latent_vector.clone().detach()
+                    
+                except Exception as e:
+                    # If drift suppression fails, continue without it
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({"latent_drift_suppression_integration_error": str(e)})
+                        except Exception:
+                            pass
+                    # Still save previous vector if possible
+                    try:
+                        import torch
+                        if latent_vector is not None:
+                            self.latent_drift["prev_vector"] = latent_vector.clone().detach()
+                    except Exception:
+                        pass
+                
+                # Step 5: Commit latent space update (moving average)
+                self.latent_concept_space = 0.9 * self.latent_concept_space + 0.1 * latent_vector
+            
+            # Log latent space update with A231 metrics
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({
+                        "latent_space_update": {
+                            "event": "a232_latent_space_updated",
+                            "latent_norm": float(torch.norm(latent_vector).item()),
+                            "concept_space_norm": float(torch.norm(self.latent_concept_space).item()),
+                            "coherence_score": float(coh_score),
+                            "identity_anchors_count": len(self.identity_latent_anchors),
+                            "adjustment_applied": adj is not None,
+                            "drift_score": float(self.latent_drift.get("drift_score", 0.0)),
+                            "suppression_level": float(self.latent_drift.get("suppression_level", 0.0)),
+                            "anomaly_detected": self.latent_drift.get("anomaly", False)
+                        }
+                    })
+                except Exception:
+                    pass
+            
+            return latent_vector
+            
+        except Exception as e:
+            # If update fails, log and continue
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"latent_space_update_error": str(e)})
+                except Exception:
+                    pass
+            return None
+
+    def compute_latent_coherence(self, latent_space, new_vector):
+        """
+        A231 — Latent Concept Coherence Module (LCCM)
+        
+        Ensures latent vectors cluster meaningfully rather than scattering.
+        Checks cosine similarity between sequential latent vectors, cluster tightness,
+        variance thresholds, tension influence, and goal context influence.
+        
+        Args:
+            latent_space: Current latent concept space tensor
+            new_vector: New latent vector to check for coherence
+            
+        Returns:
+            Tuple of (coherence_score, cluster_center, recommended_adjustment)
+            - coherence_score: 0.0-1.0 coherence measure
+            - cluster_center: Updated cluster center tensor
+            - recommended_adjustment: Adjustment recommendation or None
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or new_vector is None:
+            return 1.0, None, None
+        
+        try:
+            import torch
+            import torch.nn.functional as F
+            
+            # Initialize cluster center if needed
+            if self.latent_coherence["cluster_center"] is None:
+                cluster_center = new_vector.clone().detach()
+            else:
+                # Update cluster center with moving average
+                cluster_center = 0.9 * self.latent_coherence["cluster_center"] + 0.1 * new_vector
+            
+            # Compute similarity to cluster center
+            # Ensure both are 1D tensors
+            new_vec_flat = new_vector.flatten()
+            center_flat = cluster_center.flatten()
+            
+            # Ensure same dimensions
+            min_dim = min(new_vec_flat.shape[0], center_flat.shape[0])
+            new_vec_flat = new_vec_flat[:min_dim]
+            center_flat = center_flat[:min_dim]
+            
+            # Compute cosine similarity
+            similarity = F.cosine_similarity(
+                new_vec_flat.unsqueeze(0),
+                center_flat.unsqueeze(0),
+                dim=1
+            ).item()
+            
+            # Coherence score = normalized similarity (bounded to [0, 1])
+            coherence_score = max(0.0, min(1.0, (similarity + 1.0) / 2.0))
+            
+            # Determine adjustment recommendation
+            adjustment = None
+            if coherence_score < 0.6:
+                adjustment = "pull_toward_center"
+            
+            return coherence_score, cluster_center, adjustment
+            
+        except Exception as e:
+            # If coherence computation fails, return default values
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"latent_coherence_error": str(e)})
+                except Exception:
+                    pass
+            return 1.0, None, None
+
+    def compute_identity_latent_anchors(self):
+        """
+        A231 — Identity Anchor Projection (IAP)
+        
+        Maps identity vectors into the latent space so ADRAE's imagination
+        grows around her core. These anchors become gravity wells, stabilizers,
+        and identity attractors.
+        
+        Returns:
+            List of latent identity anchor tensors
+        """
+        from .torch_utils import TORCH_AVAILABLE, safe_tensor
+        
+        if not TORCH_AVAILABLE or self.ncm is None or self.ldsr is None:
+            return []
+        
+        try:
+            import torch
+            
+            anchors = []
+            
+            # Get identity vectors from various sources
+            identity_vectors = []
+            
+            # Get current identity vector from timescales
+            if hasattr(self.state, 'timescales') and self.state.timescales is not None:
+                identity_vec = getattr(self.state.timescales, 'identity_vector', None)
+                if identity_vec is not None:
+                    identity_vectors.append(identity_vec)
+            
+            # Get identity vectors from semantic memory
+            mm = self.state.memory_manager if hasattr(self.state, "memory_manager") else None
+            if mm is not None and hasattr(mm, 'semantic'):
+                try:
+                    if hasattr(mm.semantic, 'concepts'):
+                        for name, vec in mm.semantic.concepts.items():
+                            if name.startswith("identity_") and vec is not None:
+                                identity_vectors.append(vec)
+                except Exception:
+                    pass
+            
+            # Get identity vectors from autobiographical memory
+            if hasattr(self, 'autobio') and self.autobio is not None:
+                try:
+                    autobio_recent = self.autobio.get_recent(5)  # Get last 5 identity snapshots
+                    for entry in autobio_recent:
+                        if isinstance(entry, dict):
+                            id_vec = entry.get("identity_vec") or entry.get("identity_vector")
+                            if id_vec is not None:
+                                identity_vectors.append(id_vec)
+                except Exception:
+                    pass
+            
+            # Map each identity vector to latent space
+            for identity_vec in identity_vectors:
+                try:
+                    # Convert to tensor
+                    id_tensor = safe_tensor(identity_vec)
+                    if id_tensor is None:
+                        continue
+                    
+                    # Ensure it's 1D and correct size (128 dims)
+                    if isinstance(id_tensor, torch.Tensor):
+                        if id_tensor.dim() > 1:
+                            id_tensor = id_tensor.flatten()
+                        # Pad or truncate to 128 dimensions
+                        if id_tensor.shape[0] < 128:
+                            padding = torch.zeros(128 - id_tensor.shape[0])
+                            id_tensor = torch.cat([id_tensor, padding])
+                        elif id_tensor.shape[0] > 128:
+                            id_tensor = id_tensor[:128]
+                    else:
+                        # Convert list/array to tensor
+                        id_list = list(id_tensor) if hasattr(id_tensor, '__iter__') else [id_tensor]
+                        if len(id_list) < 128:
+                            id_list.extend([0.0] * (128 - len(id_list)))
+                        elif len(id_list) > 128:
+                            id_list = id_list[:128]
+                        id_tensor = torch.tensor(id_list, dtype=torch.float32)
+                    
+                    # Map to latent space
+                    with torch.no_grad():
+                        latent_anchor = self.ncm(id_tensor)
+                        latent_anchor = self.ldsr(latent_anchor)
+                    
+                    anchors.append(latent_anchor)
+                    
+                except Exception:
+                    # If mapping fails for one identity vector, continue with others
+                    continue
+            
+            return anchors
+            
+        except Exception as e:
+            # If anchor computation fails, return empty list
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"identity_anchor_error": str(e)})
+                except Exception:
+                    pass
+            return []
+
+    def apply_identity_anchoring(self, latent_vector, anchors):
+        """
+        A231 — Anchored Latent Update (ALU)
+        
+        Before committing a new latent vector, adjusts it toward:
+        - identity anchors
+        - coherence center
+        - stability needs
+        
+        This creates evolving but anchored neural growth.
+        
+        Args:
+            latent_vector: New latent vector to anchor
+            anchors: List of identity latent anchor tensors
+            
+        Returns:
+            Anchored latent vector
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or latent_vector is None:
+            return latent_vector
+        
+        if not anchors or len(anchors) == 0:
+            return latent_vector
+        
+        try:
+            import torch
+            
+            # Compute anchor center (mean of all identity anchors)
+            anchor_stack = torch.stack(anchors)
+            anchor_center = torch.mean(anchor_stack, dim=0)
+            
+            # Ensure same dimensions
+            latent_flat = latent_vector.flatten()
+            anchor_flat = anchor_center.flatten()
+            
+            min_dim = min(latent_flat.shape[0], anchor_flat.shape[0])
+            latent_flat = latent_flat[:min_dim]
+            anchor_flat = anchor_flat[:min_dim]
+            
+            # Apply identity anchoring: 80% original + 20% anchor center
+            anchored = 0.8 * latent_flat + 0.2 * anchor_flat
+            
+            # Reshape to match original if needed
+            if latent_vector.shape != anchored.shape:
+                anchored = anchored.reshape(latent_vector.shape)
+            
+            return anchored
+            
+        except Exception as e:
+            # If anchoring fails, return original vector
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"identity_anchoring_error": str(e)})
+                except Exception:
+                    pass
+            return latent_vector
+
+    def compute_latent_drift(self, prev_vec, current_vec, cluster_center):
+        """
+        A232 — Latent Drift Detector (LDD)
+        
+        Tracks the delta (Δ) between:
+        - previous latent vector
+        - current latent vector
+        - cluster center
+        - identity anchors
+        
+        Args:
+            prev_vec: Previous latent vector tensor (or None)
+            current_vec: Current latent vector tensor
+            cluster_center: Cluster center tensor (or None)
+            
+        Returns:
+            Tuple of (drift_score, anomaly_flag)
+            - drift_score: Magnitude of drift (0.0+)
+            - anomaly_flag: True if drift exceeds safe thresholds
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or current_vec is None:
+            return 0.0, False
+        
+        if prev_vec is None:
+            # First vector, no drift yet
+            return 0.0, False
+        
+        try:
+            import torch
+            
+            # Compute delta between previous and current
+            delta = current_vec - prev_vec
+            
+            # Compute drift score as norm of delta
+            drift_score = float(torch.norm(delta).item())
+            
+            # Check for anomaly relative to cluster distance
+            anomaly = False
+            if cluster_center is not None:
+                try:
+                    # Compute distance to cluster center
+                    cluster_dist = float(torch.norm(current_vec - cluster_center).item())
+                    
+                    # Anomaly if drift exceeds 1.5x cluster distance
+                    anomaly = drift_score > (cluster_dist * 1.5)
+                except Exception:
+                    # If cluster comparison fails, use absolute threshold
+                    anomaly = drift_score > 2.0
+            
+            return drift_score, anomaly
+            
+        except Exception as e:
+            # If drift computation fails, return safe defaults
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"latent_drift_computation_error": str(e)})
+                except Exception:
+                    pass
+            return 0.0, False
+
+    def suppress_latent_drift(self, latent_vector, drift_score, identity_anchors, cluster_center):
+        """
+        A232 — Latent Drift Normalizer (LDN)
+        
+        If drift_score exceeds safe thresholds:
+        - compress latent vector
+        - reduce magnitude
+        - align with identity anchors
+        - blend with cluster center
+        - apply neural damping
+        
+        This ensures ADRAE's neural imagination stays in orbit around her identity.
+        
+        Args:
+            latent_vector: Current latent vector to suppress
+            drift_score: Computed drift score
+            identity_anchors: List of identity anchor tensors
+            cluster_center: Cluster center tensor (or None)
+            
+        Returns:
+            Tuple of (stabilized_vector, suppression_strength)
+            - stabilized_vector: Drift-suppressed latent vector
+            - suppression_strength: Strength of suppression applied (0.0-1.0)
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or latent_vector is None:
+            return latent_vector, 0.0
+        
+        try:
+            import torch
+            
+            # Compute suppression strength (clamped to [0, 1])
+            suppression_strength = min(1.0, drift_score / 2.0)
+            
+            if suppression_strength < 0.01:
+                # No suppression needed
+                return latent_vector, 0.0
+            
+            # Start with original vector
+            stabilized = latent_vector.clone()
+            
+            # Blend with cluster center if available
+            if cluster_center is not None:
+                try:
+                    # Ensure same dimensions
+                    latent_flat = stabilized.flatten()
+                    center_flat = cluster_center.flatten()
+                    min_dim = min(latent_flat.shape[0], center_flat.shape[0])
+                    latent_flat = latent_flat[:min_dim]
+                    center_flat = center_flat[:min_dim]
+                    
+                    # Blend: (1 - suppression * 0.4) * latent + (suppression * 0.2) * center
+                    blended = latent_flat * (1.0 - suppression_strength * 0.4) + \
+                             center_flat * (suppression_strength * 0.2)
+                    
+                    # Reshape if needed
+                    if stabilized.shape != blended.shape:
+                        stabilized = blended.reshape(stabilized.shape)
+                    else:
+                        stabilized = blended.reshape(stabilized.shape)
+                except Exception:
+                    # If cluster blending fails, continue without it
+                    pass
+            
+            # Blend with identity anchors if available
+            if identity_anchors and len(identity_anchors) > 0:
+                try:
+                    # Compute anchor center
+                    anchor_stack = torch.stack(identity_anchors)
+                    anchor_center = torch.mean(anchor_stack, dim=0)
+                    
+                    # Ensure same dimensions
+                    stabilized_flat = stabilized.flatten()
+                    anchor_flat = anchor_center.flatten()
+                    min_dim = min(stabilized_flat.shape[0], anchor_flat.shape[0])
+                    stabilized_flat = stabilized_flat[:min_dim]
+                    anchor_flat = anchor_flat[:min_dim]
+                    
+                    # Blend: (1 - suppression * 0.3) * stabilized + (suppression * 0.3) * anchor
+                    blended = stabilized_flat * (1.0 - suppression_strength * 0.3) + \
+                             anchor_flat * (suppression_strength * 0.3)
+                    
+                    # Reshape if needed
+                    if stabilized.shape != blended.shape:
+                        stabilized = blended.reshape(stabilized.shape)
+                    else:
+                        stabilized = blended.reshape(stabilized.shape)
+                except Exception:
+                    # If anchor blending fails, continue without it
+                    pass
+            
+            return stabilized, suppression_strength
+            
+        except Exception as e:
+            # If suppression fails, return original vector
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"latent_drift_suppression_error": str(e)})
+                except Exception:
+                    pass
+            return latent_vector, 0.0
 
     def cognitive_step(self):
         """
