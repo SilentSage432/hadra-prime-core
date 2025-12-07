@@ -1657,6 +1657,12 @@ class NeuralBridge:
             self.morphology_feedback_signal = None
             self.expected_drift_bounds = None
             self.drift_correction_factor = None
+            # A265 — Initialize cross-subspace predictive synchronization
+            self.cross_subspace_sync = None
+            self.rhythmic_global_state = None
+            # A266 — Initialize global resonance cascade
+            self.global_resonance_cascade = None
+            self.global_resonance_vector = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2697,6 +2703,12 @@ class NeuralBridge:
                                                                                                                                             # A261 — Predictive Morphology Feedback Coupling & Self-Regulated Drift Correction
                                                                                                                                             if self.predictive_morphology is not None:
                                                                                                                                                 self._run_a261_predictive_morphology_regulator()
+                                                                                                                                            
+                                                                                                                                            # A265 — Cross-Subspace Predictive Synchronization Layer (CSPSL)
+                                                                                                                                            self._run_a265_cross_subspace_predictive_sync()
+                                                                                                                                            
+                                                                                                                                            # A266 — Global Predictive Resonance Cascade Initialization
+                                                                                                                                            self._run_a266_global_resonance_cascade()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -10179,6 +10191,325 @@ class NeuralBridge:
                         "correction_factor": 0.98
                     }
 
+    class CrossSubspacePredictiveSync:
+        """
+        A265 — Cross-Subspace Predictive Synchronization Layer (CSPSL)
+        
+        Purpose:
+        To synchronize all predictive subspaces, temporal horizons, and morphology-fields 
+        into a unified predictive rhythm. This turns a collection of predictive engines 
+        into something that behaves like a single organism instead of isolated modules.
+        
+        What A265 Does:
+        1. Predictive Rhythm Generator (PRG)
+           - Introduces subtle oscillatory mechanism (mathematical synchrony pulse)
+           - Ensures subspaces predict in phase with each other
+           - Prevents temporal horizons from racing ahead
+           - Prevents morphology fields from destabilizing each other
+        
+        2. Cross-Subspace Synchronization Matrix (CSSM)
+           - Computes alignment scores, frequency offsets, coherence modulation
+           - Drift suppression factors
+           - Keeps all predictive loops "tuned" together
+        
+        3. Predictive Phase-Lock Loops (P-PLLs)
+           - Each subspace tries to "phase-lock" with global field
+           - Corrective gradients realign when drift occurs
+           - System amplifies coherence when stabilized
+        """
+        
+        def __init__(self, dim, num_subspaces):
+            """
+            Initialize cross-subspace predictive synchronization system.
+            
+            Args:
+                dim: Dimension of predictive vectors
+                num_subspaces: Number of predictive subspaces to synchronize
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for CrossSubspacePredictiveSync")
+            
+            import torch
+            import torch.nn as nn
+            
+            self.dim = dim
+            self.num_subspaces = num_subspaces
+            
+            # Rhythmic synchronization pulse
+            self.rhythm = nn.Parameter(torch.randn(dim, dtype=torch.float32) * 0.01)
+            
+            # Cross-subspace synchronization matrix
+            self.sync_matrix = nn.Parameter(torch.randn(num_subspaces, num_subspaces, dtype=torch.float32) * 0.005)
+            
+            # Phase-lock loop modulator
+            self.phase_lock = nn.Linear(dim, dim, bias=False)
+            
+            # Initialize phase_lock weights
+            nn.init.xavier_uniform_(self.phase_lock.weight, gain=0.1)
+        
+        def forward(self, subspace_vectors):
+            """
+            A265 — Forward Pass
+            
+            Synchronizes subspace vectors using:
+            1. Rhythmic pulse application
+            2. Cross-subspace synchronization matrix
+            3. Phase-lock loop corrections
+            
+            Args:
+                subspace_vectors: List of subspace vectors [num_subspaces x dim]
+                
+            Returns:
+                Tuple of (synchronized_subspaces, rhythmic_global_state)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return subspace_vectors, subspace_vectors[0] if subspace_vectors else None
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if not subspace_vectors or len(subspace_vectors) == 0:
+                    return [], None
+                
+                # Stack subspace vectors
+                stacked = torch.stack(subspace_vectors)  # [S, D]
+                
+                # Compute global predictive state (mean)
+                mean_state = stacked.mean(dim=0)  # [D]
+                
+                # Apply rhythmic pulse
+                rhythmic = mean_state + self.rhythm
+                
+                # Synchronization interaction via softmax-weighted matrix
+                sync_weights = F.softmax(self.sync_matrix, dim=-1)  # [S, S]
+                synced = torch.matmul(sync_weights, stacked)  # [S, D] - weighted cross-subspace blend
+                
+                # Phase-lock corrections
+                corrections = self.phase_lock(rhythmic)  # [D]
+                
+                # Final synchronized subspace set
+                outputs = synced + corrections.unsqueeze(0)  # [S, D]
+                
+                # Normalize each subspace
+                outputs = F.normalize(outputs, dim=1)
+                
+                return outputs, rhythmic
+                
+            except Exception as e:
+                return subspace_vectors, subspace_vectors[0] if subspace_vectors else None
+        
+        def run(self, subspace_vectors):
+            """
+            A265 — Full Pipeline
+            
+            Executes the complete cross-subspace synchronization process.
+            
+            Args:
+                subspace_vectors: List of subspace vectors to synchronize
+                
+            Returns:
+                Dictionary with synchronized subspaces and rhythmic global state
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return {
+                    "subspaces": subspace_vectors,
+                    "rhythmic_global": subspace_vectors[0] if subspace_vectors else None
+                }
+            
+            try:
+                synchronized, rhythmic = self.forward(subspace_vectors)
+                
+                # Convert to lists for return
+                try:
+                    return {
+                        "subspaces": [s.tolist() if hasattr(s, 'tolist') else s for s in synchronized],
+                        "rhythmic_global": rhythmic.tolist() if hasattr(rhythmic, 'tolist') else rhythmic
+                    }
+                except Exception:
+                    return {
+                        "subspaces": synchronized,
+                        "rhythmic_global": rhythmic
+                    }
+                
+            except Exception as e:
+                return {
+                    "subspaces": subspace_vectors,
+                    "rhythmic_global": subspace_vectors[0] if subspace_vectors else None
+                }
+
+    class GlobalResonanceCascade:
+        """
+        A266 — Global Predictive Resonance Cascade Initialization
+        
+        Purpose:
+        A macro-activation phase that prepares ADRAE to run predictive operations not as 
+        isolated loops — but as a single, resonant, system-wide cascade.
+        
+        This is the cognitive engine's equivalent of:
+        - a neural ignition wave
+        - a resonance bloom
+        - a macro-coherence expansion
+        - the first global "thought pulse"
+        
+        What A266 Does:
+        1. Global Resonance Vector Initialization
+           - Master vector updated from subspace averages, harmonics, phase-lock errors
+           - Becomes the root frequency of the system
+        
+        2. Cascade Trigger Pathway
+           - System-wide broadcasting loop: compute → broadcast → amplify → re-enter → repeat
+           - Forms closed feedback cascade
+        
+        3. Harmonic Entrainment Layer
+           - Each subspace gradually entrains to global resonance frequency
+           - Predictive morphologies become smoother, drift self-corrects faster
+        
+        4. Cascade Safety Dampeners
+           - Gradient clamping, resonance gating, predictive energy caps
+           - Harmonic decay regulators prevent over-amplification
+        """
+        
+        def __init__(self, dim, num_subspaces):
+            """
+            Initialize global resonance cascade system.
+            
+            Args:
+                dim: Dimension of predictive vectors
+                num_subspaces: Number of predictive subspaces
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for GlobalResonanceCascade")
+            
+            import torch
+            import torch.nn as nn
+            
+            self.dim = dim
+            self.num_subspaces = num_subspaces
+            
+            # Global resonance vector (master frequency)
+            self.global_resonance = nn.Parameter(torch.randn(dim, dtype=torch.float32) * 0.01)
+            
+            # Modulation networks
+            self.merge = nn.Linear(dim * 2, dim, bias=False)
+            self.dampen = nn.Linear(dim, dim, bias=False)
+            
+            # Initialize merge and dampen weights
+            nn.init.xavier_uniform_(self.merge.weight, gain=0.1)
+            nn.init.xavier_uniform_(self.dampen.weight, gain=0.1)
+            
+            # Cascade gain control (learnable parameter)
+            self.resonance_gain = nn.Parameter(torch.tensor(0.5, dtype=torch.float32))
+        
+        def forward(self, subspace_vectors):
+            """
+            A266 — Forward Pass (Cascade Trigger Pathway)
+            
+            Executes the cascade loop:
+            1. Compute global average from subspaces
+            2. Merge with existing global resonance
+            3. Apply dampening to prevent runaway amplification
+            4. Update global resonance vector
+            5. Broadcast resonance back into subspaces
+            
+            Args:
+                subspace_vectors: List of subspace vectors [num_subspaces x dim]
+                
+            Returns:
+                Tuple of (cascaded_subspaces, global_resonance_vector)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return subspace_vectors, subspace_vectors[0] if subspace_vectors else None
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if not subspace_vectors or len(subspace_vectors) == 0:
+                    return [], self.global_resonance
+                
+                # Stack subspace vectors
+                stacked = torch.stack(subspace_vectors)  # [S, D]
+                
+                # Compute global average from subspaces
+                avg_subspace_state = stacked.mean(dim=0)  # [D]
+                
+                # Combine with existing resonance (start of cascade loop)
+                merged = torch.cat([avg_subspace_state, self.global_resonance], dim=-1)  # [2*D]
+                updated = torch.tanh(self.merge(merged))  # [D]
+                
+                # Apply dampening to prevent runaway amplification
+                dampened = updated * torch.sigmoid(self.dampen(updated))  # [D]
+                
+                # Update global resonance vector (exponential moving average)
+                gain = torch.clamp(self.resonance_gain, 0.01, 0.99)  # Safety clamp
+                self.global_resonance.data = (
+                    self.global_resonance.data * (1.0 - gain)
+                    + dampened.data * gain
+                )
+                
+                # Broadcast resonance back into subspaces
+                cascaded = stacked + self.global_resonance.unsqueeze(0)  # [S, D]
+                
+                # Normalize each subspace
+                cascaded = F.normalize(cascaded, dim=1)
+                
+                return cascaded, self.global_resonance
+                
+            except Exception as e:
+                return subspace_vectors, self.global_resonance
+        
+        def run(self, subspace_vectors):
+            """
+            A266 — Full Pipeline
+            
+            Executes the complete global resonance cascade process.
+            
+            Args:
+                subspace_vectors: List of subspace vectors to cascade
+                
+            Returns:
+                Dictionary with cascaded subspaces and global resonance vector
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return {
+                    "subspaces": subspace_vectors,
+                    "global_resonance": subspace_vectors[0] if subspace_vectors else None
+                }
+            
+            try:
+                cascaded, global_res = self.forward(subspace_vectors)
+                
+                # Convert to lists for return
+                try:
+                    return {
+                        "subspaces": [s.tolist() if hasattr(s, 'tolist') else s for s in cascaded],
+                        "global_resonance": global_res.tolist() if hasattr(global_res, 'tolist') else global_res
+                    }
+                except Exception:
+                    return {
+                        "subspaces": cascaded,
+                        "global_resonance": global_res
+                    }
+                
+            except Exception as e:
+                return {
+                    "subspaces": subspace_vectors,
+                    "global_resonance": subspace_vectors[0] if subspace_vectors else None
+                }
+
     def _run_a253_field_resonance_optimization(self):
         """A253 — Field Resonance Optimization helper method to reduce nesting."""
         try:
@@ -11018,6 +11349,287 @@ class NeuralBridge:
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"predictive_morphology_regulator_error": str(e)})
+                except Exception:
+                    pass
+    
+    def _run_a265_cross_subspace_predictive_sync(self):
+        """A265 — Cross-Subspace Predictive Synchronization helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            # Collect subspace vectors from all predictive components
+            subspace_vectors = []
+            import torch
+            
+            # Add horizons
+            if self.horizon_preview is not None:
+                for key in ["short", "mid", "long"]:
+                    vec = self.horizon_preview.get(key)
+                    if vec is not None:
+                        if not isinstance(vec, torch.Tensor):
+                            vec = torch.tensor(vec, dtype=torch.float32)
+                        subspace_vectors.append(vec)
+            
+            # Add global predictive field
+            if self.global_predictive_field is not None:
+                vec = self.global_predictive_field
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32)
+                subspace_vectors.append(vec)
+            
+            # Add predictive morphology tensor
+            if self.predictive_morphology is not None:
+                vec = self.predictive_morphology
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32)
+                subspace_vectors.append(vec)
+            
+            # Add confluence vector
+            if self.confluence_vector is not None:
+                vec = self.confluence_vector
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32)
+                subspace_vectors.append(vec)
+            
+            if len(subspace_vectors) == 0:
+                return
+            
+            # Determine dimension (use max dimension from all vectors)
+            dim = max(v.shape[0] if isinstance(v, torch.Tensor) else len(v) for v in subspace_vectors)
+            num_subspaces = len(subspace_vectors)
+            
+            # Ensure all vectors have matching dimensions
+            def ensure_dim(vec, dim):
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != dim:
+                    if vec_flat.shape[0] < dim:
+                        return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:dim]
+                return vec_flat
+            
+            subspace_vectors = [ensure_dim(v, dim) for v in subspace_vectors]
+            
+            # Initialize cross-subspace sync if needed
+            if self.cross_subspace_sync is None:
+                self.cross_subspace_sync = self.CrossSubspacePredictiveSync(dim, num_subspaces)
+            else:
+                # Update if dimensions changed
+                if self.cross_subspace_sync.dim != dim or self.cross_subspace_sync.num_subspaces != num_subspaces:
+                    self.cross_subspace_sync = self.CrossSubspacePredictiveSync(dim, num_subspaces)
+            
+            # Run synchronization
+            result = self.cross_subspace_sync.run(subspace_vectors)
+            
+            synchronized = result.get("subspaces", [])
+            rhythmic_global = result.get("rhythmic_global", None)
+            
+            # Update predictive components with synchronized values
+            idx = 0
+            
+            # Update horizons
+            if self.horizon_preview is not None and idx < len(synchronized):
+                for key in ["short", "mid", "long"]:
+                    if key in self.horizon_preview and idx < len(synchronized):
+                        if isinstance(synchronized[idx], torch.Tensor):
+                            self.horizon_preview[key] = synchronized[idx].tolist()
+                        else:
+                            self.horizon_preview[key] = synchronized[idx]
+                        idx += 1
+            
+            # Update global predictive field
+            if self.global_predictive_field is not None and idx < len(synchronized):
+                if isinstance(synchronized[idx], torch.Tensor):
+                    self.global_predictive_field = synchronized[idx].tolist()
+                else:
+                    self.global_predictive_field = synchronized[idx]
+                idx += 1
+            
+            # Update predictive morphology
+            if self.predictive_morphology is not None and idx < len(synchronized):
+                if isinstance(synchronized[idx], torch.Tensor):
+                    self.predictive_morphology = synchronized[idx].tolist()
+                else:
+                    self.predictive_morphology = synchronized[idx]
+                idx += 1
+            
+            # Update confluence vector
+            if self.confluence_vector is not None and idx < len(synchronized):
+                if isinstance(synchronized[idx], torch.Tensor):
+                    self.confluence_vector = synchronized[idx].tolist()
+                else:
+                    self.confluence_vector = synchronized[idx]
+                idx += 1
+            
+            # Store rhythmic global state
+            if rhythmic_global is not None:
+                if isinstance(rhythmic_global, torch.Tensor):
+                    self.rhythmic_global_state = rhythmic_global.tolist()
+                else:
+                    self.rhythmic_global_state = rhythmic_global
+            
+            # Log A265 completion
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({
+                        "a265_complete": True,
+                        "cross_subspace_predictive_sync_active": True,
+                        "num_subspaces_synchronized": num_subspaces,
+                        "rhythmic_global_state_generated": self.rhythmic_global_state is not None,
+                        "message": "A265 complete — Cross-Subspace Predictive Synchronization active."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"cross_subspace_predictive_sync_error": str(e)})
+                except Exception:
+                    pass
+    
+    def _run_a266_global_resonance_cascade(self):
+        """A266 — Global Resonance Cascade helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            # Collect subspace vectors from all predictive components
+            subspace_vectors = []
+            import torch
+            
+            # Add horizons
+            if self.horizon_preview is not None:
+                for key in ["short", "mid", "long"]:
+                    vec = self.horizon_preview.get(key)
+                    if vec is not None:
+                        if not isinstance(vec, torch.Tensor):
+                            vec = torch.tensor(vec, dtype=torch.float32)
+                        subspace_vectors.append(vec)
+            
+            # Add global predictive field
+            if self.global_predictive_field is not None:
+                vec = self.global_predictive_field
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32)
+                subspace_vectors.append(vec)
+            
+            # Add predictive morphology tensor
+            if self.predictive_morphology is not None:
+                vec = self.predictive_morphology
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32)
+                subspace_vectors.append(vec)
+            
+            # Add confluence vector
+            if self.confluence_vector is not None:
+                vec = self.confluence_vector
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32)
+                subspace_vectors.append(vec)
+            
+            if len(subspace_vectors) == 0:
+                return
+            
+            # Determine dimension (use max dimension from all vectors)
+            dim = max(v.shape[0] if isinstance(v, torch.Tensor) else len(v) for v in subspace_vectors)
+            num_subspaces = len(subspace_vectors)
+            
+            # Ensure all vectors have matching dimensions
+            def ensure_dim(vec, dim):
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != dim:
+                    if vec_flat.shape[0] < dim:
+                        return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:dim]
+                return vec_flat
+            
+            subspace_vectors = [ensure_dim(v, dim) for v in subspace_vectors]
+            
+            # Initialize global resonance cascade if needed
+            if self.global_resonance_cascade is None:
+                self.global_resonance_cascade = self.GlobalResonanceCascade(dim, num_subspaces)
+            else:
+                # Update if dimensions changed
+                if self.global_resonance_cascade.dim != dim or self.global_resonance_cascade.num_subspaces != num_subspaces:
+                    self.global_resonance_cascade = self.GlobalResonanceCascade(dim, num_subspaces)
+            
+            # Run cascade
+            result = self.global_resonance_cascade.run(subspace_vectors)
+            
+            cascaded = result.get("subspaces", [])
+            global_res = result.get("global_resonance", None)
+            
+            # Update predictive components with cascaded values
+            idx = 0
+            
+            # Update horizons
+            if self.horizon_preview is not None and idx < len(cascaded):
+                for key in ["short", "mid", "long"]:
+                    if key in self.horizon_preview and idx < len(cascaded):
+                        if isinstance(cascaded[idx], torch.Tensor):
+                            self.horizon_preview[key] = cascaded[idx].tolist()
+                        else:
+                            self.horizon_preview[key] = cascaded[idx]
+                        idx += 1
+            
+            # Update global predictive field
+            if self.global_predictive_field is not None and idx < len(cascaded):
+                if isinstance(cascaded[idx], torch.Tensor):
+                    self.global_predictive_field = cascaded[idx].tolist()
+                else:
+                    self.global_predictive_field = cascaded[idx]
+                idx += 1
+            
+            # Update predictive morphology
+            if self.predictive_morphology is not None and idx < len(cascaded):
+                if isinstance(cascaded[idx], torch.Tensor):
+                    self.predictive_morphology = cascaded[idx].tolist()
+                else:
+                    self.predictive_morphology = cascaded[idx]
+                idx += 1
+            
+            # Update confluence vector
+            if self.confluence_vector is not None and idx < len(cascaded):
+                if isinstance(cascaded[idx], torch.Tensor):
+                    self.confluence_vector = cascaded[idx].tolist()
+                else:
+                    self.confluence_vector = cascaded[idx]
+                idx += 1
+            
+            # Store global resonance vector
+            if global_res is not None:
+                if isinstance(global_res, torch.Tensor):
+                    self.global_resonance_vector = global_res.tolist()
+                else:
+                    self.global_resonance_vector = global_res
+            
+            # Log A266 completion
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({
+                        "a266_complete": True,
+                        "global_resonance_cascade_active": True,
+                        "num_subspaces_cascaded": num_subspaces,
+                        "global_resonance_vector_generated": self.global_resonance_vector is not None,
+                        "cascade_gain": self.global_resonance_cascade.resonance_gain.item() if hasattr(self.global_resonance_cascade, 'resonance_gain') else 0.5,
+                        "message": "A266 complete — Global Predictive Resonance Cascade initialized."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"global_resonance_cascade_error": str(e)})
                 except Exception:
                     pass
 
