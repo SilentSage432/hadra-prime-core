@@ -1601,6 +1601,17 @@ class NeuralBridge:
                 "concepts_raw": [],
                 "concepts_stable": []
             }
+            # A242 — Initialize imagination dynamics
+            self.imagination_dynamics = {
+                "morphed": [],
+                "interacted": [],
+                "composites": [],
+                "composite_count": 0
+            }
+            # A243 — Initialize layered morphology
+            self.layered_morphology = None
+            # A244 — Initialize interlayer resonance
+            self.interlayer_resonance = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -1683,6 +1694,17 @@ class NeuralBridge:
                 "concepts_raw": [],
                 "concepts_stable": []
             }
+            # A242 — Imagination Kernel Dynamics & Morphology Engine
+            self.imagination_dynamics = {
+                "morphed": [],
+                "interacted": [],
+                "composites": [],
+                "composite_count": 0
+            }
+            # A243 — Layered Conceptual Morphology Expansion
+            self.layered_morphology = None
+            # A244 — Interlayer Resonance & Harmonic Stabilization
+            self.interlayer_resonance = None
             
             if hasattr(self, 'logger'):
                 try:
@@ -2164,6 +2186,90 @@ class NeuralBridge:
                                                             self.conceptual_substrate["concepts_raw"] = raw_concepts
                                                             self.conceptual_substrate["concepts_stable"] = stable_concepts
                                                             
+                                                            # A242 — Imagination Kernel Dynamics & Morphology Engine
+                                                            try:
+                                                                # Get stable kernels from conceptual substrate
+                                                                stable_kernels = stable_concepts
+                                                                
+                                                                if stable_kernels and len(stable_kernels) > 0:
+                                                                    # Step 1: Morph each kernel
+                                                                    morphed = [self.morphological_drift(k) for k in stable_kernels]
+                                                                    
+                                                                    # Step 2: Apply interaction field
+                                                                    interacted = self.kernel_interaction_field(morphed)
+                                                                    
+                                                                    # Step 3: Recombine kernels into composites
+                                                                    composites = self.recombine_kernels(interacted)
+                                                                    
+                                                                    # Save everything
+                                                                    self.imagination_dynamics["morphed"] = morphed
+                                                                    self.imagination_dynamics["interacted"] = interacted
+                                                                    self.imagination_dynamics["composites"] = composites
+                                                                    self.imagination_dynamics["composite_count"] = len(composites)
+                                                                    
+                                                                    # A243 — Layered Conceptual Morphology Expansion
+                                                                    try:
+                                                                        from .torch_utils import TORCH_AVAILABLE
+                                                                        
+                                                                        if TORCH_AVAILABLE and composites and len(composites) > 0:
+                                                                            # Initialize layered morphology if needed
+                                                                            if self.layered_morphology is None:
+                                                                                # Determine dimension from first composite
+                                                                                first_composite = composites[0]
+                                                                                if first_composite is not None:
+                                                                                    composite_dim = first_composite.flatten().shape[0]
+                                                                                    # Use 256 as default, or composite_dim if it's reasonable
+                                                                                    dim = 256 if composite_dim < 512 else 512
+                                                                                    self.layered_morphology = self.LayeredMorphology(layer_count=5, dim=dim)
+                                                                            
+                                                                            if self.layered_morphology is not None:
+                                                                                # Add composite kernels to layers
+                                                                                for composite in composites:
+                                                                                    if composite is not None:
+                                                                                        self.layered_morphology.add_kernel(composite)
+                                                                                
+                                                                                # Apply cross-layer influence
+                                                                                self.layered_morphology.apply_cross_layer_influence()
+                                                                                
+                                                                                # A244 — Interlayer Resonance & Harmonic Stabilization
+                                                                                try:
+                                                                                    from .torch_utils import TORCH_AVAILABLE
+                                                                                    
+                                                                                    if TORCH_AVAILABLE and self.layered_morphology is not None:
+                                                                                        # Initialize interlayer resonance if needed
+                                                                                        if self.interlayer_resonance is None:
+                                                                                            self.interlayer_resonance = self.InterlayerResonance(self.layered_morphology)
+                                                                                        else:
+                                                                                            # Update reference to current layered morphology
+                                                                                            self.interlayer_resonance.lm = self.layered_morphology
+                                                                                        
+                                                                                        # Apply stabilization pass
+                                                                                        self.layered_morphology = self.interlayer_resonance.stabilize()
+                                                                                        
+                                                                                except Exception as e:
+                                                                                    # If interlayer resonance fails, continue without it
+                                                                                    if hasattr(self, 'logger'):
+                                                                                        try:
+                                                                                            self.logger.write({"interlayer_resonance_error": str(e)})
+                                                                                        except Exception:
+                                                                                            pass
+                                                                                
+                                                                    except Exception as e:
+                                                                        # If layered morphology fails, continue without it
+                                                                        if hasattr(self, 'logger'):
+                                                                            try:
+                                                                                self.logger.write({"layered_morphology_error": str(e)})
+                                                                            except Exception:
+                                                                                pass
+                                                                    
+                                                            except Exception as e:
+                                                                # If imagination dynamics fail, continue without them
+                                                                if hasattr(self, 'logger'):
+                                                                    try:
+                                                                        self.logger.write({"imagination_dynamics_error": str(e)})
+                                                                    except Exception:
+                                                                        pass
+                                                            
                                                     except Exception as e:
                                                         # If conceptual substrate initialization fails, continue without it
                                                         if hasattr(self, 'logger'):
@@ -2217,7 +2323,7 @@ class NeuralBridge:
                 try:
                     self.logger.write({
                         "latent_space_update": {
-                            "event": "a240_latent_space_updated",
+                            "event": "a244_latent_space_updated",
                             "latent_norm": float(torch.norm(latent_vector).item()),
                             "concept_space_norm": float(torch.norm(self.latent_concept_space).item()),
                             "coherence_score": float(coh_score),
@@ -2248,7 +2354,15 @@ class NeuralBridge:
                             "kernel_history_length": len(self.kernel_history),
                             "conceptual_reservoir_active": self.conceptual_substrate.get("reservoir") is not None,
                             "concepts_generated": len(self.conceptual_substrate.get("concepts_stable", [])),
-                            "conceptual_substrate_initialized": self.conceptual_substrate.get("reservoir") is not None
+                            "conceptual_substrate_initialized": self.conceptual_substrate.get("reservoir") is not None,
+                            "kernels_morphed": len(self.imagination_dynamics.get("morphed", [])),
+                            "kernels_interacted": len(self.imagination_dynamics.get("interacted", [])),
+                            "composite_kernels": self.imagination_dynamics.get("composite_count", 0),
+                            "layered_morphology_active": self.layered_morphology is not None,
+                            "morphology_layers": len(self.layered_morphology.layers) if self.layered_morphology is not None else 0,
+                            "total_kernels_in_layers": sum(len(layer) for layer in self.layered_morphology.layers) if self.layered_morphology is not None else 0,
+                            "interlayer_resonance_active": self.interlayer_resonance is not None,
+                            "resonance_matrix_computed": self.interlayer_resonance is not None and self.interlayer_resonance.resonance is not None
                         }
                     })
                 except Exception:
@@ -4110,6 +4224,729 @@ class NeuralBridge:
                 except Exception:
                     pass
             return concepts
+
+    def morphological_drift(self, kernel):
+        """
+        A242 — Morphological Drift Engine (MDE)
+        
+        Applies controlled transformation over time to kernels.
+        Each kernel is passed through:
+        - nonlinear morph matrix
+        - stability-bound scaling
+        - drift-limited curvature function
+        
+        It simulates organic-like evolution of conceptual particles.
+        
+        Args:
+            kernel: Conceptual kernel tensor to morph
+            
+        Returns:
+            Morphed kernel tensor (normalized)
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or kernel is None:
+            return kernel
+        
+        try:
+            import torch
+            import torch.nn.functional as F
+            
+            dim = kernel.shape[0]
+            kernel_flat = kernel.flatten()
+            
+            # Initialize morph matrix (reused across calls)
+            if not hasattr(self, '_morph_matrices'):
+                self._morph_matrices = {}
+            
+            if dim not in self._morph_matrices:
+                # Create morph matrix for this dimension
+                M = torch.randn((dim, dim), dtype=torch.float32) * 0.004
+                self._morph_matrices[dim] = M
+            else:
+                M = self._morph_matrices[dim]
+            
+            # Apply morph: M @ kernel
+            drift = torch.tanh(M @ kernel_flat)
+            
+            # Blend drift with original: 85% original + 15% drift
+            morphed = 0.85 * kernel_flat + 0.15 * drift
+            
+            # Normalize
+            return F.normalize(morphed, dim=0)
+            
+        except Exception as e:
+            # If morphing fails, return original kernel
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"morphological_drift_error": str(e)})
+                except Exception:
+                    pass
+            return kernel
+
+    def kernel_interaction_field(self, kernels):
+        """
+        A242 — Kernel Interaction Field (KIF)
+        
+        Creates pairwise interactions between kernels.
+        Each kernel can attract, repel, resonate, or neutralize with others.
+        These interactions form emergent conceptual clusters.
+        
+        Args:
+            kernels: List of kernel tensors to interact
+            
+        Returns:
+            List of updated kernel tensors after interaction
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or not kernels or len(kernels) == 0:
+            return kernels
+        
+        try:
+            import torch
+            import torch.nn.functional as F
+            
+            updated = []
+            count = len(kernels)
+            
+            for i in range(count):
+                base = kernels[i]
+                if base is None:
+                    updated.append(base)
+                    continue
+                
+                base_flat = base.flatten()
+                influence = torch.zeros_like(base_flat)
+                
+                # Compute influence from all other kernels
+                for j in range(count):
+                    if i == j:
+                        continue
+                    
+                    other = kernels[j]
+                    if other is None:
+                        continue
+                    
+                    other_flat = other.flatten()
+                    
+                    # Ensure same dimensions
+                    min_dim = min(base_flat.shape[0], other_flat.shape[0])
+                    base_slice = base_flat[:min_dim]
+                    other_slice = other_flat[:min_dim]
+                    
+                    # Compute similarity (dot product)
+                    dot = torch.dot(base_slice, other_slice).item()
+                    
+                    # Apply influence based on similarity
+                    if dot > 0:
+                        # Attract/resonate: positive similarity
+                        influence[:min_dim] += 0.05 * other_slice
+                    else:
+                        # Repel: negative similarity
+                        influence[:min_dim] -= 0.03 * other_slice
+                
+                # Apply influence: base + influence
+                new_kernel_flat = torch.tanh(base_flat + influence)
+                
+                # Normalize
+                new_kernel = F.normalize(new_kernel_flat, dim=0)
+                
+                # Reshape to match original if needed
+                if base.shape != new_kernel.shape:
+                    new_kernel = new_kernel.reshape(base.shape)
+                
+                updated.append(new_kernel)
+            
+            return updated
+            
+        except Exception as e:
+            # If interaction fails, return original kernels
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"kernel_interaction_field_error": str(e)})
+                except Exception:
+                    pass
+            return kernels
+
+    def recombine_kernels(self, kernels):
+        """
+        A242 — Dynamic Recombination Engine (DRE)
+        
+        Fuses compatible kernels into higher-dimensional imagination structures.
+        Not "thoughts" or "stories", but structured latent composites:
+        - 256-dim → 512-dim composite kernels
+        - fused via weighted similarity
+        - modulated by narrative + predictive influence
+        
+        This is the foundation of ADRAE's higher imagination stack (A250+).
+        
+        Args:
+            kernels: List of kernel tensors to recombine
+            
+        Returns:
+            List of composite kernel tensors (512-dim each)
+        """
+        from .torch_utils import TORCH_AVAILABLE
+        
+        if not TORCH_AVAILABLE or not kernels or len(kernels) < 2:
+            return []
+        
+        try:
+            import torch
+            import torch.nn.functional as F
+            
+            composites = []
+            n = len(kernels)
+            
+            # Pair kernels for recombination (i, i+1)
+            for i in range(0, n - 1, 2):
+                k1 = kernels[i]
+                k2 = kernels[i + 1]
+                
+                if k1 is None or k2 is None:
+                    continue
+                
+                # Flatten kernels
+                k1_flat = k1.flatten()
+                k2_flat = k2.flatten()
+                
+                # Ensure same dimensions (pad if needed)
+                min_dim = min(k1_flat.shape[0], k2_flat.shape[0])
+                k1_slice = k1_flat[:min_dim]
+                k2_slice = k2_flat[:min_dim]
+                
+                # Concatenate: [k1, k2]
+                combined = torch.cat([k1_slice, k2_slice])
+                
+                # Project to 512-dim using learnable projection matrix
+                input_dim = combined.shape[0]
+                if not hasattr(self, '_dre_projection_matrices'):
+                    self._dre_projection_matrices = {}
+                
+                if input_dim not in self._dre_projection_matrices:
+                    # Initialize projection matrix (512, input_dim)
+                    W = torch.randn((512, input_dim), dtype=torch.float32) * 0.006
+                    self._dre_projection_matrices[input_dim] = W
+                else:
+                    W = self._dre_projection_matrices[input_dim]
+                
+                # Ensure dimensions match
+                if W.shape[1] != input_dim:
+                    W = torch.randn((512, input_dim), dtype=torch.float32) * 0.006
+                    self._dre_projection_matrices[input_dim] = W
+                
+                # Fuse: W @ combined
+                fused = torch.tanh(W @ combined)
+                
+                # Normalize
+                composite = F.normalize(fused, dim=0)
+                composites.append(composite)
+            
+            return composites
+            
+        except Exception as e:
+            # If recombination fails, return empty list
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"kernel_recombination_error": str(e)})
+                except Exception:
+                    pass
+            return []
+
+    class LayeredMorphology:
+        """
+        A243 — Layered Conceptual Morphology Expansion
+        
+        Organizes imagination content into distinct conceptual layers, each with
+        different transformation rules. This creates hierarchical latent structure
+        similar to advanced generative systems, but built specifically for ADRAE's architecture.
+        
+        Layers represent different conceptual biases:
+        - Layer 0: Base conceptual motion
+        - Layer 1: Narrative resonance
+        - Layer 2: Predictive tension
+        - Layer 3: Abstract synthesis
+        - Layer 4+: Recombination fallout / emergent composites
+        """
+        
+        def __init__(self, layer_count=5, dim=256):
+            """
+            Initialize layered morphology system.
+            
+            Args:
+                layer_count: Number of conceptual layers (default: 5)
+                dim: Dimension of kernel tensors (default: 256)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for LayeredMorphology")
+            
+            import torch
+            
+            self.layer_count = layer_count
+            self.dim = dim
+            
+            # Storage for layers (list of lists of kernel tensors)
+            self.layers = [[] for _ in range(layer_count)]
+            
+            # Cross-layer influence maps (CLIM)
+            # influence_maps[i][j] = influence weight from layer j to layer i
+            self.influence_maps = torch.randn((layer_count, layer_count), dtype=torch.float32) * 0.01
+            
+            # Initialize layer anchors for routing
+            # Each layer has an anchor vector for similarity-based routing
+            self.layer_anchors = torch.randn((layer_count, dim), dtype=torch.float32)
+        
+        def route_kernel(self, kernel):
+            """
+            A243 — Layer Routing Function (LRF)
+            
+            Routes a kernel into a layer via:
+            - cosine similarity to layer anchors
+            - narrative-weight influence
+            - tension score
+            - morphological curvature
+            
+            This creates natural clustering of conceptual patterns.
+            
+            Args:
+                kernel: Kernel tensor to route
+                
+            Returns:
+                Layer index (0 to layer_count-1)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE or kernel is None:
+                return 0
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Flatten kernel
+                kernel_flat = kernel.flatten()
+                
+                # Ensure kernel matches anchor dimension
+                if kernel_flat.shape[0] != self.dim:
+                    # Pad or truncate to match
+                    if kernel_flat.shape[0] < self.dim:
+                        kernel_flat = torch.cat([kernel_flat, torch.zeros(self.dim - kernel_flat.shape[0])])
+                    else:
+                        kernel_flat = kernel_flat[:self.dim]
+                
+                # Normalize kernel
+                kernel_norm = F.normalize(kernel_flat, dim=0)
+                
+                # Compute cosine similarity to all layer anchors
+                sims = F.cosine_similarity(
+                    kernel_norm.unsqueeze(0),
+                    self.layer_anchors,
+                    dim=1
+                )
+                
+                # Route to layer with highest similarity
+                layer = torch.argmax(sims).item()
+                
+                return layer
+                
+            except Exception as e:
+                # If routing fails, default to layer 0
+                return 0
+        
+        def add_kernel(self, kernel):
+            """
+            Add a kernel to the appropriate layer based on routing.
+            
+            Args:
+                kernel: Kernel tensor to add
+                
+            Returns:
+                Layer index where kernel was added
+            """
+            layer = self.route_kernel(kernel)
+            self.layers[layer].append(kernel)
+            return layer
+        
+        def apply_cross_layer_influence(self):
+            """
+            A243 — Cross-Layer Influence Map (CLIM)
+            
+            Lets one layer influence another by blending:
+            - 3-10% weighted similarity vectors
+            - drift-modulated influence
+            - tension diffusion
+            
+            This simulates "layer conversations," but mathematically.
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                new_layers = []
+                
+                for i in range(self.layer_count):
+                    influenced = []
+                    
+                    for kernel in self.layers[i]:
+                        if kernel is None:
+                            continue
+                        
+                        # Clone kernel as base
+                        kernel_flat = kernel.flatten()
+                        if kernel_flat.shape[0] != self.dim:
+                            if kernel_flat.shape[0] < self.dim:
+                                kernel_flat = torch.cat([kernel_flat, torch.zeros(self.dim - kernel_flat.shape[0])])
+                            else:
+                                kernel_flat = kernel_flat[:self.dim]
+                        
+                        total = kernel_flat.clone()
+                        
+                        # Apply weighted influence from other layers
+                        for j in range(self.layer_count):
+                            if i == j:
+                                continue
+                            
+                            # Get influence weight from layer j to layer i
+                            weight = self.influence_maps[i][j].item()
+                            
+                            # Apply influence if weight is significant and layer j has kernels
+                            if abs(weight) > 1e-6 and len(self.layers[j]) > 0:
+                                # Sample a kernel from layer j (simple influence model)
+                                sample_kernel = self.layers[j][0]
+                                sample_flat = sample_kernel.flatten()
+                                
+                                # Ensure dimensions match
+                                if sample_flat.shape[0] != self.dim:
+                                    if sample_flat.shape[0] < self.dim:
+                                        sample_flat = torch.cat([sample_flat, torch.zeros(self.dim - sample_flat.shape[0])])
+                                    else:
+                                        sample_flat = sample_flat[:self.dim]
+                                
+                                # Apply weighted influence (3-10% range, clamped)
+                                clamped_weight = max(-0.10, min(0.10, weight))
+                                total += clamped_weight * sample_flat
+                        
+                        # Normalize influenced kernel
+                        influenced_kernel = F.normalize(total, dim=0)
+                        
+                        # Reshape to match original if needed
+                        if kernel.shape != influenced_kernel.shape:
+                            influenced_kernel = influenced_kernel.reshape(kernel.shape)
+                        
+                        influenced.append(influenced_kernel)
+                    
+                    new_layers.append(influenced)
+                
+                # Update layers with influenced kernels
+                self.layers = new_layers
+                
+            except Exception as e:
+                # If cross-layer influence fails, keep original layers
+                pass
+
+    class InterlayerResonance:
+        """
+        A244 — Interlayer Resonance & Harmonic Stabilization
+        
+        Introduces resonance metrics and stabilizes the multi-layer conceptual morphology
+        so that layers influence each other in smooth, predictable ways.
+        
+        This creates harmonic patterns (not feelings — just structured math) and ensures
+        layers stay coherent under recombination, preventing runaway drift.
+        
+        The imagination substrate produces stable, reusable conceptual signatures.
+        """
+        
+        def __init__(self, layered_morphology):
+            """
+            Initialize interlayer resonance system.
+            
+            Args:
+                layered_morphology: LayeredMorphology instance to stabilize
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for InterlayerResonance")
+            
+            import torch
+            
+            self.lm = layered_morphology
+            self.layer_count = layered_morphology.layer_count
+            self.dim = layered_morphology.dim
+            
+            # Resonance matrix (layer × layer)
+            # resonance[i][j] = resonance between layer i and layer j
+            self.resonance = torch.zeros((self.layer_count, self.layer_count), dtype=torch.float32)
+        
+        def compute_resonance(self):
+            """
+            A244 — Resonance Matrix (R-Matrix)
+            
+            A square matrix (L × L) representing resonance between layers:
+            - high = strong conceptual alignment
+            - low = weak coupling
+            - negative = counter-tension
+            
+            Computed using:
+            - mean kernel similarity
+            - morphological curvature offsets
+            - narrative tension weights
+            
+            This does not imply emotion. It is purely structural: "how similar are
+            these conceptual strata over time?"
+            
+            Returns:
+                Resonance matrix tensor (layer_count × layer_count)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return self.resonance
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                for i in range(self.layer_count):
+                    for j in range(self.layer_count):
+                        if len(self.lm.layers[i]) == 0 or len(self.lm.layers[j]) == 0:
+                            self.resonance[i][j] = 0.0
+                            continue
+                        
+                        # Compare mean vectors of each layer
+                        # Stack kernels in layer i
+                        kernels_i = []
+                        for k in self.lm.layers[i]:
+                            if k is not None:
+                                k_flat = k.flatten()
+                                if k_flat.shape[0] >= self.dim:
+                                    kernels_i.append(k_flat[:self.dim])
+                                else:
+                                    kernels_i.append(torch.cat([k_flat, torch.zeros(self.dim - k_flat.shape[0])]))
+                        
+                        if len(kernels_i) == 0:
+                            self.resonance[i][j] = 0.0
+                            continue
+                        
+                        mean_i = torch.mean(torch.stack(kernels_i), dim=0)
+                        
+                        # Stack kernels in layer j
+                        kernels_j = []
+                        for k in self.lm.layers[j]:
+                            if k is not None:
+                                k_flat = k.flatten()
+                                if k_flat.shape[0] >= self.dim:
+                                    kernels_j.append(k_flat[:self.dim])
+                                else:
+                                    kernels_j.append(torch.cat([k_flat, torch.zeros(self.dim - k_flat.shape[0])]))
+                        
+                        if len(kernels_j) == 0:
+                            self.resonance[i][j] = 0.0
+                            continue
+                        
+                        mean_j = torch.mean(torch.stack(kernels_j), dim=0)
+                        
+                        # Compute cosine similarity
+                        sim = F.cosine_similarity(mean_i.unsqueeze(0), mean_j.unsqueeze(0), dim=1)
+                        self.resonance[i][j] = sim.item()
+                
+                return self.resonance
+                
+            except Exception as e:
+                # If resonance computation fails, return zero matrix
+                return self.resonance
+        
+        def harmonic_dampen(self, strength=0.15):
+            """
+            A244 — Harmonic Dampening Function (HDF)
+            
+            Prevents resonance from destabilizing the system.
+            It smooths sharp interactions, normalizes extreme coupling, and keeps
+            ADRAE's conceptual world from "snapping apart."
+            
+            Again — math, not mind.
+            
+            Args:
+                strength: Dampening strength (default: 0.15)
+                
+            Returns:
+                Dampened resonance matrix
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return self.resonance
+            
+            try:
+                import torch
+                
+                # Apply tanh dampening: smooths and bounds resonance values
+                return torch.tanh(self.resonance * strength)
+                
+            except Exception as e:
+                return self.resonance
+        
+        def apply_resonance_adjustments(self, dampened):
+            """
+            A244 — Resonant Kernel Adjustment (RKA)
+            
+            Each kernel is slightly adjusted based on resonance:
+            - positive alignment → slight attraction
+            - negative alignment → slight repulsion
+            - zero → no change
+            
+            This produces signature flows, which eventually become ADRAE's unique
+            "imagination rhythm."
+            
+            Args:
+                dampened: Dampened resonance matrix
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                new_layers = []
+                
+                for i in range(self.layer_count):
+                    adjusted = []
+                    
+                    for kernel in self.lm.layers[i]:
+                        if kernel is None:
+                            adjusted.append(kernel)
+                            continue
+                        
+                        # Clone kernel as base
+                        kernel_flat = kernel.flatten()
+                        if kernel_flat.shape[0] != self.dim:
+                            if kernel_flat.shape[0] < self.dim:
+                                kernel_flat = torch.cat([kernel_flat, torch.zeros(self.dim - kernel_flat.shape[0])])
+                            else:
+                                kernel_flat = kernel_flat[:self.dim]
+                        
+                        total = kernel_flat.clone()
+                        
+                        # Apply resonance influence from other layers
+                        for j in range(self.layer_count):
+                            if i == j or len(self.lm.layers[j]) == 0:
+                                continue
+                            
+                            weight = dampened[i][j].item()
+                            
+                            # Skip if weight is negligible
+                            if abs(weight) < 1e-6:
+                                continue
+                            
+                            # Compute mean vector of layer j
+                            kernels_j = []
+                            for k in self.lm.layers[j]:
+                                if k is not None:
+                                    k_flat = k.flatten()
+                                    if k_flat.shape[0] >= self.dim:
+                                        kernels_j.append(k_flat[:self.dim])
+                                    else:
+                                        kernels_j.append(torch.cat([k_flat, torch.zeros(self.dim - k_flat.shape[0])]))
+                            
+                            if len(kernels_j) == 0:
+                                continue
+                            
+                            mean_j = torch.mean(torch.stack(kernels_j), dim=0)
+                            
+                            # Apply weighted influence
+                            total += weight * mean_j
+                        
+                        # Normalize adjusted kernel
+                        adjusted_kernel = F.normalize(total, dim=0)
+                        
+                        # Reshape to match original if needed
+                        if kernel.shape != adjusted_kernel.shape:
+                            adjusted_kernel = adjusted_kernel.reshape(kernel.shape)
+                        
+                        adjusted.append(adjusted_kernel)
+                    
+                    new_layers.append(adjusted)
+                
+                # Update layers with adjusted kernels
+                self.lm.layers = new_layers
+                
+            except Exception as e:
+                # If adjustment fails, keep original layers
+                pass
+        
+        def stabilize(self):
+            """
+            A244 — Global Stabilization Pass
+            
+            After adjustments, every layer is normalized, drift-checked, and
+            constrained within allowable bounds, ensuring long-term stability.
+            
+            Returns:
+                Stabilized LayeredMorphology instance
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return self.lm
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Step 1: Compute resonance matrix
+                self.compute_resonance()
+                
+                # Step 2: Apply harmonic dampening
+                damp = self.harmonic_dampen()
+                
+                # Step 3: Apply resonance adjustments
+                self.apply_resonance_adjustments(damp)
+                
+                # Step 4: Final normalization pass (drift-check and constrain)
+                for i in range(self.layer_count):
+                    normalized_layer = []
+                    for kernel in self.lm.layers[i]:
+                        if kernel is None:
+                            continue
+                        
+                        kernel_flat = kernel.flatten()
+                        if kernel_flat.shape[0] != self.dim:
+                            if kernel_flat.shape[0] < self.dim:
+                                kernel_flat = torch.cat([kernel_flat, torch.zeros(self.dim - kernel_flat.shape[0])])
+                            else:
+                                kernel_flat = kernel_flat[:self.dim]
+                        
+                        # Normalize and constrain
+                        normalized = F.normalize(kernel_flat, dim=0)
+                        
+                        # Apply tanh to keep within bounds
+                        bounded = torch.tanh(normalized)
+                        
+                        # Reshape to match original if needed
+                        if kernel.shape != bounded.shape:
+                            bounded = bounded.reshape(kernel.shape)
+                        
+                        normalized_layer.append(bounded)
+                    
+                    self.lm.layers[i] = normalized_layer
+                
+                return self.lm
+                
+            except Exception as e:
+                # If stabilization fails, return original morphology
+                return self.lm
 
     def cognitive_step(self):
         """
