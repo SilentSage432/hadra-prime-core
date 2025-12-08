@@ -1758,6 +1758,11 @@ class NeuralBridge:
             self.meta_field_resonance_info = None
             self.resonant_kernel_coupler = None
             self.meta_field_resonance_feedback = None
+            self.meta_field_stabilizer_a317 = None
+            self.mf_318_hcr_gate = None
+            self.meta_interaction_stabilizer = None
+            self.meta_field_unified = None
+            self.meta_gate_value = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -3189,6 +3194,61 @@ class NeuralBridge:
                                                                                                                                                     # persist for next phases
                                                                                                                                                     self.meta_field_kernel_vector = coupled_kernel
                                                                                                                                                     self.meta_field_resonance_feedback = feedback_signal
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # A317 — Resonant Meta-Field Stabilization Layer
+                                                                                                                                            try:
+                                                                                                                                                if "meta_field_kernel" in internal_state:
+                                                                                                                                                    meta_field_kernel = torch.tensor(internal_state["meta_field_kernel"])
+                                                                                                                                                    stabilized = self.meta_field_stabilizer_a317.forward(meta_field_kernel)
+                                                                                                                                                    internal_state["meta_field_kernel"] = stabilized.tolist()
+                                                                                                                                                    # persist stabilized kernel
+                                                                                                                                                    self.meta_field_kernel_vector = stabilized
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # MF-318 — Harmonic Coherence Regularization Gate (HCR-Gate)
+                                                                                                                                            try:
+                                                                                                                                                if "meta_field_kernel" in internal_state:
+                                                                                                                                                    meta_field_kernel = torch.tensor(internal_state["meta_field_kernel"])
+                                                                                                                                                    regularized = self.mf_318_hcr_gate.forward(meta_field_kernel)
+                                                                                                                                                    internal_state["meta_field_kernel"] = regularized.tolist()
+                                                                                                                                                    # persist regularized kernel
+                                                                                                                                                    self.meta_field_kernel_vector = regularized
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # MF-319 — Meta-Functional Interaction Stabilizer
+                                                                                                                                            try:
+                                                                                                                                                # Collect available meta-fields for stabilization
+                                                                                                                                                meta_fields = []
+                                                                                                                                                if "meta_field" in internal_state:
+                                                                                                                                                    meta_fields.append(torch.tensor(internal_state["meta_field"]))
+                                                                                                                                                if "meta_field_kernel" in internal_state:
+                                                                                                                                                    meta_fields.append(torch.tensor(internal_state["meta_field_kernel"]))
+                                                                                                                                                if "meta_field_resonance_precursor" in internal_state:
+                                                                                                                                                    meta_fields.append(torch.tensor(internal_state["meta_field_resonance_precursor"]))
+                                                                                                                                                
+                                                                                                                                                if meta_fields:
+                                                                                                                                                    # Compute coherence and drift from available signals
+                                                                                                                                                    coherence = 1.0  # Default coherence
+                                                                                                                                                    drift = 0.0  # Default drift
+                                                                                                                                                    
+                                                                                                                                                    # Try to extract coherence/drift from interaction signatures if available
+                                                                                                                                                    if "meta_field_kernel_interaction" in internal_state:
+                                                                                                                                                        sig = internal_state["meta_field_kernel_interaction"]
+                                                                                                                                                        cosine_sim = sig.get("cosine_similarity", 1.0)
+                                                                                                                                                        coherence = max(0.0, min(1.0, cosine_sim))
+                                                                                                                                                    
+                                                                                                                                                    merged_meta_field, gate_val = self.meta_interaction_stabilizer.forward(
+                                                                                                                                                        *meta_fields,
+                                                                                                                                                        coherence=coherence,
+                                                                                                                                                        drift=drift
+                                                                                                                                                    )
+                                                                                                                                                    
+                                                                                                                                                    internal_state["meta_field_unified"] = merged_meta_field.tolist()
+                                                                                                                                                    internal_state["meta_gate_value"] = float(gate_val)
+                                                                                                                                                    # persist unified meta-field
+                                                                                                                                                    self.meta_field_unified = merged_meta_field
+                                                                                                                                                    self.meta_gate_value = gate_val
                                                                                                                                             except Exception:
                                                                                                                                                 pass
                                                                                                                     
@@ -19851,6 +19911,246 @@ class NeuralBridge:
                 except Exception:
                     return kernel_vec, None
 
+    class ResonantMetaFieldStabilizer:
+        """
+        A317 — Resonant Meta-Field Stabilization Layer
+        
+        Stabilizes the outputs of the meta-field interaction kernels by:
+        - enforcing harmonic amplitude clamps
+        - reducing oscillatory divergence
+        - normalizing predictive meta-field vectors
+        - projecting stabilized output into the main resonance manifold
+        """
+        
+        def __init__(self, dim=128, stability=0.15):
+            self.dim = dim
+            self.stability = stability
+            
+            try:
+                import torch
+                import torch.nn as nn
+                
+                # Learnable clamps and stabilization weights
+                self.clamp_weight = torch.randn(dim, dtype=torch.float32) * 0.02
+                self.stabilizer = nn.Linear(dim, dim)
+                # Residual projection to keep outputs in harmonic space
+                self.resonance_projector = nn.Linear(dim, dim)
+            except Exception:
+                self.clamp_weight = None
+                self.stabilizer = None
+                self.resonance_projector = None
+        
+        def forward(self, meta_field):
+            """
+            meta_field: torch.Tensor (dim=128)
+            Returns: stabilized torch.Tensor
+            """
+            try:
+                import torch
+                import torch.nn as nn
+                
+                if self.stabilizer is None or self.resonance_projector is None:
+                    # Fallback: simple normalization if modules not initialized
+                    return meta_field / (torch.norm(meta_field) + 1e-8)
+                
+                if self.clamp_weight is None:
+                    self.clamp_weight = torch.randn(self.dim, dtype=torch.float32) * 0.02
+                
+                # 1. Damp oscillatory magnitude
+                damped = meta_field * torch.tanh(self.clamp_weight)
+                
+                # 2. Stabilization transform
+                stabilized = self.stabilizer(damped)
+                
+                # 3. Project into harmonic-consistent subspace
+                projected = self.resonance_projector(stabilized)
+                
+                # 4. Residual stabilizing blend
+                out = projected + self.stability * stabilized
+                
+                return out
+            except Exception:
+                # Fallback: return normalized input
+                try:
+                    import torch
+                    return meta_field / (torch.norm(meta_field) + 1e-8)
+                except Exception:
+                    return meta_field
+
+    class HarmonicCoherenceRegularizationGate:
+        """
+        MF-318 — Harmonic Coherence Regularization Gate (HCR-Gate)
+        
+        A harmonic regularizer + stabilizer that keeps ADRAE's higher-level predictive fields
+        smooth and usable by reducing divergent vector directions, amplifying structurally
+        aligned patterns, and smoothing the representation manifold.
+        """
+        
+        def __init__(self, dim=128, alpha=0.15, beta=0.05):
+            """
+            dim   = dimensionality of ADRAE's meta-functional vector space
+            alpha = harmonic coherence scaling factor
+            beta  = stability bias regularizer
+            """
+            self.dim = dim
+            self.alpha = alpha
+            self.beta = beta
+            
+            try:
+                import torch
+                import torch.nn as nn
+                import torch.nn.functional as F
+                
+                # Learned harmonic weights
+                self.harmonic_weights = torch.randn(dim, dtype=torch.float32)
+                # Small stabilizer projection
+                self.proj = nn.Linear(dim, dim)
+            except Exception:
+                self.harmonic_weights = None
+                self.proj = None
+        
+        def forward(self, x):
+            """
+            x: torch.Tensor (dim=128)
+            Returns: regularized torch.Tensor
+            """
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if self.proj is None:
+                    # Fallback: simple normalization if modules not initialized
+                    return x / (torch.norm(x) + 1e-8)
+                
+                if self.harmonic_weights is None:
+                    self.harmonic_weights = torch.randn(self.dim, dtype=torch.float32)
+                
+                # Normalize input
+                norm_x = F.normalize(x, dim=-1)
+                
+                # Compute harmonic alignment score
+                harmonic_score = (norm_x * self.harmonic_weights).sum(dim=-1, keepdim=True)
+                
+                # Expand score across vector dimension
+                harmonic_field = harmonic_score * norm_x
+                
+                # Stabilize with a projection and small residual fusion
+                stabilized = self.proj(norm_x) * self.beta
+                
+                # Output: combined harmonic-coherence stabilization
+                out = x + self.alpha * harmonic_field + stabilized
+                
+                return out
+            except Exception:
+                # Fallback: return normalized input
+                try:
+                    import torch
+                    return x / (torch.norm(x) + 1e-8)
+                except Exception:
+                    return x
+
+    class MetaFunctionalInteractionStabilizer:
+        """
+        MF-319 — Meta-Functional Interaction Stabilizer
+        
+        Ensures that when multiple meta-functional fields interact simultaneously,
+        they do so without runaway amplification, destabilizing interference,
+        cross-layer corruption, recursive feedback drift, or loss of representational clarity.
+        Acts as a "shock absorber" for high-level internal transformations.
+        """
+        
+        def __init__(self, dim=128):
+            self.dim = dim
+            
+            try:
+                import torch
+                import torch.nn as nn
+                
+                # Learnable inter-field stabilization matrix
+                self.stabilizer_matrix = torch.randn(dim, dim, dtype=torch.float32) * 0.01
+                # Consistency gating thresholds
+                self.coherence_threshold = 0.15
+                self.drift_threshold = 0.12
+                # Stability gate (sigmoid-based)
+                self.gate = nn.Sigmoid()
+            except Exception:
+                self.stabilizer_matrix = None
+                self.coherence_threshold = 0.15
+                self.drift_threshold = 0.12
+                self.gate = None
+        
+        def forward(self, *fields, coherence=1.0, drift=0.0):
+            """
+            fields: list of tensors representing different meta-level fields
+            coherence: external coherence score
+            drift: external drift score
+            Returns:
+                merged: torch.Tensor (merged and stabilized fields)
+                gate_val: float (gate value used)
+            """
+            try:
+                import torch
+                import torch.nn as nn
+                
+                if not fields or len(fields) == 0:
+                    # Fallback: return zero tensor if no fields
+                    try:
+                        return torch.zeros(self.dim, dtype=torch.float32), 0.0
+                    except Exception:
+                        return None, 0.0
+                
+                if self.gate is None:
+                    self.gate = nn.Sigmoid()
+                
+                if self.stabilizer_matrix is None:
+                    self.stabilizer_matrix = torch.randn(self.dim, self.dim, dtype=torch.float32) * 0.01
+                
+                # 1. Gating based on coherence/drift
+                gate_val = self.gate(
+                    torch.tensor(coherence - self.coherence_threshold - drift, dtype=torch.float32)
+                ).item()
+                
+                # 2. Normalize and stabilize each field
+                stabilized = []
+                for f in fields:
+                    if f is None:
+                        continue
+                    # Ensure field is 1D tensor
+                    f_flat = f.flatten()
+                    if f_flat.shape[0] != self.dim:
+                        # Pad or truncate to match dimension
+                        if f_flat.shape[0] < self.dim:
+                            f_flat = torch.cat([f_flat, torch.zeros(self.dim - f_flat.shape[0], dtype=torch.float32)])
+                        else:
+                            f_flat = f_flat[:self.dim]
+                    
+                    base = torch.matmul(f_flat, self.stabilizer_matrix)
+                    stabilized.append(base * gate_val)
+                
+                if not stabilized:
+                    # Fallback: return zero tensor if no valid fields
+                    try:
+                        return torch.zeros(self.dim, dtype=torch.float32), gate_val
+                    except Exception:
+                        return None, gate_val
+                
+                # 3. Weighted merge across fields
+                stacked = torch.stack(stabilized, dim=0)
+                merged = torch.mean(stacked, dim=0)
+                
+                return merged, gate_val
+            except Exception:
+                # Fallback: return first field normalized or zero
+                try:
+                    import torch
+                    if fields and len(fields) > 0 and fields[0] is not None:
+                        f = fields[0].flatten()
+                        if f.shape[0] >= self.dim:
+                            return f[:self.dim] / (torch.norm(f[:self.dim]) + 1e-8), 0.0
+                    return torch.zeros(self.dim, dtype=torch.float32), 0.0
+                except Exception:
+                    return None, 0.0
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -19965,6 +20265,24 @@ class NeuralBridge:
             else:
                 if getattr(self.resonant_kernel_coupler, "dim", dim) != dim:
                     self.resonant_kernel_coupler = self.ResonantInteractionKernelCoupling(dim=dim)
+            
+            if self.meta_field_stabilizer_a317 is None:
+                self.meta_field_stabilizer_a317 = self.ResonantMetaFieldStabilizer(dim=dim)
+            else:
+                if getattr(self.meta_field_stabilizer_a317, "dim", dim) != dim:
+                    self.meta_field_stabilizer_a317 = self.ResonantMetaFieldStabilizer(dim=dim)
+            
+            if self.mf_318_hcr_gate is None:
+                self.mf_318_hcr_gate = self.HarmonicCoherenceRegularizationGate(dim=dim)
+            else:
+                if getattr(self.mf_318_hcr_gate, "dim", dim) != dim:
+                    self.mf_318_hcr_gate = self.HarmonicCoherenceRegularizationGate(dim=dim)
+            
+            if self.meta_interaction_stabilizer is None:
+                self.meta_interaction_stabilizer = self.MetaFunctionalInteractionStabilizer(dim=dim)
+            else:
+                if getattr(self.meta_interaction_stabilizer, "dim", dim) != dim:
+                    self.meta_interaction_stabilizer = self.MetaFunctionalInteractionStabilizer(dim=dim)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
