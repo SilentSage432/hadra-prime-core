@@ -1744,6 +1744,7 @@ class NeuralBridge:
             self.routing_feedback_vector = None
             self.routing_bias_vector = None
             self.hierarchy_refinement_layer = None
+            self.hierarchy_manifold_integrator = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -3057,7 +3058,23 @@ class NeuralBridge:
                                                                                                                                             if refined_hierarchy is not None:
                                                                                                                                                 internal_state["predictive_hierarchy"] = [v.tolist() for v in refined_hierarchy]
                                                                                                                                                 self.predictive_hierarchy = refined_hierarchy
-                                                                                                                                            
+                                                                                                                                            # A311 — Predictive Hierarchy Integration With Manifold Dynamics
+                                                                                                                                            try:
+                                                                                                                                                if "predictive_hierarchy" in internal_state and "manifold_interactions" in internal_state:
+                                                                                                                                                    hierarchy = [torch.tensor(v) for v in internal_state["predictive_hierarchy"]]
+                                                                                                                                                    manifold_vec = torch.tensor(internal_state["manifold_interactions"]["signature"])
+                                                                                                                                                    grad_norm = internal_state["manifold_interactions"]["gradient_norm"]
+                                                                                                                                                    integrated = self.hierarchy_manifold_integrator.integrate(
+                                                                                                                                                        hierarchy,
+                                                                                                                                                        manifold_vec,
+                                                                                                                                                        grad_norm
+                                                                                                                                                    )
+                                                                                                                                                    internal_state["predictive_hierarchy"] = [v.tolist() for v in integrated]
+                                                                                                                                                    # persist for subsequent cycles
+                                                                                                                                                    self.predictive_hierarchy = integrated
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                    
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
                                                                                                                                         if hasattr(self, 'logger'):
@@ -19493,6 +19510,18 @@ class NeuralBridge:
             else:
                 if getattr(self.hierarchy_refinement_layer, "dim", dim) != dim:
                     self.hierarchy_refinement_layer = self.FeedbackWeightedPredictiveHierarchyRefinement(dim=dim)
+            
+            if self.hierarchy_manifold_integrator is None:
+                self.hierarchy_manifold_integrator = self.PredictiveHierarchyManifoldIntegrator(dim=dim)
+            else:
+                if getattr(self.hierarchy_manifold_integrator, "dim", dim) != dim:
+                    self.hierarchy_manifold_integrator = self.PredictiveHierarchyManifoldIntegrator(dim=dim)
+            
+            if self.hierarchy_manifold_integrator is None:
+                self.hierarchy_manifold_integrator = self.PredictiveHierarchyManifoldIntegrator(dim=dim)
+            else:
+                if getattr(self.hierarchy_manifold_integrator, "dim", dim) != dim:
+                    self.hierarchy_manifold_integrator = self.PredictiveHierarchyManifoldIntegrator(dim=dim)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
