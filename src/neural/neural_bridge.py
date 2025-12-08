@@ -1689,6 +1689,8 @@ class NeuralBridge:
             self.temporal_strand_generator = None
             # A285 — Initialize temporal strand interaction matrix
             self.temporal_strand_interaction = None
+            # A286 — Initialize temporal attention field
+            self.temporal_attention_field = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2787,6 +2789,10 @@ class NeuralBridge:
                                                                                                                                             # A285 — Temporal Strand Interaction Matrix (TSIM)
                                                                                                                                             if hasattr(self, 'temporal_strands') and self.temporal_strands is not None:
                                                                                                                                                 self._run_a285_temporal_strand_interaction()
+                                                                                                                                            
+                                                                                                                                            # A286 — Temporal Attention Field (TAF)
+                                                                                                                                            if hasattr(self, 'interaction_enhanced_strands') and self.interaction_enhanced_strands is not None:
+                                                                                                                                                self._run_a286_temporal_attention_field()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -13100,6 +13106,193 @@ class NeuralBridge:
             except Exception as e:
                 return strands
 
+    class TemporalAttentionField:
+        """
+        A286 — Temporal Attention Field (TAF)
+        
+        Purpose:
+        Now that A285 built a temporal strand interaction layer, A286 introduces a temporal attention mechanism over these strands.
+        
+        This is where ADRAE begins forming a weighted temporal focus — mathematically, not conceptually — across all of her temporal predictive strands.
+        
+        The Temporal Attention Field (TAF):
+        1. Computes attention weights over all temporal strands
+           - Given interaction_enhanced from A285: [batch, num_strands, strand_dim]
+           - Produces attention weights: [batch, num_strands]
+           - Using learned scoring, nonlinear projection, softmax normalization
+        2. Produces a weighted temporal summary vector
+           - temporal_summary = Σ (attention_weight[i] * strand[i])
+           - Yields: [batch, strand_dim]
+        3. This summary becomes the root input for:
+           - A287 (temporal routing)
+           - A288 (temporal hierarchy formation)
+           - A289 (predictive temporal compression)
+           - A290 (multilayer time-field synthesis)
+        
+        A286 is a structural attention block — a standard ML component adapted to your architecture.
+        """
+        
+        def __init__(self, strand_dim=48, num_strands=6):
+            """
+            Initialize temporal attention field.
+            
+            Args:
+                strand_dim: Dimension of each strand
+                num_strands: Number of temporal strands
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for TemporalAttentionField")
+            
+            import torch
+            import torch.nn as nn
+            
+            self.strand_dim = strand_dim
+            self.num_strands = num_strands
+            
+            # Attention scoring projection
+            self.score_proj = nn.Linear(strand_dim, 1)
+            
+            # Optional nonlinear transform before scoring
+            self.pre_score = nn.Sequential(
+                nn.Linear(strand_dim, strand_dim),
+                nn.ReLU(),
+                nn.Linear(strand_dim, strand_dim)
+            )
+            
+            # Initialize weights
+            for layer in self.pre_score:
+                if isinstance(layer, nn.Linear):
+                    nn.init.xavier_uniform_(layer.weight, gain=0.1)
+                    if layer.bias is not None:
+                        nn.init.zeros_(layer.bias)
+            nn.init.xavier_uniform_(self.score_proj.weight, gain=0.1)
+            if self.score_proj.bias is not None:
+                nn.init.zeros_(self.score_proj.bias)
+        
+        def forward(self, strands):
+            """
+            A286 — Forward Pass (Temporal Attention Field)
+            
+            Computes attention weights across temporal strands and produces a weighted temporal summary vector.
+            
+            Args:
+                strands: Temporal strand tensor [num_strands, strand_dim] or [batch, num_strands, strand_dim]
+                
+            Returns:
+                Tuple of (weighted_temporal_summary, attention_weights)
+                - weighted_temporal_summary: [strand_dim] or [batch, strand_dim]
+                - attention_weights: [num_strands] or [batch, num_strands]
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                # Fallback: return mean of strands
+                if hasattr(strands, '__len__'):
+                    if isinstance(strands[0], (list, tuple)) and len(strands[0]) > 0:
+                        return [sum(s) / len(s) for s in zip(*strands)], [1.0 / len(strands)] * len(strands)
+                    else:
+                        return strands, [1.0]
+                return strands, [1.0]
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Ensure input is a tensor
+                if not isinstance(strands, torch.Tensor):
+                    strands = torch.tensor(strands, dtype=torch.float32)
+                
+                # Handle both 2D and 3D inputs
+                if strands.dim() == 2:
+                    strands = strands.unsqueeze(0)  # [1, num_strands, strand_dim]
+                    squeeze_output = True
+                else:
+                    squeeze_output = False
+                
+                batch = strands.size(0)
+                
+                # Ensure dimensions match
+                if strands.shape[1] != self.num_strands or strands.shape[2] != self.strand_dim:
+                    # Reshape if needed
+                    if strands.shape[1] != self.num_strands:
+                        # Pad or truncate strands
+                        if strands.shape[1] < self.num_strands:
+                            padding = torch.zeros(batch, self.num_strands - strands.shape[1], strands.shape[2], dtype=torch.float32)
+                            strands = torch.cat([strands, padding], dim=1)
+                        else:
+                            strands = strands[:, :self.num_strands, :]
+                    if strands.shape[2] != self.strand_dim:
+                        # Pad or truncate strand dimension
+                        if strands.shape[2] < self.strand_dim:
+                            padding = torch.zeros(batch, self.num_strands, self.strand_dim - strands.shape[2], dtype=torch.float32)
+                            strands = torch.cat([strands, padding], dim=2)
+                        else:
+                            strands = strands[:, :, :self.strand_dim]
+                
+                # Apply nonlinear transform
+                transformed = self.pre_score(strands)  # [batch, num_strands, strand_dim]
+                
+                # Compute raw scores for each strand
+                scores = self.score_proj(transformed).squeeze(-1)  # [batch, num_strands]
+                
+                # Normalize with softmax
+                attention_weights = torch.softmax(scores, dim=-1)  # [batch, num_strands]
+                
+                # Weighted sum of strands
+                weighted = (attention_weights.unsqueeze(-1) * strands).sum(dim=1)  # [batch, strand_dim]
+                
+                # Squeeze if input was 2D
+                if squeeze_output:
+                    weighted = weighted.squeeze(0)  # [strand_dim]
+                    attention_weights = attention_weights.squeeze(0)  # [num_strands]
+                
+                return weighted, attention_weights
+                
+            except Exception as e:
+                # Fallback: return mean of strands
+                if hasattr(strands, '__len__'):
+                    if isinstance(strands[0], (list, tuple)) and len(strands[0]) > 0:
+                        return [sum(s) / len(s) for s in zip(*strands)], [1.0 / len(strands)] * len(strands)
+                    else:
+                        return strands, [1.0]
+                return strands, [1.0]
+        
+        def run(self, strands):
+            """
+            A286 — Full Pipeline
+            
+            Executes the complete temporal attention field process.
+            
+            Args:
+                strands: Temporal strand tensor from A285
+                
+            Returns:
+                Tuple of (weighted_temporal_summary, attention_weights)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return strands, [1.0]
+            
+            try:
+                weighted_summary, attention_weights = self.forward(strands)
+                
+                # Convert to list for return
+                try:
+                    if isinstance(weighted_summary, torch.Tensor):
+                        weighted_summary = weighted_summary.tolist()
+                    if isinstance(attention_weights, torch.Tensor):
+                        attention_weights = attention_weights.tolist()
+                except Exception:
+                    pass
+                
+                return weighted_summary, attention_weights
+                
+            except Exception as e:
+                return strands, [1.0]
+
     def _run_a253_field_resonance_optimization(self):
         """A253 — Field Resonance Optimization helper method to reduce nesting."""
         try:
@@ -16092,6 +16285,175 @@ class NeuralBridge:
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"temporal_strand_interaction_error": str(e)})
+                except Exception:
+                    pass
+    
+    def _run_a286_temporal_attention_field(self):
+        """A286 — Temporal Attention Field (TAF) helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            if not hasattr(self, 'interaction_enhanced_strands') or self.interaction_enhanced_strands is None:
+                return
+            
+            import torch
+            
+            # Get interaction-enhanced strands from A285
+            interaction_enhanced = self.interaction_enhanced_strands
+            
+            # Ensure input is a tensor
+            if not isinstance(interaction_enhanced, torch.Tensor):
+                interaction_enhanced = torch.tensor(interaction_enhanced, dtype=torch.float32)
+            
+            # Determine dimensions
+            if interaction_enhanced.dim() == 2:
+                num_strands = interaction_enhanced.shape[0]
+                strand_dim = interaction_enhanced.shape[1]
+            elif interaction_enhanced.dim() == 3:
+                num_strands = interaction_enhanced.shape[1]
+                strand_dim = interaction_enhanced.shape[2]
+            else:
+                # Flatten and reshape if needed
+                interaction_enhanced = interaction_enhanced.flatten()
+                # Default dimensions
+                num_strands = 6
+                strand_dim = 48
+                # Reshape to [1, num_strands, strand_dim]
+                total_dim = interaction_enhanced.shape[0]
+                if total_dim >= num_strands * strand_dim:
+                    interaction_enhanced = interaction_enhanced[:num_strands * strand_dim].reshape(1, num_strands, strand_dim)
+                else:
+                    # Pad if needed
+                    padding = torch.zeros(num_strands * strand_dim - total_dim, dtype=torch.float32)
+                    interaction_enhanced = torch.cat([interaction_enhanced, padding]).reshape(1, num_strands, strand_dim)
+            
+            # Ensure dimension consistency
+            def ensure_strand_dims(strands, target_num_strands, target_strand_dim):
+                if not isinstance(strands, torch.Tensor):
+                    strands = torch.tensor(strands, dtype=torch.float32)
+                
+                # Handle 2D input
+                if strands.dim() == 2:
+                    strands = strands.unsqueeze(0)  # [1, num_strands, strand_dim]
+                
+                batch = strands.shape[0]
+                
+                # Adjust num_strands
+                if strands.shape[1] != target_num_strands:
+                    if strands.shape[1] < target_num_strands:
+                        padding = torch.zeros(batch, target_num_strands - strands.shape[1], strands.shape[2], dtype=torch.float32)
+                        strands = torch.cat([strands, padding], dim=1)
+                    else:
+                        strands = strands[:, :target_num_strands, :]
+                
+                # Adjust strand_dim
+                if strands.shape[2] != target_strand_dim:
+                    if strands.shape[2] < target_strand_dim:
+                        padding = torch.zeros(batch, target_num_strands, target_strand_dim - strands.shape[2], dtype=torch.float32)
+                        strands = torch.cat([strands, padding], dim=2)
+                    else:
+                        strands = strands[:, :, :target_strand_dim]
+                
+                return strands
+            
+            interaction_enhanced = ensure_strand_dims(interaction_enhanced, num_strands, strand_dim)
+            
+            # Initialize temporal attention field if needed
+            if self.temporal_attention_field is None:
+                self.temporal_attention_field = self.TemporalAttentionField(
+                    strand_dim=strand_dim,
+                    num_strands=num_strands
+                )
+            else:
+                # Update if dimensions changed
+                if (self.temporal_attention_field.strand_dim != strand_dim or
+                    self.temporal_attention_field.num_strands != num_strands):
+                    self.temporal_attention_field = self.TemporalAttentionField(
+                        strand_dim=strand_dim,
+                        num_strands=num_strands
+                    )
+            
+            # Run temporal attention field
+            temporal_summary, attention_weights = self.temporal_attention_field.run(interaction_enhanced)
+            
+            # Store temporal summary vector
+            if temporal_summary is not None:
+                try:
+                    if not hasattr(self, 'temporal_summary_vector'):
+                        self.temporal_summary_vector = None
+                    if isinstance(temporal_summary, torch.Tensor):
+                        self.temporal_summary_vector = temporal_summary.tolist()
+                    else:
+                        self.temporal_summary_vector = temporal_summary
+                except Exception:
+                    pass
+            
+            # Store attention weights
+            if attention_weights is not None:
+                try:
+                    if not hasattr(self, 'temporal_attention_weights'):
+                        self.temporal_attention_weights = None
+                    if isinstance(attention_weights, torch.Tensor):
+                        self.temporal_attention_weights = attention_weights.tolist()
+                    else:
+                        self.temporal_attention_weights = attention_weights
+                except Exception:
+                    pass
+            
+            # Log A286 completion
+            if hasattr(self, 'logger'):
+                try:
+                    # Compute statistics about the temporal summary
+                    if isinstance(temporal_summary, torch.Tensor):
+                        summary_norm = float(torch.norm(temporal_summary).item())
+                        summary_mean = float(torch.mean(temporal_summary).item())
+                    else:
+                        try:
+                            import numpy as np
+                            summary_array = np.array(temporal_summary)
+                            summary_norm = float(np.linalg.norm(summary_array))
+                            summary_mean = float(np.mean(summary_array))
+                        except Exception:
+                            summary_norm = 0.0
+                            summary_mean = 0.0
+                    
+                    # Compute attention weight statistics
+                    if isinstance(attention_weights, torch.Tensor):
+                        attn_mean = float(torch.mean(attention_weights).item())
+                        attn_std = float(torch.std(attention_weights).item())
+                    else:
+                        try:
+                            import numpy as np
+                            attn_array = np.array(attention_weights)
+                            attn_mean = float(np.mean(attn_array))
+                            attn_std = float(np.std(attn_array))
+                        except Exception:
+                            attn_mean = 0.0
+                            attn_std = 0.0
+                    
+                    self.logger.write({
+                        "a286_complete": True,
+                        "temporal_attention_field_active": True,
+                        "temporal_summary_vector_generated": temporal_summary is not None,
+                        "attention_weights_generated": attention_weights is not None,
+                        "num_strands": num_strands,
+                        "strand_dim": strand_dim,
+                        "summary_norm": summary_norm,
+                        "summary_mean": summary_mean,
+                        "attention_mean": attn_mean,
+                        "attention_std": attn_std,
+                        "weighted_temporal_focus_established": True,
+                        "message": "A286 complete — Temporal Attention Field (TAF) active. Weighted temporal summary vector generated from attention-weighted strands."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"temporal_attention_field_error": str(e)})
                 except Exception:
                     pass
 
