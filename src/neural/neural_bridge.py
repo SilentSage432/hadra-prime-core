@@ -1753,6 +1753,9 @@ class NeuralBridge:
             self.meta_field_kernel = None
             self.meta_field_kernel_vector = None
             self.meta_field_kernel_interaction = None
+            self.meta_field_resonance_precursor = None
+            self.meta_field_resonance_precursor_vec = None
+            self.meta_field_resonance_info = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -3140,6 +3143,28 @@ class NeuralBridge:
                                                                                                                                                     # persist for next phases
                                                                                                                                                     self.meta_field_kernel_vector = kernel_vec
                                                                                                                                                     self.meta_field_kernel_interaction = interaction_sig
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # A315 — Meta-Field Resonance Precursor Layer
+                                                                                                                                            try:
+                                                                                                                                                if (
+                                                                                                                                                    "meta_field" in internal_state and
+                                                                                                                                                    "meta_field_kernel" in internal_state and
+                                                                                                                                                    "meta_field_kernel_interaction" in internal_state
+                                                                                                                                                ):
+                                                                                                                                                    meta_vec = torch.tensor(internal_state["meta_field"])
+                                                                                                                                                    kernel_vec = torch.tensor(internal_state["meta_field_kernel"])
+                                                                                                                                                    interaction_sig = internal_state["meta_field_kernel_interaction"]
+                                                                                                                                                    precursor, resonance_info = self.meta_field_resonance_precursor.generate(
+                                                                                                                                                        meta_vec,
+                                                                                                                                                        kernel_vec,
+                                                                                                                                                        interaction_sig
+                                                                                                                                                    )
+                                                                                                                                                    internal_state["meta_field_resonance_precursor"] = precursor.tolist()
+                                                                                                                                                    internal_state["meta_field_resonance_info"] = resonance_info
+                                                                                                                                                    # persist
+                                                                                                                                                    self.meta_field_resonance_precursor_vec = precursor
+                                                                                                                                                    self.meta_field_resonance_info = resonance_info
                                                                                                                                             except Exception:
                                                                                                                                                 pass
                                                                                                                     
@@ -19679,6 +19704,75 @@ class NeuralBridge:
                         "nonlinear_preview": [0.0] * 8
                     }
 
+    class MetaFieldResonancePrecursor:
+        """
+        A315 — Meta-Field Resonance Precursor Layer
+        
+        Produces low-frequency oscillatory components from meta-field and kernel,
+        generating resonance seed vectors for harmonic resonance layers.
+        """
+        
+        def __init__(self, dim=128, resonance_strength=0.35):
+            self.dim = dim
+            self.resonance_strength = resonance_strength
+        
+        def generate(self, meta_field, kernel_vec, interaction_sig):
+            """
+            Creates the resonance precursor vector and oscillation factors.
+            
+            meta_field: torch.Tensor (dim=128)
+            kernel_vec: torch.Tensor (dim=128)
+            interaction_sig: dict
+            Returns:
+                precursor: torch.Tensor
+                resonance_data: dict
+            """
+            try:
+                import torch
+                
+                m = meta_field / (torch.norm(meta_field) + 1e-8)
+                k = kernel_vec / (torch.norm(kernel_vec) + 1e-8)
+                
+                # Dynamic factor from cosine similarity
+                sim = interaction_sig.get("cosine_similarity", 0.0)
+                sim_factor = torch.tanh(torch.tensor(sim, dtype=torch.float32))
+                
+                # Nonlinear kernel preview for oscillation seed
+                nl = torch.tensor(interaction_sig.get("nonlinear_preview", [0.0] * 8), dtype=torch.float32)
+                nl_mean = nl.mean().item()
+                nl_factor = torch.tanh(torch.tensor(nl_mean, dtype=torch.float32))
+                
+                # resonance precursor: fusion + oscillation seeds
+                precursor = (
+                    0.50 * m +
+                    0.35 * k +
+                    0.15 * (sim_factor + nl_factor) * m
+                )
+                precursor = precursor / (torch.norm(precursor) + 1e-8)
+                
+                resonance_data = {
+                    "similarity_factor": float(sim_factor),
+                    "nonlinear_factor": float(nl_factor),
+                    "oscillation_preview": precursor[:8].tolist()
+                }
+                
+                return precursor, resonance_data
+            except Exception:
+                # Return zero precursor and empty resonance data on error
+                try:
+                    import torch
+                    return torch.zeros(self.dim, dtype=torch.float32), {
+                        "similarity_factor": 0.0,
+                        "nonlinear_factor": 0.0,
+                        "oscillation_preview": [0.0] * 8
+                    }
+                except Exception:
+                    return None, {
+                        "similarity_factor": 0.0,
+                        "nonlinear_factor": 0.0,
+                        "oscillation_preview": [0.0] * 8
+                    }
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -19781,6 +19875,12 @@ class NeuralBridge:
             else:
                 if getattr(self.meta_field_kernel, "dim", dim) != dim:
                     self.meta_field_kernel = self.MetaFieldInteractionKernel(dim=dim)
+            
+            if self.meta_field_resonance_precursor is None:
+                self.meta_field_resonance_precursor = self.MetaFieldResonancePrecursor(dim=dim)
+            else:
+                if getattr(self.meta_field_resonance_precursor, "dim", dim) != dim:
+                    self.meta_field_resonance_precursor = self.MetaFieldResonancePrecursor(dim=dim)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
