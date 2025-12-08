@@ -1747,6 +1747,12 @@ class NeuralBridge:
             self.hierarchy_manifold_integrator = None
             self.manifold_hierarchy_loop = None
             self.manifold_loop_signal = None
+            self.meta_field_scaffold = None
+            self.meta_field = None
+            self.meta_field_history = None
+            self.meta_field_kernel = None
+            self.meta_field_kernel_vector = None
+            self.meta_field_kernel_interaction = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -3096,6 +3102,44 @@ class NeuralBridge:
                                                                                                                                                     # persist for next phases
                                                                                                                                                     self.predictive_manifold = updated_manifold
                                                                                                                                                     self.manifold_loop_signal = loop_signal
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # A313 — Meta-Field Initialization Scaffold
+                                                                                                                                            try:
+                                                                                                                                                if (
+                                                                                                                                                    "predictive_manifold" in internal_state and
+                                                                                                                                                    "manifold_hierarchy_loop_signal" in internal_state and
+                                                                                                                                                    "predictive_hierarchy" in internal_state
+                                                                                                                                                ):
+                                                                                                                                                    manifold_vec = torch.tensor(internal_state["predictive_manifold"])
+                                                                                                                                                    loop_signal = torch.tensor(internal_state["manifold_hierarchy_loop_signal"])
+                                                                                                                                                    # compute hierarchy mean for scaffold construction
+                                                                                                                                                    hierarchy = [torch.tensor(v) for v in internal_state["predictive_hierarchy"]]
+                                                                                                                                                    hierarchy_mean = torch.mean(torch.stack(hierarchy), dim=0)
+                                                                                                                                                    meta_field, meta_history = self.meta_field_scaffold.initialize(
+                                                                                                                                                        manifold_vec, loop_signal, hierarchy_mean
+                                                                                                                                                    )
+                                                                                                                                                    internal_state["meta_field"] = meta_field.tolist()
+                                                                                                                                                    internal_state["meta_field_history"] = [v.tolist() for v in meta_history]
+                                                                                                                                                    # persist for next phases
+                                                                                                                                                    self.meta_field = meta_field
+                                                                                                                                                    self.meta_field_history = meta_history
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # A314 — Meta-Field Interaction Kernel Initialization
+                                                                                                                                            try:
+                                                                                                                                                if "meta_field" in internal_state and "meta_field_history" in internal_state:
+                                                                                                                                                    meta_vec = torch.tensor(internal_state["meta_field"])
+                                                                                                                                                    history = [torch.tensor(v) for v in internal_state["meta_field_history"]]
+                                                                                                                                                    kernel_vec, interaction_sig = self.meta_field_kernel.compute_kernel(
+                                                                                                                                                        meta_vec,
+                                                                                                                                                        history
+                                                                                                                                                    )
+                                                                                                                                                    internal_state["meta_field_kernel"] = kernel_vec.tolist()
+                                                                                                                                                    internal_state["meta_field_kernel_interaction"] = interaction_sig
+                                                                                                                                                    # persist for next phases
+                                                                                                                                                    self.meta_field_kernel_vector = kernel_vec
+                                                                                                                                                    self.meta_field_kernel_interaction = interaction_sig
                                                                                                                                             except Exception:
                                                                                                                                                 pass
                                                                                                                     
@@ -19515,6 +19559,126 @@ class NeuralBridge:
                 except Exception:
                     return manifold_vec, manifold_vec  # Fallback to manifold_vec if torch unavailable
 
+    class MetaFieldInitializationScaffold:
+        """
+        A313 — Meta-Field Initialization Scaffold
+        
+        Establishes the foundational meta-field structure that sits above the manifold,
+        encoding global system tendencies and providing coherence for resonance phases.
+        """
+        
+        def __init__(self, dim=128):
+            self.dim = dim
+            self.history = []
+        
+        def initialize(self, manifold_vec, loop_signal, hierarchy_mean):
+            """
+            Establishes the first meta-field vector.
+            
+            manifold_vec: torch.Tensor (dim=128)
+            loop_signal: torch.Tensor (dim=128)
+            hierarchy_mean: torch.Tensor (dim=128)
+            Returns:
+                meta_field: torch.Tensor
+                history: list[torch.Tensor]
+            """
+            try:
+                import torch
+                
+                # Normalize all inputs
+                m = manifold_vec / (torch.norm(manifold_vec) + 1e-8)
+                l = loop_signal / (torch.norm(loop_signal) + 1e-8)
+                h = hierarchy_mean / (torch.norm(hierarchy_mean) + 1e-8)
+                
+                # Initial scaffold field = weighted fusion of major system signals
+                meta_field = (
+                    0.45 * m +
+                    0.35 * l +
+                    0.20 * h
+                )
+                meta_field = meta_field / (torch.norm(meta_field) + 1e-8)
+                
+                # Add to history buffer
+                self.history.append(meta_field.clone())
+                if len(self.history) > 10:
+                    self.history.pop(0)
+                
+                return meta_field, self.history
+            except Exception:
+                # Return zero field and empty history on error
+                try:
+                    import torch
+                    return torch.zeros(self.dim, dtype=torch.float32), []
+                except Exception:
+                    return None, []
+
+    class MetaFieldInteractionKernel:
+        """
+        A314 — Meta-Field Interaction Kernel Initialization
+        
+        Extracts interaction patterns from the meta-field, producing interaction signatures
+        and kernel-driven modulation vectors for resonance formation.
+        """
+        
+        def __init__(self, dim=128):
+            self.dim = dim
+        
+        def compute_kernel(self, meta_field, history):
+            """
+            meta_field: torch.Tensor (dim=128)
+            history: list[torch.Tensor]
+            Returns:
+                kernel_vector: torch.Tensor
+                interaction_signature: dict
+            """
+            try:
+                import torch
+                
+                m = meta_field / (torch.norm(meta_field) + 1e-8)
+                
+                # Historical influence term
+                if history and len(history) > 0:
+                    hist_stack = torch.stack(history)
+                    hist_mean = torch.mean(hist_stack, dim=0)
+                    hist_mean = hist_mean / (torch.norm(hist_mean) + 1e-8)
+                else:
+                    hist_mean = m.clone()
+                
+                # Interaction components
+                cosine_sim = torch.dot(m, hist_mean).item()
+                
+                # Nonlinear transform to reveal deeper structure
+                nonlinear = torch.tanh(m * 1.75)
+                
+                # Kernel fusion
+                kernel_vec = (
+                    0.55 * m +
+                    0.30 * hist_mean +
+                    0.15 * nonlinear
+                )
+                kernel_vec = kernel_vec / (torch.norm(kernel_vec) + 1e-8)
+                
+                # interaction signature for logs and routing
+                interaction_signature = {
+                    "cosine_similarity": cosine_sim,
+                    "nonlinear_preview": nonlinear[:8].tolist()
+                }
+                
+                return kernel_vec, interaction_signature
+            except Exception:
+                # Return zero kernel and empty signature on error
+                try:
+                    import torch
+                    return torch.zeros(self.dim, dtype=torch.float32), {
+                        "cosine_similarity": 0.0,
+                        "nonlinear_preview": [0.0] * 8
+                    }
+                except Exception:
+                    return None, {
+                        "cosine_similarity": 0.0,
+                        "nonlinear_preview": [0.0] * 8
+                    }
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -19605,6 +19769,18 @@ class NeuralBridge:
             else:
                 if getattr(self.manifold_hierarchy_loop, "dim", dim) != dim:
                     self.manifold_hierarchy_loop = self.RecursiveManifoldHierarchyFeedback(dim=dim)
+            
+            if self.meta_field_scaffold is None:
+                self.meta_field_scaffold = self.MetaFieldInitializationScaffold(dim=dim)
+            else:
+                if getattr(self.meta_field_scaffold, "dim", dim) != dim:
+                    self.meta_field_scaffold = self.MetaFieldInitializationScaffold(dim=dim)
+            
+            if self.meta_field_kernel is None:
+                self.meta_field_kernel = self.MetaFieldInteractionKernel(dim=dim)
+            else:
+                if getattr(self.meta_field_kernel, "dim", dim) != dim:
+                    self.meta_field_kernel = self.MetaFieldInteractionKernel(dim=dim)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
