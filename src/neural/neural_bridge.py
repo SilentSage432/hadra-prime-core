@@ -1736,6 +1736,8 @@ class NeuralBridge:
             self.predictive_hierarchy = None
             self.hierarchical_manifold_fusion_layer = None
             self.predictive_manifold = None
+            self.manifold_interaction_engine = None
+            self.manifold_interaction_signature = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2960,6 +2962,46 @@ class NeuralBridge:
                                                                                                                                             if hierarchy is not None:
                                                                                                                                                 internal_state["predictive_hierarchy"] = [h.tolist() for h in hierarchy]
                                                                                                                                                 self.predictive_hierarchy = hierarchy
+                                                                                                                                            # A306 — Hierarchical Manifold Fusion Layer
+                                                                                                                                            try:
+                                                                                                                                                if "predictive_hierarchy" in internal_state:
+                                                                                                                                                    hierarchy = [torch.tensor(vec) for vec in internal_state["predictive_hierarchy"]]
+                                                                                                                                                    fused_manifold = self.hierarchical_manifold_fusion_layer.fuse(hierarchy)
+                                                                                                                                                else:
+                                                                                                                                                    fused_manifold = None
+                                                                                                                                            except Exception:
+                                                                                                                                                fused_manifold = None
+                                                                                                                                            if fused_manifold is not None:
+                                                                                                                                                internal_state["predictive_manifold"] = fused_manifold.tolist()
+                                                                                                                                                self.predictive_manifold = fused_manifold
+                                                                                                                                            # A307 — Manifold Interaction Dynamics Engine
+                                                                                                                                            try:
+                                                                                                                                                if "predictive_manifold" in internal_state:
+                                                                                                                                                    manifold_tensor = torch.tensor(internal_state["predictive_manifold"])
+                                                                                                                                                    interactions = self.manifold_interaction_engine.compute_interactions(manifold_tensor)
+                                                                                                                                                else:
+                                                                                                                                                    interactions = None
+                                                                                                                                            except Exception:
+                                                                                                                                                interactions = None
+                                                                                                                                            if interactions:
+                                                                                                                                                internal_state["manifold_interactions"] = {
+                                                                                                                                                    "signature": interactions["interaction_signature"].tolist(),
+                                                                                                                                                    "gradient_norm": float(interactions["gradient_norm"]),
+                                                                                                                                                    "preview": interactions["nonlinear_preview"]
+                                                                                                                                                }
+                                                                                                                                                self.manifold_interaction_signature = interactions["interaction_signature"]
+                                                                                                                                            # A306 — Hierarchical Manifold Fusion Layer
+                                                                                                                                            try:
+                                                                                                                                                if "predictive_hierarchy" in internal_state:
+                                                                                                                                                    hierarchy = [torch.tensor(vec) for vec in internal_state["predictive_hierarchy"]]
+                                                                                                                                                    fused_manifold = self.hierarchical_manifold_fusion_layer.fuse(hierarchy)
+                                                                                                                                                else:
+                                                                                                                                                    fused_manifold = None
+                                                                                                                                            except Exception:
+                                                                                                                                                fused_manifold = None
+                                                                                                                                            if fused_manifold is not None:
+                                                                                                                                                internal_state["predictive_manifold"] = fused_manifold.tolist()
+                                                                                                                                                self.predictive_manifold = fused_manifold
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -19069,6 +19111,84 @@ class NeuralBridge:
             except Exception:
                 return None
 
+    class HierarchicalManifoldFusionLayer:
+        """
+        A306 — Hierarchical Manifold Fusion Layer
+        """
+        
+        def __init__(self, dim=128):
+            self.dim = dim
+        
+        def fuse(self, hierarchy):
+            """
+            hierarchy: list[torch.Tensor] (each dim=128)
+            Returns: fused manifold vector (dim=128)
+            """
+            try:
+                import torch
+                if hierarchy is None or len(hierarchy) == 0:
+                    return None
+                
+                tensors = [h.clone() for h in hierarchy]
+                stack = torch.stack(tensors)
+                
+                correlation = torch.matmul(stack, stack.T)
+                correlation = correlation / (torch.norm(stack, dim=1).unsqueeze(1) + 1e-8)
+                
+                weights = torch.softmax(correlation.sum(dim=1), dim=0)
+                
+                fused = torch.zeros(self.dim)
+                for w, h in zip(weights, tensors):
+                    fused += w * h
+                
+                fused = fused / torch.norm(fused)
+                return fused
+            except Exception:
+                return None
+
+    class ManifoldInteractionDynamicsEngine:
+        """
+        A307 — Manifold Interaction Dynamics Engine
+        """
+        
+        def __init__(self, dim=128):
+            self.dim = dim
+        
+        def compute_interactions(self, manifold):
+            """
+            manifold: torch.Tensor (dim=128)
+            Returns: dict with interaction signatures
+            """
+            try:
+                import torch
+                if manifold is None:
+                    return None
+                
+                v = manifold.clone()
+                
+                nonlinear_1 = torch.tanh(v)
+                nonlinear_2 = torch.sin(v)
+                nonlinear_3 = v * torch.exp(-torch.abs(v))
+                
+                grad_approx = v[1:] - v[:-1]
+                grad_norm = torch.norm(grad_approx)
+                
+                interaction_signature = (
+                    nonlinear_1 * 0.4 +
+                    nonlinear_2 * 0.3 +
+                    nonlinear_3 * 0.3
+                )
+                
+                interaction_signature = interaction_signature / torch.norm(interaction_signature)
+                
+                return {
+                    "interaction_signature": interaction_signature,
+                    "gradient_norm": grad_norm,
+                    "nonlinear_preview": nonlinear_1[:8].tolist()
+                }
+            except Exception:
+                return None
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -19117,6 +19237,18 @@ class NeuralBridge:
             else:
                 if getattr(self.hierarchical_expansion_engine, "dim", dim) != dim:
                     self.hierarchical_expansion_engine = self.HierarchicalPredictiveFieldExpansionEngine(dim=dim)
+            
+            if self.hierarchical_manifold_fusion_layer is None:
+                self.hierarchical_manifold_fusion_layer = self.HierarchicalManifoldFusionLayer(dim=dim)
+            else:
+                if getattr(self.hierarchical_manifold_fusion_layer, "dim", dim) != dim:
+                    self.hierarchical_manifold_fusion_layer = self.HierarchicalManifoldFusionLayer(dim=dim)
+            
+            if self.manifold_interaction_engine is None:
+                self.manifold_interaction_engine = self.ManifoldInteractionDynamicsEngine(dim=dim)
+            else:
+                if getattr(self.manifold_interaction_engine, "dim", dim) != dim:
+                    self.manifold_interaction_engine = self.ManifoldInteractionDynamicsEngine(dim=dim)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
