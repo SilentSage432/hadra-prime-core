@@ -3356,7 +3356,7 @@ class NeuralBridge:
                                                                                                                                                     if hasattr(self, 'fused_density_vector') and self.fused_density_vector is not None:
                                                                                                                                                         other_manifolds.append(self.fused_density_vector)
                                                                                                                                                     
-                                                                                                                                                    if other_manifolds:
+                                                                                                                                                    if other_manifolds and hasattr(self, 'predictive_cross_align') and self.predictive_cross_align is not None:
                                                                                                                                                         updated_predictive, mean_alignment = self.predictive_cross_align.forward(
                                                                                                                                                             predictive_field,
                                                                                                                                                             *other_manifolds
