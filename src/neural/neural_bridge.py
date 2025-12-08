@@ -1756,6 +1756,8 @@ class NeuralBridge:
             self.meta_field_resonance_precursor = None
             self.meta_field_resonance_precursor_vec = None
             self.meta_field_resonance_info = None
+            self.resonant_kernel_coupler = None
+            self.meta_field_resonance_feedback = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -3165,6 +3167,28 @@ class NeuralBridge:
                                                                                                                                                     # persist
                                                                                                                                                     self.meta_field_resonance_precursor_vec = precursor
                                                                                                                                                     self.meta_field_resonance_info = resonance_info
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # A316 — Resonant Interaction Kernel Coupling Layer
+                                                                                                                                            try:
+                                                                                                                                                if (
+                                                                                                                                                    "meta_field_kernel" in internal_state and
+                                                                                                                                                    "meta_field_resonance_precursor" in internal_state and
+                                                                                                                                                    "meta_field_resonance_info" in internal_state
+                                                                                                                                                ):
+                                                                                                                                                    kernel_vec = torch.tensor(internal_state["meta_field_kernel"])
+                                                                                                                                                    precursor_vec = torch.tensor(internal_state["meta_field_resonance_precursor"])
+                                                                                                                                                    resonance_info = internal_state["meta_field_resonance_info"]
+                                                                                                                                                    coupled_kernel, feedback_signal = self.resonant_kernel_coupler.couple(
+                                                                                                                                                        kernel_vec,
+                                                                                                                                                        precursor_vec,
+                                                                                                                                                        resonance_info
+                                                                                                                                                    )
+                                                                                                                                                    internal_state["meta_field_kernel"] = coupled_kernel.tolist()
+                                                                                                                                                    internal_state["meta_field_resonance_feedback"] = feedback_signal.tolist()
+                                                                                                                                                    # persist for next phases
+                                                                                                                                                    self.meta_field_kernel_vector = coupled_kernel
+                                                                                                                                                    self.meta_field_resonance_feedback = feedback_signal
                                                                                                                                             except Exception:
                                                                                                                                                 pass
                                                                                                                     
@@ -19773,6 +19797,60 @@ class NeuralBridge:
                         "oscillation_preview": [0.0] * 8
                     }
 
+    class ResonantInteractionKernelCoupling:
+        """
+        A316 — Resonant Interaction Kernel Coupling Layer
+        
+        Creates bidirectional coupling between the kernel and resonance precursor,
+        enabling resonant-coupled kernel dynamics.
+        """
+        
+        def __init__(self, dim=128, coupling_strength=0.33):
+            self.dim = dim
+            self.coupling_strength = coupling_strength
+        
+        def couple(self, kernel_vec, precursor_vec, resonance_info):
+            """
+            kernel_vec: torch.Tensor
+            precursor_vec: torch.Tensor
+            resonance_info: dict (contains oscillation & nonlinear factors)
+            Returns:
+                combined: torch.Tensor
+                feedback_signal: torch.Tensor
+            """
+            try:
+                import torch
+                
+                k = kernel_vec / (torch.norm(kernel_vec) + 1e-8)
+                r = precursor_vec / (torch.norm(precursor_vec) + 1e-8)
+                
+                # Extract resonance factors
+                sim_factor = resonance_info.get("similarity_factor", 0.0)
+                nl_factor = resonance_info.get("nonlinear_factor", 0.0)
+                
+                # Derive coupling coefficient
+                coupling_coeff = torch.tanh(torch.tensor(sim_factor + nl_factor, dtype=torch.float32)) * self.coupling_strength
+                
+                # Combine kernel and resonance precursor
+                combined = (
+                    (1 - coupling_coeff) * k +
+                    coupling_coeff * r
+                )
+                combined = combined / (torch.norm(combined) + 1e-8)
+                
+                # Feedback signal for future phases
+                feedback_signal = (k - r) * coupling_coeff
+                feedback_signal = feedback_signal / (torch.norm(feedback_signal) + 1e-8)
+                
+                return combined, feedback_signal
+            except Exception:
+                # Return original kernel and zero feedback on error
+                try:
+                    import torch
+                    return kernel_vec, torch.zeros(self.dim, dtype=torch.float32)
+                except Exception:
+                    return kernel_vec, None
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -19881,6 +19959,12 @@ class NeuralBridge:
             else:
                 if getattr(self.meta_field_resonance_precursor, "dim", dim) != dim:
                     self.meta_field_resonance_precursor = self.MetaFieldResonancePrecursor(dim=dim)
+            
+            if self.resonant_kernel_coupler is None:
+                self.resonant_kernel_coupler = self.ResonantInteractionKernelCoupling(dim=dim)
+            else:
+                if getattr(self.resonant_kernel_coupler, "dim", dim) != dim:
+                    self.resonant_kernel_coupler = self.ResonantInteractionKernelCoupling(dim=dim)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
