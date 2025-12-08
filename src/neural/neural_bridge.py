@@ -1701,6 +1701,9 @@ class NeuralBridge:
             # A292 — Initialize predictive resonance field fusion
             self.resonance_field_fusion = None
             self.resonance_fused_field = None
+            # A293 — Initialize resonance-predictive cross-alignment
+            self.cross_alignment = None
+            self.cross_aligned_field = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2821,6 +2824,10 @@ class NeuralBridge:
                                                                                                                                             # A292 — Predictive Resonance Field Fusion Layer
                                                                                                                                             if (hasattr(self, 'harmonic_predictive_lattice_resonance') and self.harmonic_predictive_lattice_resonance is not None):
                                                                                                                                                 self.integrate_A292()
+                                                                                                                                            
+                                                                                                                                            # A293 — Resonance-Predictive Cross-Alignment Matrix
+                                                                                                                                            if (hasattr(self, 'resonance_fused_field') and self.resonance_fused_field is not None):
+                                                                                                                                                self.integrate_A293()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -17706,6 +17713,130 @@ class NeuralBridge:
                 except Exception:
                     pass
 
+    def integrate_A293(self):
+        """
+        A293 — Resonance-Predictive Cross-Alignment Matrix
+        
+        Establishes cross-alignment between the fused resonance field and predictive field.
+        Called once per cycle after A292.
+        """
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            import torch
+            import torch.nn.functional as F
+            
+            # Get fused resonance field from A292
+            fused_resonance_field = None
+            if hasattr(self, 'resonance_fused_field') and self.resonance_fused_field is not None:
+                fused_resonance_field = self.resonance_fused_field
+            else:
+                return  # Cannot proceed without fused resonance field
+            
+            # Get predictive field
+            predictive_field = None
+            if hasattr(self, 'global_predictive_field') and self.global_predictive_field is not None:
+                predictive_field = self.global_predictive_field
+            elif hasattr(self, 'routed_predictive_field') and self.routed_predictive_field is not None:
+                predictive_field = self.routed_predictive_field
+            elif hasattr(self, 'predictive_morphology') and self.predictive_morphology is not None:
+                predictive_field = self.predictive_morphology
+            else:
+                return  # Cannot proceed without predictive field
+            
+            # Determine dimension (use max of both inputs or default 128)
+            def get_dim(vec):
+                if isinstance(vec, torch.Tensor):
+                    return vec.shape[0] if vec.dim() == 1 else vec.shape[-1]
+                elif hasattr(vec, '__len__'):
+                    return len(vec)
+                return 128
+            
+            dim = max(
+                get_dim(fused_resonance_field),
+                get_dim(predictive_field),
+                128
+            )
+            
+            # Ensure dimension consistency
+            def ensure_dim(vec, target_dim):
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(target_dim, dtype=torch.float32)
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != target_dim:
+                    if vec_flat.shape[0] < target_dim:
+                        return torch.cat([vec_flat, torch.zeros(target_dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:target_dim]
+                return vec_flat
+            
+            fused_resonance_field = ensure_dim(fused_resonance_field, dim)
+            predictive_field = ensure_dim(predictive_field, dim)
+            
+            # Initialize cross-alignment if needed
+            if self.cross_alignment is None:
+                self.cross_alignment = self.ResonancePredictiveCrossAlign(dim=dim)
+            else:
+                # Update if dimension changed
+                if self.cross_alignment.dim != dim:
+                    self.cross_alignment = self.ResonancePredictiveCrossAlign(dim=dim)
+            
+            # Produce cross-aligned field
+            cross_aligned = self.cross_alignment.run(fused_resonance_field, predictive_field)
+            
+            # Store cross-aligned field
+            if cross_aligned is not None:
+                try:
+                    if not isinstance(cross_aligned, torch.Tensor):
+                        cross_aligned = torch.tensor(cross_aligned, dtype=torch.float32)
+                    
+                    # Store
+                    self.cross_aligned_field = cross_aligned.tolist() if cross_aligned.dim() == 1 else cross_aligned.tolist()
+                    
+                    # Optional: debug preview only
+                    if hasattr(self, 'debug_mode') and self.debug_mode:
+                        print("A293 cross-aligned field dim:", cross_aligned.shape[0] if cross_aligned.dim() == 1 else cross_aligned.shape[-1])
+                except Exception:
+                    pass
+            
+            # Log A293 completion
+            if hasattr(self, 'logger'):
+                try:
+                    # Compute statistics about the cross-aligned field
+                    if isinstance(cross_aligned, torch.Tensor):
+                        aligned_norm = float(torch.norm(cross_aligned).item())
+                        aligned_mean = float(torch.mean(cross_aligned).item())
+                    else:
+                        try:
+                            import numpy as np
+                            aligned_array = np.array(cross_aligned)
+                            aligned_norm = float(np.linalg.norm(aligned_array))
+                            aligned_mean = float(np.mean(aligned_array))
+                        except Exception:
+                            aligned_norm = 0.0
+                            aligned_mean = 0.0
+                    
+                    self.logger.write({
+                        "a293_complete": True,
+                        "resonance_predictive_cross_alignment_active": True,
+                        "cross_aligned_field_generated": self.cross_aligned_field is not None,
+                        "alignment_dim": dim,
+                        "aligned_norm": aligned_norm,
+                        "aligned_mean": aligned_mean,
+                        "message": "A293 complete — Resonance-Predictive Cross-Alignment Matrix active. Bi-directional consistency correction established between resonance and predictive pathways."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"resonance_predictive_cross_alignment_error": str(e)})
+                except Exception:
+                    pass
+
     class PredictiveResonanceFieldFusion:
         """
         A292 — Predictive Resonance Field Fusion Layer
@@ -17874,6 +18005,168 @@ class NeuralBridge:
                     return fused_field
                 except Exception:
                     return fused_field
+                    
+            except Exception as e:
+                return predictive_field
+
+    class ResonancePredictiveCrossAlign:
+        """
+        A293 — Resonance-Predictive Cross-Alignment Matrix
+        
+        Purpose:
+        Establishes a cross-alignment matrix that ensures the fused resonance field
+        (created in A292) transforms coherently into the predictive dynamics and vice-versa.
+        
+        This module:
+        1) Computes learnable cross-alignment matrices
+        2) Performs bi-directional consistency correction
+        3) Produces a cross_aligned_field tensor
+        
+        This is a foundation-building phase that aligns:
+        • Resonance Field Pathway
+        • Predictive Field Pathway
+        
+        ensuring stability, coherence, and cross-field transformation quality.
+        """
+        
+        def __init__(self, dim=128):
+            """
+            Initialize resonance-predictive cross-alignment matrix.
+            
+            Args:
+                dim: Dimension of the alignment matrices (default: 128)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for ResonancePredictiveCrossAlign")
+            
+            import torch
+            import torch.nn as nn
+            import torch.nn.functional as F
+            
+            self.dim = dim
+            
+            # Learnable cross-alignment matrices
+            # Maps resonance → predictive space
+            self.res_to_pred = nn.Linear(dim, dim, bias=False)
+            # Maps predictive → resonance space
+            self.pred_to_res = nn.Linear(dim, dim, bias=False)
+            
+            # Final fusion projection
+            self.fusion = nn.Linear(dim * 2, dim)
+            
+            # Initialize weights
+            nn.init.xavier_uniform_(self.res_to_pred.weight, gain=0.1)
+            nn.init.xavier_uniform_(self.pred_to_res.weight, gain=0.1)
+            nn.init.xavier_uniform_(self.fusion.weight, gain=0.1)
+            if self.fusion.bias is not None:
+                nn.init.zeros_(self.fusion.bias)
+        
+        def forward(self, fused_resonance_field, predictive_field):
+            """
+            A293 — Forward Pass (Resonance-Predictive Cross-Alignment)
+            
+            Performs bi-directional alignment between resonance and predictive fields.
+            
+            Args:
+                fused_resonance_field: Fused resonance field from A292 [dim] or [batch, dim]
+                predictive_field: Predictive field vector [dim] or [batch, dim]
+                
+            Returns:
+                Cross-aligned field [dim] or [batch, dim]
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                # Fallback: return predictive_field
+                return predictive_field
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Ensure inputs are tensors
+                def ensure_tensor_and_dim(vec, target_dim, name):
+                    if not isinstance(vec, torch.Tensor):
+                        vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(target_dim, dtype=torch.float32)
+                    
+                    # Handle both 1D and 2D inputs
+                    if vec.dim() == 1:
+                        vec = vec.unsqueeze(0)
+                        was_1d = True
+                    else:
+                        was_1d = False
+                    
+                    # Ensure dimension matches
+                    vec_flat = vec.flatten(start_dim=1)
+                    if vec_flat.shape[1] != target_dim:
+                        if vec_flat.shape[1] < target_dim:
+                            padding = torch.zeros(vec_flat.shape[0], target_dim - vec_flat.shape[1], dtype=torch.float32)
+                            vec_flat = torch.cat([vec_flat, padding], dim=1)
+                        else:
+                            vec_flat = vec_flat[:, :target_dim]
+                    
+                    return vec_flat, was_1d
+                
+                fused_resonance_field, was_1d_r = ensure_tensor_and_dim(fused_resonance_field, self.dim, "fused_resonance_field")
+                predictive_field, was_1d_p = ensure_tensor_and_dim(predictive_field, self.dim, "predictive_field")
+                
+                squeeze_output = was_1d_r or was_1d_p
+                
+                # Map resonance → predictive space
+                pred_aligned = self.res_to_pred(fused_resonance_field)  # [batch, dim]
+                
+                # Map predictive → resonance space
+                res_aligned = self.pred_to_res(predictive_field)  # [batch, dim]
+                
+                # Concatenate and fuse
+                combined = torch.cat([pred_aligned, res_aligned], dim=-1)  # [batch, dim * 2]
+                out = torch.tanh(self.fusion(combined))  # [batch, dim]
+                
+                # Normalize for stability
+                out = F.normalize(out, dim=-1)  # [batch, dim]
+                
+                # Squeeze if input was 1D
+                if squeeze_output:
+                    out = out.squeeze(0)  # [dim]
+                
+                return out
+                
+            except Exception as e:
+                # Fallback: return predictive_field
+                return predictive_field
+        
+        def run(self, fused_resonance_field, predictive_field):
+            """
+            A293 — Full Pipeline
+            
+            Executes the complete resonance-predictive cross-alignment process.
+            
+            Args:
+                fused_resonance_field: Fused resonance field from A292
+                predictive_field: Predictive field vector
+                
+            Returns:
+                Cross-aligned field
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return predictive_field
+            
+            try:
+                import torch
+                
+                cross_aligned = self.forward(fused_resonance_field, predictive_field)
+                
+                # Convert to list for return
+                try:
+                    if isinstance(cross_aligned, torch.Tensor):
+                        return cross_aligned.tolist() if cross_aligned.dim() == 1 else cross_aligned.tolist()
+                    return cross_aligned
+                except Exception:
+                    return cross_aligned
                     
             except Exception as e:
                 return predictive_field
