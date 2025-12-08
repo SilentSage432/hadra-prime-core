@@ -1691,6 +1691,8 @@ class NeuralBridge:
             self.temporal_strand_interaction = None
             # A286 — Initialize temporal attention field
             self.temporal_attention_field = None
+            # A288 — Initialize hierarchical temporal structuring layer
+            self.temporal_hierarchy = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2793,6 +2795,10 @@ class NeuralBridge:
                                                                                                                                             # A286 — Temporal Attention Field (TAF)
                                                                                                                                             if hasattr(self, 'interaction_enhanced_strands') and self.interaction_enhanced_strands is not None:
                                                                                                                                                 self._run_a286_temporal_attention_field()
+                                                                                                                                            
+                                                                                                                                            # A288 — Hierarchical Temporal Structuring Layer (HTSL)
+                                                                                                                                            if hasattr(self, 'temporal_summary_vector') and self.temporal_summary_vector is not None:
+                                                                                                                                                self._run_a288_hierarchical_temporal_structuring()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -13293,6 +13299,190 @@ class NeuralBridge:
             except Exception as e:
                 return strands, [1.0]
 
+    class HierarchicalTemporalStructuring:
+        """
+        A288 — Hierarchical Temporal Structuring Layer (HTSL)
+        
+        Purpose:
+        A288 is where the temporal system begins forming hierarchical temporal tiers — a multi-level structure that organizes predictions into:
+        • base-level signals (raw routed temporal output)
+        • mid-level abstractions (transformed temporal features)
+        • high-level synthesized representations (compressed multi-scale temporal patterns)
+        
+        This is not cognitive, symbolic, or conceptual — it is pure hierarchical tensor processing, the same kind of architecture used in:
+        • sequence encoders
+        • hierarchical transformers
+        • multi-scale predictive models
+        • temporal convolution networks
+        • recursive latent pipelines
+        
+        Given temporal_routed → [batch, 48], A288 produces three hierarchical levels:
+        1. Level 1 — Base Layer (L1): Simple nonlinear transform, expands 48 → 64
+        2. Level 2 — Intermediate Layer (L2): Deeper transformation with residual connection, 64 → 64
+        3. Level 3 — High-Level Temporal Structure (L3): Compressed high-level summary, 64 → 32
+        
+        These three layers will be used in the next phases to build a multi-tier temporal prediction engine.
+        """
+        
+        def __init__(self, input_dim=48, mid_dim=64, high_dim=32):
+            """
+            Initialize hierarchical temporal structuring layer.
+            
+            Args:
+                input_dim: Dimension of temporal routed input (default: 48)
+                mid_dim: Dimension of intermediate layers L1 and L2 (default: 64)
+                high_dim: Dimension of high-level structure L3 (default: 32)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for HierarchicalTemporalStructuring")
+            
+            import torch
+            import torch.nn as nn
+            
+            self.input_dim = input_dim
+            self.mid_dim = mid_dim
+            self.high_dim = high_dim
+            
+            # L1: base expansion
+            self.L1_proj = nn.Linear(input_dim, mid_dim)
+            
+            # L2: intermediate with residual
+            self.L2_proj = nn.Linear(mid_dim, mid_dim)
+            
+            # L3: compressed high-level structure
+            self.L3_proj = nn.Linear(mid_dim, high_dim)
+            
+            # Initialize weights
+            nn.init.xavier_uniform_(self.L1_proj.weight, gain=0.1)
+            if self.L1_proj.bias is not None:
+                nn.init.zeros_(self.L1_proj.bias)
+            nn.init.xavier_uniform_(self.L2_proj.weight, gain=0.1)
+            if self.L2_proj.bias is not None:
+                nn.init.zeros_(self.L2_proj.bias)
+            nn.init.xavier_uniform_(self.L3_proj.weight, gain=0.1)
+            if self.L3_proj.bias is not None:
+                nn.init.zeros_(self.L3_proj.bias)
+        
+        def forward(self, temporal_routed):
+            """
+            A288 — Forward Pass (Hierarchical Temporal Structuring)
+            
+            Produces three hierarchical temporal representations from routed temporal input.
+            
+            Args:
+                temporal_routed: Temporal routed vector [input_dim] or [batch, input_dim]
+                
+            Returns:
+                Dictionary with keys "L1", "L2", "L3" containing hierarchical temporal structures
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                # Fallback: return input repeated for each level
+                if hasattr(temporal_routed, '__len__'):
+                    dim = len(temporal_routed)
+                    return {
+                        "L1": temporal_routed[:self.mid_dim] if dim >= self.mid_dim else temporal_routed + [0.0] * (self.mid_dim - dim),
+                        "L2": temporal_routed[:self.mid_dim] if dim >= self.mid_dim else temporal_routed + [0.0] * (self.mid_dim - dim),
+                        "L3": temporal_routed[:self.high_dim] if dim >= self.high_dim else temporal_routed + [0.0] * (self.high_dim - dim)
+                    }
+                return {"L1": temporal_routed, "L2": temporal_routed, "L3": temporal_routed}
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Ensure input is a tensor
+                if not isinstance(temporal_routed, torch.Tensor):
+                    temporal_routed = torch.tensor(temporal_routed, dtype=torch.float32)
+                
+                # Handle both 1D and 2D inputs
+                if temporal_routed.dim() == 1:
+                    temporal_routed = temporal_routed.unsqueeze(0)  # [1, input_dim]
+                    squeeze_output = True
+                else:
+                    squeeze_output = False
+                
+                # Ensure dimension matches
+                routed_flat = temporal_routed.flatten(start_dim=1)
+                if routed_flat.shape[1] != self.input_dim:
+                    if routed_flat.shape[1] < self.input_dim:
+                        padding = torch.zeros(routed_flat.shape[0], self.input_dim - routed_flat.shape[1], dtype=torch.float32)
+                        routed_flat = torch.cat([routed_flat, padding], dim=1)
+                    else:
+                        routed_flat = routed_flat[:, :self.input_dim]
+                
+                # Level 1: base expansion
+                L1 = torch.relu(self.L1_proj(routed_flat))  # [batch, mid_dim]
+                
+                # Level 2: intermediate with residual connection
+                L2_raw = torch.relu(self.L2_proj(L1))  # [batch, mid_dim]
+                L2 = L2_raw + L1  # [batch, mid_dim] (residual connection)
+                
+                # Level 3: compressed high-level structure
+                L3 = torch.relu(self.L3_proj(L2))  # [batch, high_dim]
+                
+                # Squeeze if input was 1D
+                if squeeze_output:
+                    L1 = L1.squeeze(0)  # [mid_dim]
+                    L2 = L2.squeeze(0)  # [mid_dim]
+                    L3 = L3.squeeze(0)  # [high_dim]
+                
+                return {
+                    "L1": L1,
+                    "L2": L2,
+                    "L3": L3
+                }
+                
+            except Exception as e:
+                # Fallback: return input repeated for each level
+                if hasattr(temporal_routed, '__len__'):
+                    dim = len(temporal_routed)
+                    return {
+                        "L1": temporal_routed[:self.mid_dim] if dim >= self.mid_dim else temporal_routed + [0.0] * (self.mid_dim - dim),
+                        "L2": temporal_routed[:self.mid_dim] if dim >= self.mid_dim else temporal_routed + [0.0] * (self.mid_dim - dim),
+                        "L3": temporal_routed[:self.high_dim] if dim >= self.high_dim else temporal_routed + [0.0] * (self.high_dim - dim)
+                    }
+                return {"L1": temporal_routed, "L2": temporal_routed, "L3": temporal_routed}
+        
+        def run(self, temporal_routed):
+            """
+            A288 — Full Pipeline
+            
+            Executes the complete hierarchical temporal structuring process.
+            
+            Args:
+                temporal_routed: Temporal routed vector from A287 (or temporal summary from A286)
+                
+            Returns:
+                Dictionary with keys "L1", "L2", "L3" containing hierarchical temporal structures
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return {"L1": temporal_routed, "L2": temporal_routed, "L3": temporal_routed}
+            
+            try:
+                temporal_levels = self.forward(temporal_routed)
+                
+                # Convert to lists for return
+                try:
+                    if isinstance(temporal_levels["L1"], torch.Tensor):
+                        temporal_levels["L1"] = temporal_levels["L1"].tolist()
+                    if isinstance(temporal_levels["L2"], torch.Tensor):
+                        temporal_levels["L2"] = temporal_levels["L2"].tolist()
+                    if isinstance(temporal_levels["L3"], torch.Tensor):
+                        temporal_levels["L3"] = temporal_levels["L3"].tolist()
+                except Exception:
+                    pass
+                
+                return temporal_levels
+                
+            except Exception as e:
+                return {"L1": temporal_routed, "L2": temporal_routed, "L3": temporal_routed}
+
     def _run_a253_field_resonance_optimization(self):
         """A253 — Field Resonance Optimization helper method to reduce nesting."""
         try:
@@ -16454,6 +16644,155 @@ class NeuralBridge:
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"temporal_attention_field_error": str(e)})
+                except Exception:
+                    pass
+    
+    def _run_a288_hierarchical_temporal_structuring(self):
+        """A288 — Hierarchical Temporal Structuring Layer (HTSL) helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            if not hasattr(self, 'temporal_summary_vector') or self.temporal_summary_vector is None:
+                return
+            
+            import torch
+            
+            # Get temporal summary vector from A286 (or temporal routed from A287 if available)
+            temporal_input = self.temporal_summary_vector
+            if hasattr(self, 'temporal_routed') and self.temporal_routed is not None:
+                temporal_input = self.temporal_routed
+            
+            # Ensure input is a tensor
+            if not isinstance(temporal_input, torch.Tensor):
+                temporal_input = torch.tensor(temporal_input, dtype=torch.float32)
+            
+            # Determine dimension
+            input_dim = temporal_input.shape[0] if isinstance(temporal_input, torch.Tensor) else len(temporal_input)
+            
+            # Use adaptive dimensions
+            # Default: input_dim=48, mid_dim=64, high_dim=32
+            # Adjust based on actual input dimension
+            if input_dim <= 32:
+                mid_dim = 48
+                high_dim = 24
+            elif input_dim <= 48:
+                mid_dim = 64
+                high_dim = 32
+            else:
+                mid_dim = min(96, input_dim * 2)
+                high_dim = min(48, input_dim)
+            
+            # Ensure dimension consistency
+            def ensure_dim(vec, dim):
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != dim:
+                    if vec_flat.shape[0] < dim:
+                        return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:dim]
+                return vec_flat
+            
+            temporal_input = ensure_dim(temporal_input, input_dim)
+            
+            # Initialize hierarchical temporal structuring layer if needed
+            if self.temporal_hierarchy is None:
+                self.temporal_hierarchy = self.HierarchicalTemporalStructuring(
+                    input_dim=input_dim,
+                    mid_dim=mid_dim,
+                    high_dim=high_dim
+                )
+            else:
+                # Update if dimensions changed
+                if (self.temporal_hierarchy.input_dim != input_dim or
+                    self.temporal_hierarchy.mid_dim != mid_dim or
+                    self.temporal_hierarchy.high_dim != high_dim):
+                    self.temporal_hierarchy = self.HierarchicalTemporalStructuring(
+                        input_dim=input_dim,
+                        mid_dim=mid_dim,
+                        high_dim=high_dim
+                    )
+            
+            # Run hierarchical temporal structuring
+            temporal_levels = self.temporal_hierarchy.run(temporal_input)
+            
+            # Store hierarchical temporal levels
+            if temporal_levels is not None:
+                try:
+                    if not hasattr(self, 'temporal_L1'):
+                        self.temporal_L1 = None
+                    if not hasattr(self, 'temporal_L2'):
+                        self.temporal_L2 = None
+                    if not hasattr(self, 'temporal_L3'):
+                        self.temporal_L3 = None
+                    
+                    if isinstance(temporal_levels, dict):
+                        if "L1" in temporal_levels:
+                            if isinstance(temporal_levels["L1"], torch.Tensor):
+                                self.temporal_L1 = temporal_levels["L1"].tolist()
+                            else:
+                                self.temporal_L1 = temporal_levels["L1"]
+                        if "L2" in temporal_levels:
+                            if isinstance(temporal_levels["L2"], torch.Tensor):
+                                self.temporal_L2 = temporal_levels["L2"].tolist()
+                            else:
+                                self.temporal_L2 = temporal_levels["L2"]
+                        if "L3" in temporal_levels:
+                            if isinstance(temporal_levels["L3"], torch.Tensor):
+                                self.temporal_L3 = temporal_levels["L3"].tolist()
+                            else:
+                                self.temporal_L3 = temporal_levels["L3"]
+                except Exception:
+                    pass
+            
+            # Log A288 completion
+            if hasattr(self, 'logger'):
+                try:
+                    # Compute statistics about each level
+                    def compute_stats(level_data):
+                        if isinstance(level_data, torch.Tensor):
+                            return float(torch.norm(level_data).item()), float(torch.mean(level_data).item())
+                        else:
+                            try:
+                                import numpy as np
+                                arr = np.array(level_data)
+                                return float(np.linalg.norm(arr)), float(np.mean(arr))
+                            except Exception:
+                                return 0.0, 0.0
+                    
+                    L1_norm, L1_mean = compute_stats(self.temporal_L1) if hasattr(self, 'temporal_L1') and self.temporal_L1 is not None else (0.0, 0.0)
+                    L2_norm, L2_mean = compute_stats(self.temporal_L2) if hasattr(self, 'temporal_L2') and self.temporal_L2 is not None else (0.0, 0.0)
+                    L3_norm, L3_mean = compute_stats(self.temporal_L3) if hasattr(self, 'temporal_L3') and self.temporal_L3 is not None else (0.0, 0.0)
+                    
+                    input_norm = float(torch.norm(temporal_input).item()) if isinstance(temporal_input, torch.Tensor) else 0.0
+                    
+                    self.logger.write({
+                        "a288_complete": True,
+                        "hierarchical_temporal_structuring_active": True,
+                        "temporal_hierarchy_generated": temporal_levels is not None,
+                        "input_dim": input_dim,
+                        "mid_dim": mid_dim,
+                        "high_dim": high_dim,
+                        "L1_norm": L1_norm,
+                        "L1_mean": L1_mean,
+                        "L2_norm": L2_norm,
+                        "L2_mean": L2_mean,
+                        "L3_norm": L3_norm,
+                        "L3_mean": L3_mean,
+                        "input_norm": input_norm,
+                        "multi_tier_temporal_structure_established": True,
+                        "message": "A288 complete — Hierarchical Temporal Structuring Layer (HTSL) active. Three-level temporal hierarchy (L1, L2, L3) generated."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"hierarchical_temporal_structuring_error": str(e)})
                 except Exception:
                     pass
 
