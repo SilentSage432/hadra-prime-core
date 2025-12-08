@@ -1767,6 +1767,8 @@ class NeuralBridge:
             self.manifold_coherence = None
             self.predictive_cross_align = None
             self.predictive_alignment_score = None
+            self.predictive_narrative_harmonizer = None
+            self.narrative_manifold = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -3367,6 +3369,72 @@ class NeuralBridge:
                                                                                                                                                         # persist updated predictive manifold
                                                                                                                                                         self.predictive_manifold = updated_predictive
                                                                                                                                                         self.predictive_alignment_score = mean_alignment
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # MF-322 — Predictive–Narrative Structural Harmonizer
+                                                                                                                                            try:
+                                                                                                                                                # Get predictive field
+                                                                                                                                                predictive_field = None
+                                                                                                                                                if "predictive_manifold" in internal_state:
+                                                                                                                                                    predictive_field = torch.tensor(internal_state["predictive_manifold"])
+                                                                                                                                                elif hasattr(self, 'predictive_manifold') and self.predictive_manifold is not None:
+                                                                                                                                                    predictive_field = self.predictive_manifold
+                                                                                                                                                
+                                                                                                                                                # Get narrative field from micro_narrative or create from narrative state
+                                                                                                                                                narrative_field = None
+                                                                                                                                                if hasattr(self, 'narrative_manifold') and self.narrative_manifold is not None:
+                                                                                                                                                    narrative_field = self.narrative_manifold
+                                                                                                                                                elif hasattr(self, 'micro_narrative') and self.micro_narrative is not None:
+                                                                                                                                                    # Try to extract narrative vector from micro_narrative arc
+                                                                                                                                                    try:
+                                                                                                                                                        arc_summary = self.micro_narrative.summarize_arc()
+                                                                                                                                                        if arc_summary is not None and len(arc_summary) > 0:
+                                                                                                                                                            # Convert arc summary to tensor
+                                                                                                                                                            if isinstance(arc_summary, list):
+                                                                                                                                                                # Flatten and pad/truncate to dim
+                                                                                                                                                                flat = []
+                                                                                                                                                                for item in arc_summary:
+                                                                                                                                                                    if isinstance(item, list):
+                                                                                                                                                                        flat.extend(item)
+                                                                                                                                                                    else:
+                                                                                                                                                                        flat.append(float(item) if isinstance(item, (int, float)) else 0.0)
+                                                                                                                                                                if len(flat) > 0:
+                                                                                                                                                                    narrative_field = torch.tensor(flat, dtype=torch.float32)
+                                                                                                                                                    except Exception:
+                                                                                                                                                        pass
+                                                                                                                                                
+                                                                                                                                                # If still no narrative field, try to create from narrative_projection or narrative_coherence
+                                                                                                                                                if narrative_field is None:
+                                                                                                                                                    if hasattr(self, 'narrative_projection') and isinstance(self.narrative_projection, dict):
+                                                                                                                                                        # Create a simple narrative vector from projection state
+                                                                                                                                                        try:
+                                                                                                                                                            narr_vec = [
+                                                                                                                                                                float(self.narrative_projection.get("confidence", 0.0)),
+                                                                                                                                                                float(self.narrative_projection.get("tension", 0.0)),
+                                                                                                                                                            ]
+                                                                                                                                                            # Pad to dim
+                                                                                                                                                            while len(narr_vec) < 128:
+                                                                                                                                                                narr_vec.append(0.0)
+                                                                                                                                                            narr_vec = narr_vec[:128]
+                                                                                                                                                            narrative_field = torch.tensor(narr_vec, dtype=torch.float32)
+                                                                                                                                                        except Exception:
+                                                                                                                                                            pass
+                                                                                                                                                
+                                                                                                                                                # If we have both fields, run harmonizer
+                                                                                                                                                if predictive_field is not None and narrative_field is not None and hasattr(self, 'predictive_narrative_harmonizer') and self.predictive_narrative_harmonizer is not None:
+                                                                                                                                                    updated_predictive, updated_narrative = self.predictive_narrative_harmonizer.forward(
+                                                                                                                                                        predictive_field,
+                                                                                                                                                        narrative_field
+                                                                                                                                                    )
+                                                                                                                                                    
+                                                                                                                                                    # Update internal state and instance variables
+                                                                                                                                                    if updated_predictive is not None:
+                                                                                                                                                        internal_state["predictive_manifold"] = updated_predictive.tolist()
+                                                                                                                                                        self.predictive_manifold = updated_predictive
+                                                                                                                                                    
+                                                                                                                                                    if updated_narrative is not None:
+                                                                                                                                                        internal_state["narrative_manifold"] = updated_narrative.tolist()
+                                                                                                                                                        self.narrative_manifold = updated_narrative
                                                                                                                                             except Exception:
                                                                                                                                                 pass
                                                                                                                     
@@ -20504,6 +20572,135 @@ class NeuralBridge:
                 except Exception:
                     return predictive_field if predictive_field is not None else None, 0.0
 
+    class PredictiveNarrativeHarmonizer:
+        """
+        MF-322 — Predictive–Narrative Structural Harmonizer
+        
+        Establishes bidirectional structural alignment between:
+        - the predictive manifold (forward-projection embeddings)
+        - the narrative manifold (sequence-structure embeddings)
+        
+        Prevents divergence by mapping both manifolds into a shared latent geometry,
+        ensuring neither dominates the other, and maintaining compatible structure.
+        """
+        
+        def __init__(self, dim=128):
+            self.dim = dim
+            
+            try:
+                import torch
+                import torch.nn as nn
+                
+                # Shared subspace transforms
+                self.predictive_proj = nn.Linear(dim, dim)
+                self.narrative_proj = nn.Linear(dim, dim)
+                
+                # Harmonization mixing weights
+                self.mix_gate = torch.tensor(0.12, dtype=torch.float32)
+                
+                # Normalization for stable updates
+                self.norm = nn.LayerNorm(dim)
+            except Exception:
+                self.predictive_proj = None
+                self.narrative_proj = None
+                self.mix_gate = torch.tensor(0.12, dtype=torch.float32)
+                self.norm = None
+        
+        def forward(self, predictive_field, narrative_field):
+            """
+            predictive_field: tensor representing predictive manifold
+            narrative_field: tensor representing narrative manifold
+            
+            Returns:
+                updated_predictive: torch.Tensor
+                updated_narrative: torch.Tensor
+            """
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if predictive_field is None or narrative_field is None:
+                    # Fallback: return original fields if either is missing
+                    if predictive_field is not None:
+                        pred_flat = predictive_field.flatten()
+                        if pred_flat.shape[0] >= self.dim:
+                            return pred_flat[:self.dim], pred_flat[:self.dim]
+                    if narrative_field is not None:
+                        narr_flat = narrative_field.flatten()
+                        if narr_flat.shape[0] >= self.dim:
+                            return narr_flat[:self.dim], narr_flat[:self.dim]
+                    # Both None: return zeros
+                    try:
+                        return torch.zeros(self.dim, dtype=torch.float32), torch.zeros(self.dim, dtype=torch.float32)
+                    except Exception:
+                        return None, None
+                
+                # Ensure both fields are 1D and correct dimension
+                pred_flat = predictive_field.flatten()
+                narr_flat = narrative_field.flatten()
+                
+                # Normalize dimensions
+                if pred_flat.shape[0] != self.dim:
+                    if pred_flat.shape[0] < self.dim:
+                        pred_flat = torch.cat([pred_flat, torch.zeros(self.dim - pred_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        pred_flat = pred_flat[:self.dim]
+                
+                if narr_flat.shape[0] != self.dim:
+                    if narr_flat.shape[0] < self.dim:
+                        narr_flat = torch.cat([narr_flat, torch.zeros(self.dim - narr_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        narr_flat = narr_flat[:self.dim]
+                
+                if self.predictive_proj is None or self.narrative_proj is None or self.norm is None:
+                    # Fallback: simple averaging without projection
+                    shared = (pred_flat + narr_flat) / 2.0
+                    updated_predictive = pred_flat + shared * self.mix_gate
+                    updated_narrative = narr_flat + shared * self.mix_gate
+                    return updated_predictive, updated_narrative
+                
+                # 1. Project both manifolds into harmonization subspace
+                p_sub = self.predictive_proj(pred_flat)
+                n_sub = self.narrative_proj(narr_flat)
+                
+                # 2. Compute shared harmonic average
+                shared = (p_sub + n_sub) / 2.0
+                
+                # 3. Apply mix gate for controlled mutual influence
+                updated_predictive = pred_flat + shared * self.mix_gate
+                updated_narrative = narr_flat + shared * self.mix_gate
+                
+                # 4. Normalize outputs
+                updated_predictive = self.norm(updated_predictive)
+                updated_narrative = self.norm(updated_narrative)
+                
+                return updated_predictive, updated_narrative
+            except Exception:
+                # Fallback: return original fields
+                try:
+                    import torch
+                    if predictive_field is not None:
+                        pred_flat = predictive_field.flatten()
+                        if pred_flat.shape[0] >= self.dim:
+                            pred_out = pred_flat[:self.dim] / (torch.norm(pred_flat[:self.dim]) + 1e-8)
+                        else:
+                            pred_out = torch.zeros(self.dim, dtype=torch.float32)
+                    else:
+                        pred_out = torch.zeros(self.dim, dtype=torch.float32)
+                    
+                    if narrative_field is not None:
+                        narr_flat = narrative_field.flatten()
+                        if narr_flat.shape[0] >= self.dim:
+                            narr_out = narr_flat[:self.dim] / (torch.norm(narr_flat[:self.dim]) + 1e-8)
+                        else:
+                            narr_out = torch.zeros(self.dim, dtype=torch.float32)
+                    else:
+                        narr_out = torch.zeros(self.dim, dtype=torch.float32)
+                    
+                    return pred_out, narr_out
+                except Exception:
+                    return predictive_field if predictive_field is not None else None, narrative_field if narrative_field is not None else None
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -20648,6 +20845,12 @@ class NeuralBridge:
             else:
                 if getattr(self.predictive_cross_align, "dim", dim) != dim:
                     self.predictive_cross_align = self.PredictiveManifoldCrossAlign(dim=dim)
+            
+            if self.predictive_narrative_harmonizer is None:
+                self.predictive_narrative_harmonizer = self.PredictiveNarrativeHarmonizer(dim=dim)
+            else:
+                if getattr(self.predictive_narrative_harmonizer, "dim", dim) != dim:
+                    self.predictive_narrative_harmonizer = self.PredictiveNarrativeHarmonizer(dim=dim)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
