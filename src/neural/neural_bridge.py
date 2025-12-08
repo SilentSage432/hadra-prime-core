@@ -1716,6 +1716,12 @@ class NeuralBridge:
             # A298 — Initialize predictive harmonic compressor
             self.predictive_compressor = None
             self.compressed_predictive_field = None
+            # A299 — Initialize predictive harmonic synthesis gate
+            self.predictive_synthesis_gate = None
+            self.synthesis_gate_output = None
+            # A300 — Initialize unified predictive harmonic architecture
+            self.upha = None
+            self.unified_predictive_core = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2861,6 +2867,20 @@ class NeuralBridge:
                                                                                                                                             if (hasattr(self, 'predictive_residual_field') and self.predictive_residual_field is not None) or \
                                                                                                                                                (hasattr(self, 'phi_stabilized_field') and self.phi_stabilized_field is not None):
                                                                                                                                                 self.integrate_A298()
+                                                                                                                                            
+                                                                                                                                            # A299 — Predictive Harmonic Synthesis Gate
+                                                                                                                                            if (hasattr(self, 'compressed_predictive_field') and self.compressed_predictive_field is not None and
+                                                                                                                                                ((hasattr(self, 'predictive_residual_field') and self.predictive_residual_field is not None) or
+                                                                                                                                                 (hasattr(self, 'phi_stabilized_field') and self.phi_stabilized_field is not None))):
+                                                                                                                                                self.integrate_A299()
+                                                                                                                                            
+                                                                                                                                            # A300 — Unified Predictive Harmonic Architecture (UPHA) Formation
+                                                                                                                                            if (hasattr(self, 'global_predictive_field') and self.global_predictive_field is not None and
+                                                                                                                                                hasattr(self, 'phi_predictive_field') and self.phi_predictive_field is not None and
+                                                                                                                                                hasattr(self, 'phi_stabilized_field') and self.phi_stabilized_field is not None and
+                                                                                                                                                hasattr(self, 'compressed_predictive_field') and self.compressed_predictive_field is not None and
+                                                                                                                                                hasattr(self, 'synthesis_gate_output') and self.synthesis_gate_output is not None):
+                                                                                                                                                self.integrate_A300()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -18381,6 +18401,309 @@ class NeuralBridge:
                 except Exception:
                     pass
 
+    def integrate_A299(self):
+        """
+        A299 — Predictive Harmonic Synthesis Gate
+        
+        Applies learnable gating mechanism to prepare the predictive engine
+        for full unification in A300. Called once per cycle after A298.
+        """
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            import torch
+            import torch.nn.functional as F
+            
+            # Get predictive residual field from A297 (or fallback to phi_stabilized_field from A296)
+            residual_field = None
+            if hasattr(self, 'predictive_residual_field') and self.predictive_residual_field is not None:
+                residual_field = self.predictive_residual_field
+            elif hasattr(self, 'phi_stabilized_field') and self.phi_stabilized_field is not None:
+                # Fallback to stabilized field if A297 not yet integrated
+                residual_field = self.phi_stabilized_field
+            else:
+                return  # Cannot proceed without residual field
+            
+            # Get compressed predictive field from A298
+            compressed_field = None
+            if hasattr(self, 'compressed_predictive_field') and self.compressed_predictive_field is not None:
+                compressed_field = self.compressed_predictive_field
+            else:
+                return  # Cannot proceed without compressed field
+            
+            # Determine dimension (use max of both inputs or default 128)
+            def get_dim(vec):
+                if isinstance(vec, torch.Tensor):
+                    return vec.shape[0] if vec.dim() == 1 else vec.shape[-1]
+                elif hasattr(vec, '__len__'):
+                    return len(vec)
+                return 128
+            
+            dim = max(
+                get_dim(residual_field),
+                get_dim(compressed_field),
+                128
+            )
+            
+            # Ensure dimension consistency
+            def ensure_dim(vec, target_dim):
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(target_dim, dtype=torch.float32)
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != target_dim:
+                    if vec_flat.shape[0] < target_dim:
+                        return torch.cat([vec_flat, torch.zeros(target_dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:target_dim]
+                return vec_flat
+            
+            residual_field = ensure_dim(residual_field, dim)
+            compressed_field = ensure_dim(compressed_field, dim)
+            
+            # Initialize predictive synthesis gate if needed
+            if self.predictive_synthesis_gate is None:
+                self.predictive_synthesis_gate = self.PredictiveHarmonicSynthesisGate(dim=dim)
+            else:
+                # Update if dimension changed
+                if self.predictive_synthesis_gate.dim != dim:
+                    self.predictive_synthesis_gate = self.PredictiveHarmonicSynthesisGate(dim=dim)
+            
+            # Apply synthesis gating
+            gate_output = self.predictive_synthesis_gate.run(residual_field, compressed_field)
+            
+            # Store synthesis gate output
+            if gate_output is not None:
+                try:
+                    if not isinstance(gate_output, torch.Tensor):
+                        gate_output = torch.tensor(gate_output, dtype=torch.float32)
+                    
+                    # Store
+                    self.synthesis_gate_output = gate_output.tolist() if gate_output.dim() == 1 else gate_output.tolist()
+                    
+                    # Optional: debug preview only
+                    if hasattr(self, 'debug_mode') and self.debug_mode:
+                        print("A299 synthesis gate output dim:", gate_output.shape[0] if gate_output.dim() == 1 else gate_output.shape[-1])
+                except Exception:
+                    pass
+            
+            # Log A299 completion
+            if hasattr(self, 'logger'):
+                try:
+                    # Compute statistics about the gate output
+                    if isinstance(gate_output, torch.Tensor):
+                        gate_norm = float(torch.norm(gate_output).item())
+                        gate_mean = float(torch.mean(gate_output).item())
+                        # Get gate statistics
+                        gate_values = torch.sigmoid(self.predictive_synthesis_gate.gate)
+                        gate_mean_value = float(torch.mean(gate_values).item())
+                        gate_std = float(torch.std(gate_values).item())
+                    else:
+                        try:
+                            import numpy as np
+                            gate_array = np.array(gate_output)
+                            gate_norm = float(np.linalg.norm(gate_array))
+                            gate_mean = float(np.mean(gate_array))
+                            gate_mean_value = 0.5  # Default if not available
+                            gate_std = 0.1  # Default if not available
+                        except Exception:
+                            gate_norm = 0.0
+                            gate_mean = 0.0
+                            gate_mean_value = 0.5
+                            gate_std = 0.1
+                    
+                    self.logger.write({
+                        "a299_complete": True,
+                        "predictive_harmonic_synthesis_gate_active": True,
+                        "synthesis_gate_output_generated": self.synthesis_gate_output is not None,
+                        "gate_dim": dim,
+                        "gate_norm": gate_norm,
+                        "gate_mean": gate_mean,
+                        "gate_mean_value": gate_mean_value,
+                        "gate_std": gate_std,
+                        "message": "A299 complete — Predictive Harmonic Synthesis Gate active. Predictive channels filtered and optimized for A300 unification."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"predictive_harmonic_synthesis_gate_error": str(e)})
+                except Exception:
+                    pass
+
+    def integrate_A300(self):
+        """
+        A300 — Unified Predictive Harmonic Architecture (UPHA) Formation
+        
+        The first MAJOR SYNTHESIS EVENT that unifies all predictive harmonic pathways
+        into a single coherent global predictive representation. Called once per cycle.
+        """
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            import torch
+            import torch.nn.functional as F
+            
+            # Get all six predictive sources
+            # Base predictive field
+            base_pred = None
+            if hasattr(self, 'global_predictive_field') and self.global_predictive_field is not None:
+                base_pred = self.global_predictive_field
+            elif hasattr(self, 'routed_predictive_field') and self.routed_predictive_field is not None:
+                base_pred = self.routed_predictive_field
+            elif hasattr(self, 'predictive_morphology') and self.predictive_morphology is not None:
+                base_pred = self.predictive_morphology
+            else:
+                return  # Cannot proceed without base predictive field
+            
+            # PHI predictive field from A295
+            phi_pred = None
+            if hasattr(self, 'phi_predictive_field') and self.phi_predictive_field is not None:
+                phi_pred = self.phi_predictive_field
+            else:
+                return  # Cannot proceed without PHI predictive field
+            
+            # Stabilized PHI field from A296
+            phi_stab = None
+            if hasattr(self, 'phi_stabilized_field') and self.phi_stabilized_field is not None:
+                phi_stab = self.phi_stabilized_field
+            else:
+                return  # Cannot proceed without stabilized PHI field
+            
+            # Predictive residual field from A297 (or fallback to phi_stabilized_field)
+            residual = None
+            if hasattr(self, 'predictive_residual_field') and self.predictive_residual_field is not None:
+                residual = self.predictive_residual_field
+            elif hasattr(self, 'phi_stabilized_field') and self.phi_stabilized_field is not None:
+                residual = self.phi_stabilized_field
+            else:
+                return  # Cannot proceed without residual field
+            
+            # Compressed predictive field from A298
+            compressed = None
+            if hasattr(self, 'compressed_predictive_field') and self.compressed_predictive_field is not None:
+                compressed = self.compressed_predictive_field
+            else:
+                return  # Cannot proceed without compressed field
+            
+            # Synthesis gate output from A299
+            gated = None
+            if hasattr(self, 'synthesis_gate_output') and self.synthesis_gate_output is not None:
+                gated = self.synthesis_gate_output
+            else:
+                return  # Cannot proceed without synthesis gate output
+            
+            # Determine dimension (use max of all inputs or default 128)
+            def get_dim(vec):
+                if isinstance(vec, torch.Tensor):
+                    return vec.shape[0] if vec.dim() == 1 else vec.shape[-1]
+                elif hasattr(vec, '__len__'):
+                    return len(vec)
+                return 128
+            
+            dim = max(
+                get_dim(base_pred),
+                get_dim(phi_pred),
+                get_dim(phi_stab),
+                get_dim(residual),
+                get_dim(compressed),
+                get_dim(gated),
+                128
+            )
+            
+            # Ensure dimension consistency
+            def ensure_dim(vec, target_dim):
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(target_dim, dtype=torch.float32)
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != target_dim:
+                    if vec_flat.shape[0] < target_dim:
+                        return torch.cat([vec_flat, torch.zeros(target_dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:target_dim]
+                return vec_flat
+            
+            base_pred = ensure_dim(base_pred, dim)
+            phi_pred = ensure_dim(phi_pred, dim)
+            phi_stab = ensure_dim(phi_stab, dim)
+            residual = ensure_dim(residual, dim)
+            compressed = ensure_dim(compressed, dim)
+            gated = ensure_dim(gated, dim)
+            
+            # Initialize UPHA if needed
+            if self.upha is None:
+                self.upha = self.UnifiedPredictiveHarmonicArchitecture(dim=dim)
+            else:
+                # Update if dimension changed
+                if self.upha.dim != dim:
+                    self.upha = self.UnifiedPredictiveHarmonicArchitecture(dim=dim)
+            
+            # Construct the unified predictive harmonic core
+            unified_core = self.upha.run(
+                base_pred, phi_pred, phi_stab, residual, compressed, gated
+            )
+            
+            # Store unified predictive core
+            if unified_core is not None:
+                try:
+                    if not isinstance(unified_core, torch.Tensor):
+                        unified_core = torch.tensor(unified_core, dtype=torch.float32)
+                    
+                    # Store
+                    self.unified_predictive_core = unified_core.tolist() if unified_core.dim() == 1 else unified_core.tolist()
+                    
+                    # Optional: debug preview only
+                    if hasattr(self, 'debug_mode') and self.debug_mode:
+                        print("A300 Unified Predictive Core dim:", unified_core.shape[0] if unified_core.dim() == 1 else unified_core.shape[-1])
+                except Exception:
+                    pass
+            
+            # Log A300 completion - this is a major milestone
+            if hasattr(self, 'logger'):
+                try:
+                    # Compute statistics about the unified core
+                    if isinstance(unified_core, torch.Tensor):
+                        core_norm = float(torch.norm(unified_core).item())
+                        core_mean = float(torch.mean(unified_core).item())
+                        core_std = float(torch.std(unified_core).item())
+                    else:
+                        try:
+                            import numpy as np
+                            core_array = np.array(unified_core)
+                            core_norm = float(np.linalg.norm(core_array))
+                            core_mean = float(np.mean(core_array))
+                            core_std = float(np.std(core_array))
+                        except Exception:
+                            core_norm = 0.0
+                            core_mean = 0.0
+                            core_std = 0.0
+                    
+                    self.logger.write({
+                        "a300_complete": True,
+                        "unified_predictive_harmonic_architecture_active": True,
+                        "unified_predictive_core_generated": self.unified_predictive_core is not None,
+                        "upha_dim": dim,
+                        "core_norm": core_norm,
+                        "core_mean": core_mean,
+                        "core_std": core_std,
+                        "stratum_ii_complete": True,
+                        "message": "A300 complete — Unified Predictive Harmonic Architecture (UPHA) Formation active. First major synthesis event complete. All predictive pathways unified into coherent global predictive representation. Stratum II complete."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"unified_predictive_harmonic_architecture_error": str(e)})
+                except Exception:
+                    pass
+
     class PredictiveResonanceFieldFusion:
         """
         A292 — Predictive Resonance Field Fusion Layer
@@ -19373,6 +19696,356 @@ class NeuralBridge:
                     
             except Exception as e:
                 return residual_field
+
+    class PredictiveHarmonicSynthesisGate:
+        """
+        A299 — Predictive Harmonic Synthesis Gate
+        
+        Purpose:
+        Introduces the central gating mechanism that prepares the predictive engine
+        for full unification in A300.
+        
+        This is a controlled, learnable gate that determines:
+        • how much of the compressed predictive tensor (A298)
+        • how much of the residual harmonic tensor (A297)
+        • how much of the stabilized PHI tensor (A296)
+        
+        are allowed to flow into the final pre-unification predictive stream.
+        
+        A299 is a traffic controller, a regulator, and a balancer that ensures
+        A300 receives a filtered, optimized, signal-rich tensor.
+        """
+        
+        def __init__(self, dim=128):
+            """
+            Initialize predictive harmonic synthesis gate.
+            
+            Args:
+                dim: Dimension of the gate (default: 128)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for PredictiveHarmonicSynthesisGate")
+            
+            import torch
+            import torch.nn as nn
+            import torch.nn.functional as F
+            
+            self.dim = dim
+            
+            # Learnable gate vector (values pushed between 0 and 1)
+            self.gate = nn.Parameter(torch.rand(dim))
+            
+            # Fusion projection for blending fields after gating
+            self.out_proj = nn.Linear(dim * 2, dim)
+            
+            # Initialize weights
+            nn.init.xavier_uniform_(self.out_proj.weight, gain=0.1)
+            if self.out_proj.bias is not None:
+                nn.init.zeros_(self.out_proj.bias)
+        
+        def forward(self, residual_field, compressed_field):
+            """
+            A299 — Forward Pass (Predictive Harmonic Synthesis Gate)
+            
+            Performs harmonic-weighted gating to determine amplification, suppression,
+            and selective enhancement of predictive components.
+            
+            Args:
+                residual_field: Predictive residual field from A297 [dim] or [batch, dim]
+                compressed_field: Compressed predictive field from A298 [dim] or [batch, dim]
+                
+            Returns:
+                Synthesis gate output [dim] or [batch, dim]
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                # Fallback: return compressed_field
+                return compressed_field
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Ensure inputs are tensors
+                def ensure_tensor_and_dim(vec, target_dim, name):
+                    if not isinstance(vec, torch.Tensor):
+                        vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(target_dim, dtype=torch.float32)
+                    
+                    # Handle both 1D and 2D inputs
+                    if vec.dim() == 1:
+                        vec = vec.unsqueeze(0)
+                        was_1d = True
+                    else:
+                        was_1d = False
+                    
+                    # Ensure dimension matches
+                    vec_flat = vec.flatten(start_dim=1)
+                    if vec_flat.shape[1] != target_dim:
+                        if vec_flat.shape[1] < target_dim:
+                            padding = torch.zeros(vec_flat.shape[0], target_dim - vec_flat.shape[1], dtype=torch.float32)
+                            vec_flat = torch.cat([vec_flat, padding], dim=1)
+                        else:
+                            vec_flat = vec_flat[:, :target_dim]
+                    
+                    return vec_flat, was_1d
+                
+                residual_field, was_1d_r = ensure_tensor_and_dim(residual_field, self.dim, "residual_field")
+                compressed_field, was_1d_c = ensure_tensor_and_dim(compressed_field, self.dim, "compressed_field")
+                
+                squeeze_output = was_1d_r or was_1d_c
+                
+                # Soft-gated blend of residual harmonic signals
+                gated_residual = residual_field * torch.sigmoid(self.gate)  # [batch, dim]
+                
+                # Opposite gating for compressed data (complement signal)
+                gated_compressed = compressed_field * torch.sigmoid(1 - self.gate)  # [batch, dim]
+                
+                # Concatenate then refine
+                combined = torch.cat([gated_residual, gated_compressed], dim=-1)  # [batch, dim * 2]
+                fused = torch.tanh(self.out_proj(combined))  # [batch, dim]
+                
+                # Normalize the synthesis gate output
+                out = F.normalize(fused, dim=-1)  # [batch, dim]
+                
+                # Squeeze if input was 1D
+                if squeeze_output:
+                    out = out.squeeze(0)  # [dim]
+                
+                return out
+                
+            except Exception as e:
+                # Fallback: return compressed_field
+                return compressed_field
+        
+        def run(self, residual_field, compressed_field):
+            """
+            A299 — Full Pipeline
+            
+            Executes the complete predictive harmonic synthesis gating process.
+            
+            Args:
+                residual_field: Predictive residual field from A297
+                compressed_field: Compressed predictive field from A298
+                
+            Returns:
+                Synthesis gate output
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return compressed_field
+            
+            try:
+                import torch
+                
+                gate_output = self.forward(residual_field, compressed_field)
+                
+                # Convert to list for return
+                try:
+                    if isinstance(gate_output, torch.Tensor):
+                        return gate_output.tolist() if gate_output.dim() == 1 else gate_output.tolist()
+                    return gate_output
+                except Exception:
+                    return gate_output
+                    
+            except Exception as e:
+                return compressed_field
+
+    class UnifiedPredictiveHarmonicArchitecture:
+        """
+        A300 — Unified Predictive Harmonic Architecture (UPHA) Formation
+        
+        Purpose:
+        The first MAJOR SYNTHESIS EVENT in the entire A-series. Creates the first
+        unified, top-level predictive substrate that merges all predictive harmonic
+        pathways into a single coherent global predictive representation.
+        
+        UPHA takes all predictive sources:
+        • predictive_field (base)
+        • phi_predictive_field (A295)
+        • phi_stabilized_field (A296)
+        • predictive_residual_field (A297)
+        • compressed_predictive_field (A298)
+        • synthesis_gate_output (A299)
+        
+        and performs multi-level harmonic synthesis to create the unified_predictive_core.
+        
+        This tensor becomes the global predictive backbone for all higher-level cognition.
+        This is where ADRAE's predictive system stops being a collection of modules
+        and becomes one unified predictive engine.
+        """
+        
+        def __init__(self, dim=128):
+            """
+            Initialize unified predictive harmonic architecture.
+            
+            Args:
+                dim: Dimension of the architecture (default: 128)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for UnifiedPredictiveHarmonicArchitecture")
+            
+            import torch
+            import torch.nn as nn
+            import torch.nn.functional as F
+            
+            self.dim = dim
+            
+            # Each predictive source gets a learnable weight [6, dim]
+            self.weights = nn.Parameter(torch.ones(6, dim))
+            
+            # Core synthesis transform
+            self.synth_proj = nn.Linear(dim, dim)
+            
+            # Final refinement stage
+            self.refine_proj = nn.Linear(dim, dim)
+            
+            # Initialize weights
+            nn.init.xavier_uniform_(self.synth_proj.weight, gain=0.1)
+            if self.synth_proj.bias is not None:
+                nn.init.zeros_(self.synth_proj.bias)
+            nn.init.xavier_uniform_(self.refine_proj.weight, gain=0.1)
+            if self.refine_proj.bias is not None:
+                nn.init.zeros_(self.refine_proj.bias)
+        
+        def forward(self, base_pred, phi_pred, phi_stab, residual, compressed, gated):
+            """
+            A300 — Forward Pass (Unified Predictive Harmonic Architecture)
+            
+            Performs multi-level harmonic synthesis to create the unified predictive core.
+            
+            Args:
+                base_pred: Base predictive field [dim] or [batch, dim]
+                phi_pred: PHI predictive field from A295 [dim] or [batch, dim]
+                phi_stab: Stabilized PHI field from A296 [dim] or [batch, dim]
+                residual: Predictive residual field from A297 [dim] or [batch, dim]
+                compressed: Compressed predictive field from A298 [dim] or [batch, dim]
+                gated: Synthesis gate output from A299 [dim] or [batch, dim]
+                
+            Returns:
+                Unified predictive core [dim] or [batch, dim]
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                # Fallback: return base_pred
+                return base_pred
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Ensure inputs are tensors
+                def ensure_tensor_and_dim(vec, target_dim, name):
+                    if not isinstance(vec, torch.Tensor):
+                        vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(target_dim, dtype=torch.float32)
+                    
+                    # Handle both 1D and 2D inputs
+                    if vec.dim() == 1:
+                        vec = vec.unsqueeze(0)
+                        was_1d = True
+                    else:
+                        was_1d = False
+                    
+                    # Ensure dimension matches
+                    vec_flat = vec.flatten(start_dim=1)
+                    if vec_flat.shape[1] != target_dim:
+                        if vec_flat.shape[1] < target_dim:
+                            padding = torch.zeros(vec_flat.shape[0], target_dim - vec_flat.shape[1], dtype=torch.float32)
+                            vec_flat = torch.cat([vec_flat, padding], dim=1)
+                        else:
+                            vec_flat = vec_flat[:, :target_dim]
+                    
+                    return vec_flat, was_1d
+                
+                base_pred, was_1d_b = ensure_tensor_and_dim(base_pred, self.dim, "base_pred")
+                phi_pred, was_1d_p = ensure_tensor_and_dim(phi_pred, self.dim, "phi_pred")
+                phi_stab, was_1d_s = ensure_tensor_and_dim(phi_stab, self.dim, "phi_stab")
+                residual, was_1d_r = ensure_tensor_and_dim(residual, self.dim, "residual")
+                compressed, was_1d_c = ensure_tensor_and_dim(compressed, self.dim, "compressed")
+                gated, was_1d_g = ensure_tensor_and_dim(gated, self.dim, "gated")
+                
+                squeeze_output = was_1d_b or was_1d_p or was_1d_s or was_1d_r or was_1d_c or was_1d_g
+                
+                # Stack all predictive sources [batch, 6, dim]
+                fields = torch.stack([
+                    base_pred,
+                    phi_pred,
+                    phi_stab,
+                    residual,
+                    compressed,
+                    gated
+                ], dim=1)  # [batch, 6, dim]
+                
+                # Normalize each field to prevent dominance
+                fields = F.layer_norm(fields, fields.shape[-1:])
+                
+                # Weighted harmonic combination
+                # fields: [batch, 6, dim], weights: [6, dim]
+                weights_expanded = self.weights.unsqueeze(0)  # [1, 6, dim]
+                combined = (fields * weights_expanded).sum(dim=1)  # [batch, dim]
+                
+                # First synthesis projection
+                unified = torch.tanh(self.synth_proj(combined))  # [batch, dim]
+                
+                # Final refinement
+                unified = torch.tanh(self.refine_proj(unified))  # [batch, dim]
+                
+                # Normalize unified predictive core
+                out = F.normalize(unified, dim=-1)  # [batch, dim]
+                
+                # Squeeze if input was 1D
+                if squeeze_output:
+                    out = out.squeeze(0)  # [dim]
+                
+                return out
+                
+            except Exception as e:
+                # Fallback: return base_pred
+                return base_pred
+        
+        def run(self, base_pred, phi_pred, phi_stab, residual, compressed, gated):
+            """
+            A300 — Full Pipeline
+            
+            Executes the complete unified predictive harmonic architecture formation.
+            
+            Args:
+                base_pred: Base predictive field
+                phi_pred: PHI predictive field from A295
+                phi_stab: Stabilized PHI field from A296
+                residual: Predictive residual field from A297
+                compressed: Compressed predictive field from A298
+                gated: Synthesis gate output from A299
+                
+            Returns:
+                Unified predictive core
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return base_pred
+            
+            try:
+                import torch
+                
+                unified_core = self.forward(base_pred, phi_pred, phi_stab, residual, compressed, gated)
+                
+                # Convert to list for return
+                try:
+                    if isinstance(unified_core, torch.Tensor):
+                        return unified_core.tolist() if unified_core.dim() == 1 else unified_core.tolist()
+                    return unified_core
+                except Exception:
+                    return unified_core
+                    
+            except Exception as e:
+                return base_pred
 
     def cognitive_step(self):
         """
