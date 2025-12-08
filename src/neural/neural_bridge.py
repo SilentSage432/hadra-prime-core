@@ -1740,6 +1740,9 @@ class NeuralBridge:
             self.manifold_interaction_signature = None
             self.multi_interaction_routing_layer = None
             self.predictive_routed_output = None
+            self.recursive_feedback_engine = None
+            self.routing_feedback_vector = None
+            self.routing_bias_vector = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2991,36 +2994,45 @@ class NeuralBridge:
                                                                                                                                                     "gradient_norm": float(interactions["gradient_norm"]),
                                                                                                                                                     "preview": interactions["nonlinear_preview"]
                                                                                                                                                 }
-                self.manifold_interaction_signature = interactions["interaction_signature"]
-            # A308 — Multi-Interaction Predictive Routing Layer
-            try:
-                if "predictive_hierarchy" in internal_state and "manifold_interactions" in internal_state:
-                    hierarchy = [torch.tensor(v) for v in internal_state["predictive_hierarchy"]]
-                    sig = torch.tensor(internal_state["manifold_interactions"]["signature"])
-                    routed_output, routing_weights = self.multi_interaction_routing_layer.route(hierarchy, sig)
-                else:
-                    routed_output, routing_weights = None, None
-            except Exception:
-                routed_output, routing_weights = None, None
-            if routed_output is not None:
-                internal_state["predictive_routing"] = {
-                    "routed_output": routed_output.tolist(),
-                    "routing_weights": routing_weights
-                }
-                self.predictive_routed_output = routed_output
-            # A306 — Hierarchical Manifold Fusion Layer
+                                                                                                                                                self.manifold_interaction_signature = interactions["interaction_signature"]
+                                                                                                                                            # A308 — Multi-Interaction Predictive Routing Layer
                                                                                                                                             try:
-                                                                                                                                                if "predictive_hierarchy" in internal_state:
-                                                                                                                                                    hierarchy = [torch.tensor(vec) for vec in internal_state["predictive_hierarchy"]]
-                                                                                                                                                    fused_manifold = self.hierarchical_manifold_fusion_layer.fuse(hierarchy)
+                                                                                                                                                if "predictive_hierarchy" in internal_state and "manifold_interactions" in internal_state:
+                                                                                                                                                    hierarchy = [torch.tensor(v) for v in internal_state["predictive_hierarchy"]]
+                                                                                                                                                    sig = torch.tensor(internal_state["manifold_interactions"]["signature"])
+                                                                                                                                                    routed_output, routing_weights = self.multi_interaction_routing_layer.route(hierarchy, sig)
                                                                                                                                                 else:
-                                                                                                                                                    fused_manifold = None
+                                                                                                                                                    routed_output, routing_weights = None, None
                                                                                                                                             except Exception:
-                                                                                                                                                fused_manifold = None
-                                                                                                                                            if fused_manifold is not None:
-                                                                                                                                                internal_state["predictive_manifold"] = fused_manifold.tolist()
-                                                                                                                                                self.predictive_manifold = fused_manifold
-                                                                                                                                            
+                                                                                                                                                routed_output, routing_weights = None, None
+                                                                                                                                            if routed_output is not None:
+                                                                                                                                                internal_state["predictive_routing"] = {
+                                                                                                                                                    "routed_output": routed_output.tolist(),
+                                                                                                                                                    "routing_weights": routing_weights
+                                                                                                                                                }
+                                                                                                                                                self.predictive_routed_output = routed_output
+                                                                                                                                            # A309 — Recursive Routing Feedback Engine
+                                                                                                                                            try:
+                                                                                                                                                if "predictive_routing" in internal_state and "manifold_interactions" in internal_state:
+                                                                                                                                                    routed_vec = torch.tensor(internal_state["predictive_routing"]["routed_output"])
+                                                                                                                                                    sig = torch.tensor(internal_state["manifold_interactions"]["signature"])
+                                                                                                                                                    prev_weights = internal_state["predictive_routing"].get("routing_weights")
+                                                                                                                                                    feedback_vec, routing_bias = self.recursive_feedback_engine.apply_feedback(
+                                                                                                                                                        routed_output=routed_vec,
+                                                                                                                                                        interaction_signature=sig,
+                                                                                                                                                        prev_weights=prev_weights
+                                                                                                                                                    )
+                                                                                                                                                else:
+                                                                                                                                                    feedback_vec, routing_bias = None, None
+                                                                                                                                            except Exception:
+                                                                                                                                                feedback_vec, routing_bias = None, None
+                                                                                                                                            if feedback_vec is not None:
+                                                                                                                                                internal_state["routing_feedback"] = {
+                                                                                                                                                    "feedback_vector": feedback_vec.tolist(),
+                                                                                                                                                    "routing_bias": routing_bias.tolist() if routing_bias is not None else None
+                                                                                                                                                }
+                                                                                                                                                self.routing_feedback_vector = feedback_vec
+                                                                                                                                                self.routing_bias_vector = routing_bias
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
                                                                                                                                         if hasattr(self, 'logger'):
@@ -19247,6 +19259,42 @@ class NeuralBridge:
             except Exception:
                 return None, None
 
+    class RecursiveRoutingFeedbackEngine:
+        """
+        A309 — Recursive Routing Feedback Engine
+        """
+        
+        def __init__(self, dim=128, alpha=0.6, beta=0.4, gamma=0.15):
+            self.dim = dim
+            self.alpha = alpha
+            self.beta = beta
+            self.gamma = gamma
+        
+        def apply_feedback(self, routed_output, interaction_signature, prev_weights):
+            """
+            routed_output: torch.Tensor (dim=128)
+            interaction_signature: torch.Tensor (dim=128)
+            prev_weights: list[float] or None
+            Returns:
+                feedback_vector: torch.Tensor (dim=128)
+                routing_bias: torch.Tensor or None
+            """
+            try:
+                import torch
+                r = routed_output / torch.norm(routed_output)
+                s = interaction_signature / torch.norm(interaction_signature)
+                
+                feedback_vector = self.alpha * r + self.beta * s
+                feedback_vector = feedback_vector / torch.norm(feedback_vector)
+                
+                routing_bias = None
+                if prev_weights is not None:
+                    routing_bias = self.gamma * torch.tensor(prev_weights)
+                
+                return feedback_vector, routing_bias
+            except Exception:
+                return None, None
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -19313,6 +19361,12 @@ class NeuralBridge:
             else:
                 if getattr(self.multi_interaction_routing_layer, "dim", dim) != dim:
                     self.multi_interaction_routing_layer = self.MultiInteractionPredictiveRoutingLayer(dim=dim)
+            
+            if self.recursive_feedback_engine is None:
+                self.recursive_feedback_engine = self.RecursiveRoutingFeedbackEngine(dim=dim)
+            else:
+                if getattr(self.recursive_feedback_engine, "dim", dim) != dim:
+                    self.recursive_feedback_engine = self.RecursiveRoutingFeedbackEngine(dim=dim)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
