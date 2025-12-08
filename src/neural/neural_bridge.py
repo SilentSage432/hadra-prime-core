@@ -1725,6 +1725,11 @@ class NeuralBridge:
             # A301 — Initialize meta-predictive field emergence
             self.meta_field_engine = None
             self.meta_predictive_fields = []
+            self.meta_field_stabilizer = None
+            self.stable_meta_field = None
+            self.meta_resonance_data = {}
+            self.meta_field_evolution_engine = None
+            self.evolved_meta_field = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2889,6 +2894,36 @@ class NeuralBridge:
                                                                                                                                             if (hasattr(self, 'upha') and self.upha is not None and
                                                                                                                                                 hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None):
                                                                                                                                                 self.integrate_A301()
+                                                                                                                                            # A302 — Adaptive Meta-Field Resonance Stabilizer
+                                                                                                                                            stabilized_output = None
+                                                                                                                                            try:
+                                                                                                                                                if hasattr(self, 'meta_field_stabilizer') and self.meta_field_stabilizer is not None:
+                                                                                                                                                    stabilized_output = self.meta_field_stabilizer.stabilize(
+                                                                                                                                                        emergent_field=getattr(self, "stable_meta_field", None),
+                                                                                                                                                        resonance_data=getattr(self, "meta_resonance_data", {}) or {}
+                                                                                                                                                    )
+                                                                                                                                            except Exception:
+                                                                                                                                                stabilized_output = None
+                                                                                                                                            if stabilized_output is not None:
+                                                                                                                                                stabilized_field, score, coherence, drift = stabilized_output
+                                                                                                                                                internal_state["stabilized_meta_field"] = stabilized_field.tolist()
+                                                                                                                                                internal_state["meta_field_score"] = float(score)
+                                                                                                                                                internal_state["meta_field_coherence"] = float(coherence)
+                                                                                                                                                internal_state["meta_field_drift"] = float(drift)
+                                                                                                                                            # A303 — Resonant Meta-Field Evolution Engine
+                                                                                                                                            if stabilized_output is not None:
+                                                                                                                                                try:
+                                                                                                                                                    if hasattr(self, 'meta_field_evolution_engine') and self.meta_field_evolution_engine is not None:
+                                                                                                                                                        evolved_field = self.meta_field_evolution_engine.evolve(
+                                                                                                                                                            stabilized_field=stabilized_field,
+                                                                                                                                                            resonance_data=getattr(self, "meta_resonance_data", {}) or {}
+                                                                                                                                                        )
+                                                                                                                                                    else:
+                                                                                                                                                        evolved_field = None
+                                                                                                                                                except Exception:
+                                                                                                                                                    evolved_field = None
+                                                                                                                                                if evolved_field is not None:
+                                                                                                                                                    internal_state["evolved_meta_field"] = evolved_field.tolist()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -18802,6 +18837,110 @@ class NeuralBridge:
             except Exception:
                 return None
 
+    class AdaptiveMetaFieldResonanceStabilizer:
+        """
+        A302 — Adaptive Meta-Field Resonance Stabilizer
+        """
+        
+        def __init__(self, dim=128):
+            self.dim = dim
+            self.min_coherence = 0.70
+            self.max_drift = 0.30
+            self.refinement_rate = 0.12
+        
+        def score_field(self, field, resonance_data):
+            """Compute stability score based on coherence and drift."""
+            try:
+                import torch
+                preview = torch.tensor(resonance_data["preview"])
+                if preview.shape[0] > self.dim:
+                    preview = preview[:self.dim]
+                elif preview.shape[0] < self.dim:
+                    preview = torch.nn.functional.pad(preview, (0, self.dim - preview.shape[0]))
+                coherence = float(torch.cosine_similarity(field, preview, dim=0).item())
+                drift = float(resonance_data.get("latest_drift", 0.0))
+                score = (coherence * (1.0 - drift))
+                return score, coherence, drift
+            except Exception:
+                return 0.0, 0.0, 1.0
+        
+        def refine_field(self, field, coherence):
+            """Adjust field direction based on coherence feedback."""
+            import torch
+            correction = field * (coherence * self.refinement_rate)
+            refined = field + correction
+            refined = refined / torch.norm(refined)
+            return refined
+        
+        def stabilize(self, emergent_field, resonance_data):
+            """Evaluate and stabilize emergent fields from A301."""
+            if emergent_field is None:
+                return None
+            
+            score, coherence, drift = self.score_field(emergent_field, resonance_data)
+            
+            # Reject if coherence is too low or drift too high
+            if coherence < self.min_coherence or drift > self.max_drift:
+                return None
+            
+            # Refine and return stabilized field
+            stabilized = self.refine_field(emergent_field, coherence)
+            return stabilized, score, coherence, drift
+
+    class ResonantMetaFieldEvolutionEngine:
+        """
+        A303 — Resonant Meta-Field Evolution Engine
+        """
+        
+        def __init__(self, dim=128, evolution_rate=0.07, merge_threshold=0.92):
+            self.dim = dim
+            self.evolution_rate = evolution_rate
+            self.merge_threshold = merge_threshold
+            self.history = []  # stores past stabilized fields
+        
+        def evolve(self, stabilized_field, resonance_data):
+            """Evolve stabilized fields through resonance-guided transformation."""
+            try:
+                import torch
+                if stabilized_field is None:
+                    return None
+                
+                field = stabilized_field.clone()
+                
+                # Save history for long-term evolutionary pressure
+                if len(self.history) > 0:
+                    last = self.history[-1]
+                    sim = float(torch.cosine_similarity(field, last, dim=0).item())
+                    if sim > 0.97:
+                        mutation = torch.randn(self.dim) * (self.evolution_rate * 0.15)
+                        field = field + mutation
+                
+                preview = torch.tensor(resonance_data["preview"])
+                if preview.shape[0] > self.dim:
+                    preview = preview[:self.dim]
+                elif preview.shape[0] < self.dim:
+                    preview = torch.nn.functional.pad(preview, (0, self.dim - preview.shape[0]))
+                modulation = preview * self.evolution_rate
+                field = field + modulation
+                
+                field = field / torch.norm(field)
+                
+                if len(self.history) > 0:
+                    new_hist = []
+                    for past in self.history:
+                        similarity = float(torch.cosine_similarity(field, past, dim=0).item())
+                        if similarity > self.merge_threshold:
+                            field = (field + past) / 2.0
+                            field = field / torch.norm(field)
+                        else:
+                            new_hist.append(past)
+                    self.history = new_hist
+                
+                self.history.append(field)
+                return field
+            except Exception:
+                return None
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -18826,6 +18965,18 @@ class NeuralBridge:
                 # If dimension changed, re-init
                 if getattr(self.meta_field_engine, "dim", dim) != dim:
                     self.meta_field_engine = self.MetaPredictiveFieldEmergence(dim=dim)
+            
+            if self.meta_field_stabilizer is None:
+                self.meta_field_stabilizer = self.AdaptiveMetaFieldResonanceStabilizer(dim=dim)
+            else:
+                if getattr(self.meta_field_stabilizer, "dim", dim) != dim:
+                    self.meta_field_stabilizer = self.AdaptiveMetaFieldResonanceStabilizer(dim=dim)
+            
+            if self.meta_field_evolution_engine is None:
+                self.meta_field_evolution_engine = self.ResonantMetaFieldEvolutionEngine(dim=dim)
+            else:
+                if getattr(self.meta_field_evolution_engine, "dim", dim) != dim:
+                    self.meta_field_evolution_engine = self.ResonantMetaFieldEvolutionEngine(dim=dim)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
@@ -18877,6 +19028,8 @@ class NeuralBridge:
                 resonance_data
             )
             stable_field = self.meta_field_engine.stabilize_and_record(emergent)
+            self.stable_meta_field = stable_field
+            self.meta_resonance_data = resonance_data
             
             if stable_field is not None:
                 try:
