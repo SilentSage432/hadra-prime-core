@@ -1722,6 +1722,9 @@ class NeuralBridge:
             # A300 — Initialize unified predictive harmonic architecture
             self.upha = None
             self.unified_predictive_core = None
+            # A301 — Initialize meta-predictive field emergence
+            self.meta_field_engine = None
+            self.meta_predictive_fields = []
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2881,6 +2884,11 @@ class NeuralBridge:
                                                                                                                                                 hasattr(self, 'compressed_predictive_field') and self.compressed_predictive_field is not None and
                                                                                                                                                 hasattr(self, 'synthesis_gate_output') and self.synthesis_gate_output is not None):
                                                                                                                                                 self.integrate_A300()
+                                                                                                                                           
+                                                                                                                                            # A301 — Meta-Predictive Field Emergence Layer
+                                                                                                                                            if (hasattr(self, 'upha') and self.upha is not None and
+                                                                                                                                                hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None):
+                                                                                                                                                self.integrate_A301()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -18701,6 +18709,199 @@ class NeuralBridge:
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"unified_predictive_harmonic_architecture_error": str(e)})
+                except Exception:
+                    pass
+
+    class MetaPredictiveFieldEmergence:
+        """
+        A301 — Meta-Predictive Field Emergence Layer
+        
+        Enables detection of interactions between harmonic layers to form new
+        emergent predictive fields. Provides stability gating and bounded storage.
+        """
+        
+        def __init__(self, dim=128):
+            self.dim = dim
+            self.emergent_fields = []
+            self.max_fields = 32  # safety bound
+            self.min_stability = 0.85
+        
+        def analyze_interactions(self, harmonic_layers, resonance_data):
+            """Identify cross-layer interactions that form higher-order patterns."""
+            from .torch_utils import TORCH_AVAILABLE
+            if not TORCH_AVAILABLE:
+                return []
+            try:
+                import torch
+                interactions = []
+                for i, layer_a in enumerate(harmonic_layers):
+                    for j, layer_b in enumerate(harmonic_layers):
+                        if j <= i:
+                            continue
+                        strength = torch.cosine_similarity(layer_a, layer_b, dim=0).item()
+                        interactions.append({"pair": (i, j), "strength": strength})
+                return interactions
+            except Exception:
+                return []
+        
+        def generate_emergent_field(self, interactions, resonance_data):
+            """Produce a new predictive field from strong cross-layer interactions."""
+            from .torch_utils import TORCH_AVAILABLE
+            if not TORCH_AVAILABLE:
+                return None
+            try:
+                import torch
+                import torch.nn.functional as F  # noqa: F401
+                
+                strong = [i for i in interactions if i.get("strength", 0) > 0.75]
+                if not strong:
+                    return None
+                
+                weights = torch.tensor([i["strength"] for i in strong], dtype=torch.float32)
+                weights = weights / torch.clamp(weights.sum(), min=1e-6)
+                
+                base_vector = torch.zeros(self.dim, dtype=torch.float32)
+                preview = resonance_data.get("preview") if resonance_data else None
+                if preview is None:
+                    preview = torch.zeros(self.dim, dtype=torch.float32)
+                else:
+                    if not isinstance(preview, torch.Tensor):
+                        preview = torch.tensor(preview, dtype=torch.float32)
+                    if preview.shape[0] > self.dim:
+                        preview = preview[:self.dim]
+                    elif preview.shape[0] < self.dim:
+                        preview = torch.nn.functional.pad(preview, (0, self.dim - preview.shape[0]))
+                
+                for w in weights:
+                    base_vector = base_vector + w * preview
+                
+                norm = torch.norm(base_vector)
+                if norm.item() == 0:
+                    return None
+                emergent = base_vector / norm
+                return emergent
+            except Exception:
+                return None
+        
+        def stabilize_and_record(self, emergent_field):
+            """Store only stable, bounded emergent fields."""
+            from .torch_utils import TORCH_AVAILABLE
+            if not TORCH_AVAILABLE:
+                return None
+            try:
+                import torch
+                if emergent_field is None:
+                    return None
+                stability = float(torch.norm(emergent_field).item())
+                if stability < self.min_stability:
+                    return None
+                if len(self.emergent_fields) >= self.max_fields:
+                    self.emergent_fields.pop(0)
+                self.emergent_fields.append(emergent_field)
+                return emergent_field
+            except Exception:
+                return None
+
+    def integrate_A301(self):
+        """
+        A301 — Meta-Predictive Field Emergence Layer
+        
+        Generates emergent predictive fields from interactions between harmonic layers,
+        stabilizes them, and exposes them for future meta-predictive phases.
+        """
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            if not TORCH_AVAILABLE:
+                return
+            
+            import torch
+            import torch.nn.functional as F  # noqa: F401
+            
+            dim = getattr(self, "embedding_dim", 128)
+            
+            # Initialize engine if needed
+            if self.meta_field_engine is None:
+                self.meta_field_engine = self.MetaPredictiveFieldEmergence(dim=dim)
+            else:
+                # If dimension changed, re-init
+                if getattr(self.meta_field_engine, "dim", dim) != dim:
+                    self.meta_field_engine = self.MetaPredictiveFieldEmergence(dim=dim)
+            
+            # Collect harmonic layers (only tensors present)
+            candidates = [
+                getattr(self, "global_resonance_vector", None),
+                getattr(self, "harmonic_predictive_lattice_resonance", None),
+                getattr(self, "resonance_fused_field", None),
+                getattr(self, "phi_predictive_field", None),
+                getattr(self, "phi_stabilized_field", None),
+                getattr(self, "unified_predictive_core", None),
+                getattr(self, "synthesis_gate_output", None),
+            ]
+            
+            def ensure_tensor(vec):
+                if vec is None:
+                    return None
+                if not isinstance(vec, torch.Tensor):
+                    try:
+                        vec = torch.tensor(vec, dtype=torch.float32)
+                    except Exception:
+                        return None
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != dim:
+                    if vec_flat.shape[0] < dim:
+                        vec_flat = torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        vec_flat = vec_flat[:dim]
+                return vec_flat
+            
+            harmonic_layers = []
+            for c in candidates:
+                tensor_c = ensure_tensor(c)
+                if tensor_c is not None:
+                    harmonic_layers.append(tensor_c)
+            
+            if not harmonic_layers:
+                return
+            
+            # Resonance data preview (use unified core or global resonance)
+            preview_source = getattr(self, "unified_predictive_core", None) or getattr(self, "global_resonance_vector", None)
+            resonance_preview = ensure_tensor(preview_source) or torch.zeros(dim, dtype=torch.float32)
+            resonance_data = {"preview": resonance_preview}
+            
+            interactions = self.meta_field_engine.analyze_interactions(
+                harmonic_layers=harmonic_layers,
+                resonance_data=resonance_data
+            )
+            emergent = self.meta_field_engine.generate_emergent_field(
+                interactions,
+                resonance_data
+            )
+            stable_field = self.meta_field_engine.stabilize_and_record(emergent)
+            
+            if stable_field is not None:
+                try:
+                    self.meta_predictive_fields = [
+                        f.tolist() if isinstance(f, torch.Tensor) else f for f in self.meta_field_engine.emergent_fields
+                    ]
+                except Exception:
+                    pass
+            
+            if hasattr(self, 'logger'):
+                try:
+                    stability = float(torch.norm(stable_field).item()) if isinstance(stable_field, torch.Tensor) else 0.0
+                    self.logger.write({
+                        "a301_complete": stable_field is not None,
+                        "meta_predictive_field_generated": stable_field is not None,
+                        "meta_predictive_field_count": len(getattr(self.meta_field_engine, "emergent_fields", [])),
+                        "meta_field_stability": stability,
+                        "message": "A301 complete — Meta-Predictive Field Emergence active. Emergent meta-predictive fields stabilized and recorded."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"meta_predictive_field_emergence_error": str(e)})
                 except Exception:
                     pass
 
