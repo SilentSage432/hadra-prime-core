@@ -1769,6 +1769,10 @@ class NeuralBridge:
             self.predictive_alignment_score = None
             self.predictive_narrative_harmonizer = None
             self.narrative_manifold = None
+            self.narrative_predictive_gate = None
+            self.narrative_predictive_gate_val = None
+            self.mm_ark = None
+            self.routing_matrix = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -3435,6 +3439,165 @@ class NeuralBridge:
                                                                                                                                                     if updated_narrative is not None:
                                                                                                                                                         internal_state["narrative_manifold"] = updated_narrative.tolist()
                                                                                                                                                         self.narrative_manifold = updated_narrative
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # MF-323 — Narrative–Predictive Coherence Gate
+                                                                                                                                            try:
+                                                                                                                                                # Get predictive and narrative fields (use updated ones from MF-322 if available)
+                                                                                                                                                predictive_field = None
+                                                                                                                                                if "predictive_manifold" in internal_state:
+                                                                                                                                                    predictive_field = torch.tensor(internal_state["predictive_manifold"])
+                                                                                                                                                elif hasattr(self, 'predictive_manifold') and self.predictive_manifold is not None:
+                                                                                                                                                    predictive_field = self.predictive_manifold
+                                                                                                                                                
+                                                                                                                                                narrative_field = None
+                                                                                                                                                if "narrative_manifold" in internal_state:
+                                                                                                                                                    narrative_field = torch.tensor(internal_state["narrative_manifold"])
+                                                                                                                                                elif hasattr(self, 'narrative_manifold') and self.narrative_manifold is not None:
+                                                                                                                                                    narrative_field = self.narrative_manifold
+                                                                                                                                                elif hasattr(self, 'micro_narrative') and self.micro_narrative is not None:
+                                                                                                                                                    # Try to extract narrative vector from micro_narrative arc
+                                                                                                                                                    try:
+                                                                                                                                                        arc_summary = self.micro_narrative.summarize_arc()
+                                                                                                                                                        if arc_summary is not None and len(arc_summary) > 0:
+                                                                                                                                                            # Convert arc summary to tensor
+                                                                                                                                                            if isinstance(arc_summary, list):
+                                                                                                                                                                # Flatten and pad/truncate to dim
+                                                                                                                                                                flat = []
+                                                                                                                                                                for item in arc_summary:
+                                                                                                                                                                    if isinstance(item, list):
+                                                                                                                                                                        flat.extend(item)
+                                                                                                                                                                    else:
+                                                                                                                                                                        flat.append(float(item) if isinstance(item, (int, float)) else 0.0)
+                                                                                                                                                                if len(flat) > 0:
+                                                                                                                                                                    narrative_field = torch.tensor(flat, dtype=torch.float32)
+                                                                                                                                                    except Exception:
+                                                                                                                                                        pass
+                                                                                                                                                
+                                                                                                                                                # If still no narrative field, try to create from narrative_projection
+                                                                                                                                                if narrative_field is None:
+                                                                                                                                                    if hasattr(self, 'narrative_projection') and isinstance(self.narrative_projection, dict):
+                                                                                                                                                        try:
+                                                                                                                                                            narr_vec = [
+                                                                                                                                                                float(self.narrative_projection.get("confidence", 0.0)),
+                                                                                                                                                                float(self.narrative_projection.get("tension", 0.0)),
+                                                                                                                                                            ]
+                                                                                                                                                            # Pad to dim
+                                                                                                                                                            while len(narr_vec) < 128:
+                                                                                                                                                                narr_vec.append(0.0)
+                                                                                                                                                            narr_vec = narr_vec[:128]
+                                                                                                                                                            narrative_field = torch.tensor(narr_vec, dtype=torch.float32)
+                                                                                                                                                        except Exception:
+                                                                                                                                                            pass
+                                                                                                                                                
+                                                                                                                                                # If we have both fields, run coherence gate
+                                                                                                                                                if predictive_field is not None and narrative_field is not None and hasattr(self, 'narrative_predictive_gate') and self.narrative_predictive_gate is not None:
+                                                                                                                                                    updated_predictive, updated_narrative, gate_val = self.narrative_predictive_gate.forward(
+                                                                                                                                                        predictive_field,
+                                                                                                                                                        narrative_field
+                                                                                                                                                    )
+                                                                                                                                                    
+                                                                                                                                                    # Update internal state and instance variables
+                                                                                                                                                    if updated_predictive is not None:
+                                                                                                                                                        internal_state["predictive_manifold"] = updated_predictive.tolist()
+                                                                                                                                                        self.predictive_manifold = updated_predictive
+                                                                                                                                                    
+                                                                                                                                                    if updated_narrative is not None:
+                                                                                                                                                        internal_state["narrative_manifold"] = updated_narrative.tolist()
+                                                                                                                                                        self.narrative_manifold = updated_narrative
+                                                                                                                                                    
+                                                                                                                                                    # Store gate value for monitoring
+                                                                                                                                                    internal_state["narrative_predictive_gate_val"] = float(gate_val)
+                                                                                                                                                    self.narrative_predictive_gate_val = gate_val
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # MF-324 — Multi-Manifold Adaptive Routing Kernel (MM-ARK)
+                                                                                                                                            try:
+                                                                                                                                                # Collect all 6 manifolds in order: [identity, predictive, narrative, meta, attention, fusion]
+                                                                                                                                                manifolds = []
+                                                                                                                                                
+                                                                                                                                                # 1. Identity manifold
+                                                                                                                                                identity_field = None
+                                                                                                                                                if hasattr(self, 'identity_vector') and self.identity_vector is not None:
+                                                                                                                                                    identity_field = self.identity_vector
+                                                                                                                                                elif "identity_vector" in internal_state:
+                                                                                                                                                    identity_field = torch.tensor(internal_state["identity_vector"])
+                                                                                                                                                manifolds.append(identity_field)
+                                                                                                                                                
+                                                                                                                                                # 2. Predictive manifold
+                                                                                                                                                predictive_field = None
+                                                                                                                                                if "predictive_manifold" in internal_state:
+                                                                                                                                                    predictive_field = torch.tensor(internal_state["predictive_manifold"])
+                                                                                                                                                elif hasattr(self, 'predictive_manifold') and self.predictive_manifold is not None:
+                                                                                                                                                    predictive_field = self.predictive_manifold
+                                                                                                                                                manifolds.append(predictive_field)
+                                                                                                                                                
+                                                                                                                                                # 3. Narrative manifold
+                                                                                                                                                narrative_field = None
+                                                                                                                                                if "narrative_manifold" in internal_state:
+                                                                                                                                                    narrative_field = torch.tensor(internal_state["narrative_manifold"])
+                                                                                                                                                elif hasattr(self, 'narrative_manifold') and self.narrative_manifold is not None:
+                                                                                                                                                    narrative_field = self.narrative_manifold
+                                                                                                                                                manifolds.append(narrative_field)
+                                                                                                                                                
+                                                                                                                                                # 4. Meta-functional manifold
+                                                                                                                                                meta_field = None
+                                                                                                                                                if "meta_field_unified" in internal_state:
+                                                                                                                                                    meta_field = torch.tensor(internal_state["meta_field_unified"])
+                                                                                                                                                elif hasattr(self, 'meta_field_unified') and self.meta_field_unified is not None:
+                                                                                                                                                    meta_field = self.meta_field_unified
+                                                                                                                                                manifolds.append(meta_field)
+                                                                                                                                                
+                                                                                                                                                # 5. Attention manifold
+                                                                                                                                                attention_field = None
+                                                                                                                                                if hasattr(self, 'attention_vector') and self.attention_vector is not None:
+                                                                                                                                                    attention_field = self.attention_vector
+                                                                                                                                                manifolds.append(attention_field)
+                                                                                                                                                
+                                                                                                                                                # 6. Fusion manifold
+                                                                                                                                                fusion_field = None
+                                                                                                                                                if hasattr(self, 'fused_density_vector') and self.fused_density_vector is not None:
+                                                                                                                                                    fusion_field = self.fused_density_vector
+                                                                                                                                                elif hasattr(self, 'fusion') and hasattr(self.fusion, 'last_fusion_vector') and self.fusion.last_fusion_vector is not None:
+                                                                                                                                                    fusion_field = torch.tensor(self.fusion.last_fusion_vector) if isinstance(self.fusion.last_fusion_vector, list) else self.fusion.last_fusion_vector
+                                                                                                                                                manifolds.append(fusion_field)
+                                                                                                                                                
+                                                                                                                                                # Run MM-ARK routing if we have the kernel and at least some manifolds
+                                                                                                                                                if hasattr(self, 'mm_ark') and self.mm_ark is not None and any(m is not None for m in manifolds):
+                                                                                                                                                    updated_manifolds, routing_matrix = self.mm_ark.forward(manifolds)
+                                                                                                                                                    
+                                                                                                                                                    # Update manifolds in internal_state and instance variables
+                                                                                                                                                    if updated_manifolds[0] is not None:  # Identity
+                                                                                                                                                        internal_state["identity_vector"] = updated_manifolds[0].tolist()
+                                                                                                                                                        self.identity_vector = updated_manifolds[0]
+                                                                                                                                                    
+                                                                                                                                                    if updated_manifolds[1] is not None:  # Predictive
+                                                                                                                                                        internal_state["predictive_manifold"] = updated_manifolds[1].tolist()
+                                                                                                                                                        self.predictive_manifold = updated_manifolds[1]
+                                                                                                                                                    
+                                                                                                                                                    if updated_manifolds[2] is not None:  # Narrative
+                                                                                                                                                        internal_state["narrative_manifold"] = updated_manifolds[2].tolist()
+                                                                                                                                                        self.narrative_manifold = updated_manifolds[2]
+                                                                                                                                                    
+                                                                                                                                                    if updated_manifolds[3] is not None:  # Meta
+                                                                                                                                                        internal_state["meta_field_unified"] = updated_manifolds[3].tolist()
+                                                                                                                                                        self.meta_field_unified = updated_manifolds[3]
+                                                                                                                                                    
+                                                                                                                                                    if updated_manifolds[4] is not None:  # Attention
+                                                                                                                                                        if hasattr(self, 'attention_vector'):
+                                                                                                                                                            self.attention_vector = updated_manifolds[4]
+                                                                                                                                                    
+                                                                                                                                                    if updated_manifolds[5] is not None:  # Fusion
+                                                                                                                                                        if hasattr(self, 'fused_density_vector'):
+                                                                                                                                                            self.fused_density_vector = updated_manifolds[5]
+                                                                                                                                                    
+                                                                                                                                                    # Store routing matrix for monitoring
+                                                                                                                                                    if routing_matrix is not None:
+                                                                                                                                                        try:
+                                                                                                                                                            internal_state["routing_matrix"] = routing_matrix.tolist()
+                                                                                                                                                            self.routing_matrix = routing_matrix
+                                                                                                                                                        except Exception:
+                                                                                                                                                            pass
                                                                                                                                             except Exception:
                                                                                                                                                 pass
                                                                                                                     
@@ -20701,6 +20864,259 @@ class NeuralBridge:
                 except Exception:
                     return predictive_field if predictive_field is not None else None, narrative_field if narrative_field is not None else None
 
+    class NarrativePredictiveCoherenceGate:
+        """
+        MF-323 — Narrative–Predictive Coherence Gate
+        
+        Introduces a learnable gating mechanism that determines, cycle-by-cycle,
+        how strongly the narrative and predictive manifolds should influence one another.
+        
+        The gate adapts to ADRAE's internal conditions such as:
+        - local coherence
+        - drift
+        - retrieval salience
+        - narrative richness
+        - predictive load
+        """
+        
+        def __init__(self, dim=128):
+            self.dim = dim
+            
+            try:
+                import torch
+                import torch.nn as nn
+                
+                # Learnable gate projection (takes concatenated fields)
+                self.gate_proj = nn.Linear(dim * 2, 1)
+                
+                # Mixing factor that determines update strength
+                self.update_gate = torch.tensor(0.10, dtype=torch.float32)
+                
+                # Stability normalization
+                self.norm = nn.LayerNorm(dim)
+            except Exception:
+                self.gate_proj = None
+                self.update_gate = torch.tensor(0.10, dtype=torch.float32)
+                self.norm = None
+        
+        def forward(self, predictive_field, narrative_field):
+            """
+            predictive_field: tensor (predictive manifold)
+            narrative_field: tensor (narrative manifold)
+            
+            Returns:
+                predictive_update: torch.Tensor
+                narrative_update: torch.Tensor
+                gate_val: float (coherence gate value)
+            """
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if predictive_field is None or narrative_field is None:
+                    # Fallback: return original fields if either is missing
+                    gate_val = 0.0
+                    if predictive_field is not None:
+                        pred_flat = predictive_field.flatten()
+                        if pred_flat.shape[0] >= self.dim:
+                            return pred_flat[:self.dim], pred_flat[:self.dim], gate_val
+                    if narrative_field is not None:
+                        narr_flat = narrative_field.flatten()
+                        if narr_flat.shape[0] >= self.dim:
+                            return narr_flat[:self.dim], narr_flat[:self.dim], gate_val
+                    # Both None: return zeros
+                    try:
+                        zeros = torch.zeros(self.dim, dtype=torch.float32)
+                        return zeros, zeros, gate_val
+                    except Exception:
+                        return None, None, gate_val
+                
+                # Ensure both fields are 1D and correct dimension
+                pred_flat = predictive_field.flatten()
+                narr_flat = narrative_field.flatten()
+                
+                # Normalize dimensions
+                if pred_flat.shape[0] != self.dim:
+                    if pred_flat.shape[0] < self.dim:
+                        pred_flat = torch.cat([pred_flat, torch.zeros(self.dim - pred_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        pred_flat = pred_flat[:self.dim]
+                
+                if narr_flat.shape[0] != self.dim:
+                    if narr_flat.shape[0] < self.dim:
+                        narr_flat = torch.cat([narr_flat, torch.zeros(self.dim - narr_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        narr_flat = narr_flat[:self.dim]
+                
+                if self.gate_proj is None or self.norm is None:
+                    # Fallback: simple fixed gate without learnable projection
+                    gate_val = 0.5  # Default balanced influence
+                    predictive_update = pred_flat + (narr_flat * gate_val * self.update_gate)
+                    narrative_update = narr_flat + (pred_flat * gate_val * self.update_gate)
+                    return predictive_update, narrative_update, gate_val
+                
+                # 1. Concatenate fields for coherence estimation
+                combined = torch.cat([pred_flat, narr_flat], dim=-1)
+                
+                # 2. Compute coherence gate (sigmoid ensures 0 → 1 range)
+                gate_raw = self.gate_proj(combined)
+                gate_val = torch.sigmoid(gate_raw).item()
+                
+                # 3. Weighted mutual influence updates
+                predictive_update = pred_flat + (narr_flat * gate_val * self.update_gate)
+                narrative_update = narr_flat + (pred_flat * gate_val * self.update_gate)
+                
+                # 4. Normalize results for stability
+                predictive_update = self.norm(predictive_update)
+                narrative_update = self.norm(narrative_update)
+                
+                return predictive_update, narrative_update, gate_val
+            except Exception:
+                # Fallback: return original fields with zero gate
+                try:
+                    import torch
+                    gate_val = 0.0
+                    if predictive_field is not None:
+                        pred_flat = predictive_field.flatten()
+                        if pred_flat.shape[0] >= self.dim:
+                            pred_out = pred_flat[:self.dim] / (torch.norm(pred_flat[:self.dim]) + 1e-8)
+                        else:
+                            pred_out = torch.zeros(self.dim, dtype=torch.float32)
+                    else:
+                        pred_out = torch.zeros(self.dim, dtype=torch.float32)
+                    
+                    if narrative_field is not None:
+                        narr_flat = narrative_field.flatten()
+                        if narr_flat.shape[0] >= self.dim:
+                            narr_out = narr_flat[:self.dim] / (torch.norm(narr_flat[:self.dim]) + 1e-8)
+                        else:
+                            narr_out = torch.zeros(self.dim, dtype=torch.float32)
+                    else:
+                        narr_out = torch.zeros(self.dim, dtype=torch.float32)
+                    
+                    return pred_out, narr_out, gate_val
+                except Exception:
+                    return predictive_field if predictive_field is not None else None, narrative_field if narrative_field is not None else None, 0.0
+
+    class MultiManifoldAdaptiveRoutingKernel:
+        """
+        MF-324 — Multi-Manifold Adaptive Routing Kernel (MM-ARK)
+        
+        The system's first true global routing brain. Decides how information moves
+        across the entire architecture, determining:
+        - how predictive fields influence identity
+        - how narrative fields reinforce memory
+        - how meta-functional fields guide long-range transformations
+        - how attention and fusion combine signals
+        - which manifolds update first, and which update second
+        
+        Provides dynamic routing decisions, adaptive weighting, global manifold
+        arbitration, routing masks, unified transform space, and contextual routing.
+        """
+        
+        def __init__(self, dim=128, num_manifolds=6):
+            self.dim = dim
+            self.num_manifolds = num_manifolds
+            
+            try:
+                import torch
+                import torch.nn as nn
+                
+                # Shared projection into routing latent space
+                self.proj = nn.Linear(dim, dim)
+                
+                # Routing score generator (pairwise manifold scoring)
+                self.route_score = nn.Linear(dim * 2, 1)
+                
+                # Routing influence gate
+                self.route_gate = torch.tensor(0.08, dtype=torch.float32)
+                
+                # Normalization for output stability
+                self.norm = nn.LayerNorm(dim)
+            except Exception:
+                self.proj = None
+                self.route_score = None
+                self.route_gate = torch.tensor(0.08, dtype=torch.float32)
+                self.norm = None
+        
+        def forward(self, manifolds):
+            """
+            manifolds: list of manifold tensors in order:
+            [identity, predictive, narrative, meta, attention, fusion]
+            
+            Returns:
+                updated_manifolds: list of updated manifold tensors
+                routing_matrix: torch.Tensor (NxN influence weights)
+            """
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Filter out None manifolds and ensure correct dimensions
+                valid_manifolds = []
+                valid_indices = []
+                for i, m in enumerate(manifolds):
+                    if m is not None:
+                        m_flat = m.flatten()
+                        if m_flat.shape[0] == self.dim:
+                            valid_manifolds.append(m_flat)
+                            valid_indices.append(i)
+                        elif m_flat.shape[0] < self.dim:
+                            # Pad to match dimension
+                            m_padded = torch.cat([m_flat, torch.zeros(self.dim - m_flat.shape[0], dtype=torch.float32)])
+                            valid_manifolds.append(m_padded)
+                            valid_indices.append(i)
+                        elif m_flat.shape[0] >= self.dim:
+                            # Truncate to match dimension
+                            valid_manifolds.append(m_flat[:self.dim])
+                            valid_indices.append(i)
+                
+                if len(valid_manifolds) < 2:
+                    # Need at least 2 manifolds to route
+                    return manifolds, torch.zeros(self.num_manifolds, self.num_manifolds)
+                
+                if self.proj is None or self.route_score is None or self.norm is None:
+                    # Fallback: simple averaging without routing
+                    return manifolds, torch.zeros(self.num_manifolds, self.num_manifolds)
+                
+                # Project all manifolds into routing latent space
+                projected = [self.proj(m) for m in valid_manifolds]
+                
+                # Routing matrix: NxN influence weights (for all manifolds, not just valid ones)
+                routing_matrix = torch.zeros(self.num_manifolds, self.num_manifolds)
+                
+                # Compute pairwise routing scores for valid manifolds
+                for idx_i, i in enumerate(valid_indices):
+                    for idx_j, j in enumerate(valid_indices):
+                        if i == j:
+                            continue
+                        
+                        pair = torch.cat([projected[idx_i], projected[idx_j]], dim=-1)
+                        score = torch.sigmoid(self.route_score(pair))
+                        routing_matrix[i, j] = score.item()
+                
+                # Apply routing updates
+                updated_manifolds = list(manifolds)  # Start with original list
+                
+                for idx, i in enumerate(valid_indices):
+                    influence_sum = torch.zeros(self.dim, dtype=torch.float32)
+                    
+                    for idx_j, j in enumerate(valid_indices):
+                        if i != j:
+                            influence_sum += valid_manifolds[idx_j] * routing_matrix[j, i]
+                    
+                    updated = valid_manifolds[idx] + influence_sum * self.route_gate
+                    updated_manifolds[i] = self.norm(updated)
+                
+                return updated_manifolds, routing_matrix
+            except Exception:
+                # Fallback: return original manifolds and zero routing matrix
+                try:
+                    import torch
+                    return manifolds, torch.zeros(self.num_manifolds, self.num_manifolds)
+                except Exception:
+                    return manifolds, None
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -20851,6 +21267,18 @@ class NeuralBridge:
             else:
                 if getattr(self.predictive_narrative_harmonizer, "dim", dim) != dim:
                     self.predictive_narrative_harmonizer = self.PredictiveNarrativeHarmonizer(dim=dim)
+            
+            if self.narrative_predictive_gate is None:
+                self.narrative_predictive_gate = self.NarrativePredictiveCoherenceGate(dim=dim)
+            else:
+                if getattr(self.narrative_predictive_gate, "dim", dim) != dim:
+                    self.narrative_predictive_gate = self.NarrativePredictiveCoherenceGate(dim=dim)
+            
+            if self.mm_ark is None:
+                self.mm_ark = self.MultiManifoldAdaptiveRoutingKernel(dim=dim, num_manifolds=6)
+            else:
+                if getattr(self.mm_ark, "dim", dim) != dim:
+                    self.mm_ark = self.MultiManifoldAdaptiveRoutingKernel(dim=dim, num_manifolds=6)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
