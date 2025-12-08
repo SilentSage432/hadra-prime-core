@@ -1745,6 +1745,8 @@ class NeuralBridge:
             self.routing_bias_vector = None
             self.hierarchy_refinement_layer = None
             self.hierarchy_manifold_integrator = None
+            self.manifold_hierarchy_loop = None
+            self.manifold_loop_signal = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -3072,6 +3074,28 @@ class NeuralBridge:
                                                                                                                                                     internal_state["predictive_hierarchy"] = [v.tolist() for v in integrated]
                                                                                                                                                     # persist for subsequent cycles
                                                                                                                                                     self.predictive_hierarchy = integrated
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # A312 — Recursive Manifold-Hierarchy Feedback Loop Engine
+                                                                                                                                            try:
+                                                                                                                                                if (
+                                                                                                                                                    "predictive_hierarchy" in internal_state and
+                                                                                                                                                    "predictive_manifold" in internal_state and
+                                                                                                                                                    "routing_feedback" in internal_state
+                                                                                                                                                ):
+                                                                                                                                                    hierarchy = [torch.tensor(v) for v in internal_state["predictive_hierarchy"]]
+                                                                                                                                                    manifold_vec = torch.tensor(internal_state["predictive_manifold"])
+                                                                                                                                                    feedback_vec = torch.tensor(internal_state["routing_feedback"]["feedback_vector"])
+                                                                                                                                                    updated_manifold, loop_signal = self.manifold_hierarchy_loop.apply(
+                                                                                                                                                        hierarchy,
+                                                                                                                                                        manifold_vec,
+                                                                                                                                                        feedback_vec
+                                                                                                                                                    )
+                                                                                                                                                    internal_state["predictive_manifold"] = updated_manifold.tolist()
+                                                                                                                                                    internal_state["manifold_hierarchy_loop_signal"] = loop_signal.tolist()
+                                                                                                                                                    # persist for next phases
+                                                                                                                                                    self.predictive_manifold = updated_manifold
+                                                                                                                                                    self.manifold_loop_signal = loop_signal
                                                                                                                                             except Exception:
                                                                                                                                                 pass
                                                                                                                     
@@ -19432,6 +19456,65 @@ class NeuralBridge:
             except Exception:
                 return hierarchy
 
+    class RecursiveManifoldHierarchyFeedback:
+        """
+        A312 — Recursive Manifold-Hierarchy Feedback Loop Engine
+        
+        Creates a two-way feedback circuit between the manifold and predictive hierarchy,
+        enabling co-evolution and recursive stabilization.
+        """
+        
+        def __init__(self, dim=128, fusion_factor=0.4, loop_factor=0.3):
+            self.dim = dim
+            self.fusion_factor = fusion_factor
+            self.loop_factor = loop_factor
+        
+        def apply(self, hierarchy, manifold_vec, feedback_vec):
+            """
+            hierarchy: list[torch.Tensor]
+            manifold_vec: torch.Tensor (dim=128)
+            feedback_vec: torch.Tensor (dim=128)
+            Returns:
+                updated_manifold: torch.Tensor
+                loop_signal: torch.Tensor
+            """
+            try:
+                import torch
+                
+                # Normalize
+                m = manifold_vec / (torch.norm(manifold_vec) + 1e-8)
+                f = feedback_vec / (torch.norm(feedback_vec) + 1e-8)
+                
+                # 1. Hierarchy Summary Vector
+                hierarchy_stack = torch.stack(hierarchy)
+                hierarchy_mean = torch.mean(hierarchy_stack, dim=0)
+                hierarchy_mean = hierarchy_mean / (torch.norm(hierarchy_mean) + 1e-8)
+                
+                # 2. Loop interaction signal
+                loop_signal = (
+                    self.fusion_factor * hierarchy_mean +
+                    self.loop_factor * f +
+                    (1 - self.fusion_factor - self.loop_factor) * m
+                )
+                loop_signal = loop_signal / (torch.norm(loop_signal) + 1e-8)
+                
+                # 3. Updated manifold (recursive deformation)
+                updated_manifold = (
+                    0.55 * m +
+                    0.25 * loop_signal +
+                    0.20 * hierarchy_mean
+                )
+                updated_manifold = updated_manifold / (torch.norm(updated_manifold) + 1e-8)
+                
+                return updated_manifold, loop_signal
+            except Exception:
+                # Return original manifold and zero signal on error
+                try:
+                    import torch
+                    return manifold_vec, torch.zeros(self.dim, dtype=torch.float32)
+                except Exception:
+                    return manifold_vec, manifold_vec  # Fallback to manifold_vec if torch unavailable
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -19517,11 +19600,11 @@ class NeuralBridge:
                 if getattr(self.hierarchy_manifold_integrator, "dim", dim) != dim:
                     self.hierarchy_manifold_integrator = self.PredictiveHierarchyManifoldIntegrator(dim=dim)
             
-            if self.hierarchy_manifold_integrator is None:
-                self.hierarchy_manifold_integrator = self.PredictiveHierarchyManifoldIntegrator(dim=dim)
+            if self.manifold_hierarchy_loop is None:
+                self.manifold_hierarchy_loop = self.RecursiveManifoldHierarchyFeedback(dim=dim)
             else:
-                if getattr(self.hierarchy_manifold_integrator, "dim", dim) != dim:
-                    self.hierarchy_manifold_integrator = self.PredictiveHierarchyManifoldIntegrator(dim=dim)
+                if getattr(self.manifold_hierarchy_loop, "dim", dim) != dim:
+                    self.manifold_hierarchy_loop = self.RecursiveManifoldHierarchyFeedback(dim=dim)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
