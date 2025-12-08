@@ -1730,6 +1730,10 @@ class NeuralBridge:
             self.meta_resonance_data = {}
             self.meta_field_evolution_engine = None
             self.evolved_meta_field = None
+            self.predictive_convergence_engine = None
+            self.converged_predictive_field = None
+            self.hierarchical_expansion_engine = None
+            self.predictive_hierarchy = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2924,6 +2928,36 @@ class NeuralBridge:
                                                                                                                                                     evolved_field = None
                                                                                                                                                 if evolved_field is not None:
                                                                                                                                                     internal_state["evolved_meta_field"] = evolved_field.tolist()
+                                                                                                                                            # A304 — Multi-Field Predictive Convergence Engine
+                                                                                                                                            try:
+                                                                                                                                                fields_to_merge = []
+                                                                                                                                                if "stabilized_field" in locals() and stabilized_field is not None:
+                                                                                                                                                    fields_to_merge.append(stabilized_field)
+                                                                                                                                                if "evolved_field" in locals() and evolved_field is not None:
+                                                                                                                                                    fields_to_merge.append(evolved_field)
+                                                                                                                                                if hasattr(self, "global_predictive_field") and self.global_predictive_field is not None:
+                                                                                                                                                    fields_to_merge.append(self.global_predictive_field)
+                                                                                                                                                if hasattr(self, "predictive_convergence_engine") and self.predictive_convergence_engine is not None:
+                                                                                                                                                    converged = self.predictive_convergence_engine.converge(fields_to_merge)
+                                                                                                                                                else:
+                                                                                                                                                    converged = None
+                                                                                                                                            except Exception:
+                                                                                                                                                converged = None
+                                                                                                                                            if converged is not None:
+                                                                                                                                                internal_state["converged_predictive_field"] = converged.tolist()
+                                                                                                                                                self.converged_predictive_field = converged
+                                                                                                                                            # A305 — Hierarchical Predictive Field Expansion Engine
+                                                                                                                                            try:
+                                                                                                                                                if "converged_predictive_field" in internal_state:
+                                                                                                                                                    converged_vec = torch.tensor(internal_state["converged_predictive_field"])
+                                                                                                                                                    hierarchy = self.hierarchical_expansion_engine.expand(converged_vec)
+                                                                                                                                                else:
+                                                                                                                                                    hierarchy = None
+                                                                                                                                            except Exception:
+                                                                                                                                                hierarchy = None
+                                                                                                                                            if hierarchy is not None:
+                                                                                                                                                internal_state["predictive_hierarchy"] = [h.tolist() for h in hierarchy]
+                                                                                                                                                self.predictive_hierarchy = hierarchy
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -18941,6 +18975,98 @@ class NeuralBridge:
             except Exception:
                 return None
 
+    class MultiFieldPredictiveConvergenceEngine:
+        """
+        A304 — Multi-Field Predictive Convergence Engine
+        """
+        
+        def __init__(self, dim=128, alignment_threshold=0.35):
+            self.dim = dim
+            self.alignment_threshold = alignment_threshold
+        
+        def converge(self, fields):
+            """
+            Converges multiple fields into a unified predictive vector.
+            Expects a list of 1D tensors of shape [dim].
+            """
+            try:
+                import torch
+                if not fields or len(fields) == 0:
+                    return None
+                
+                tensors = [f.clone() for f in fields if f is not None]
+                if len(tensors) == 0:
+                    return None
+                
+                weights = []
+                for i, fi in enumerate(tensors):
+                    sim_sum = 0.0
+                    for j, fj in enumerate(tensors):
+                        if i == j:
+                            continue
+                        sim_sum += float(torch.cosine_similarity(fi, fj, dim=0).item())
+                    weights.append(sim_sum)
+                
+                w = torch.tensor(weights)
+                if torch.sum(w) == 0:
+                    w = torch.ones_like(w)
+                w = w / torch.sum(w)
+                
+                combined = torch.zeros(self.dim)
+                for tensor, weight in zip(tensors, w):
+                    combined += tensor * weight
+                
+                avg_vec = torch.mean(torch.stack(tensors), dim=0)
+                for t in tensors:
+                    sim = float(torch.cosine_similarity(t, avg_vec, dim=0).item())
+                    if sim > self.alignment_threshold:
+                        combined += 0.05 * t
+                
+                combined = combined / torch.norm(combined)
+                return combined
+            except Exception:
+                return None
+
+    class HierarchicalPredictiveFieldExpansionEngine:
+        """
+        A305 — Hierarchical Predictive Field Expansion Engine
+        """
+        
+        def __init__(self, dim=128, levels=4):
+            self.dim = dim
+            self.levels = levels
+        
+        def expand(self, vector):
+            """
+            Builds a hierarchical stack of predictive field variations.
+            Returns: list[torch.Tensor] of shape [levels, dim]
+            """
+            try:
+                import torch
+                if vector is None:
+                    return None
+                
+                base = vector.clone()
+                hierarchy = [base]
+                
+                for level in range(1, self.levels):
+                    transformed = base
+                    freq = (level + 1) * 0.5
+                    harmonic = torch.sin(base * freq)
+                    projected = torch.tanh(base * (level + 1))
+                    noise = torch.randn(self.dim) * (0.01 * level)
+                    transformed = (
+                        0.55 * projected +
+                        0.35 * harmonic +
+                        0.10 * noise
+                    )
+                    transformed = transformed / torch.norm(transformed)
+                    hierarchy.append(transformed)
+                
+                return hierarchy
+            except Exception:
+                return None
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -18977,6 +19103,18 @@ class NeuralBridge:
             else:
                 if getattr(self.meta_field_evolution_engine, "dim", dim) != dim:
                     self.meta_field_evolution_engine = self.ResonantMetaFieldEvolutionEngine(dim=dim)
+            
+            if self.predictive_convergence_engine is None:
+                self.predictive_convergence_engine = self.MultiFieldPredictiveConvergenceEngine(dim=dim)
+            else:
+                if getattr(self.predictive_convergence_engine, "dim", dim) != dim:
+                    self.predictive_convergence_engine = self.MultiFieldPredictiveConvergenceEngine(dim=dim)
+            
+            if self.hierarchical_expansion_engine is None:
+                self.hierarchical_expansion_engine = self.HierarchicalPredictiveFieldExpansionEngine(dim=dim)
+            else:
+                if getattr(self.hierarchical_expansion_engine, "dim", dim) != dim:
+                    self.hierarchical_expansion_engine = self.HierarchicalPredictiveFieldExpansionEngine(dim=dim)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
