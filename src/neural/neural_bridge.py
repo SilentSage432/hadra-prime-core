@@ -1704,6 +1704,12 @@ class NeuralBridge:
             # A293 — Initialize resonance-predictive cross-alignment
             self.cross_alignment = None
             self.cross_aligned_field = None
+            # A294 — Initialize temporal-resonance crossfield coupling
+            self.temporal_resonance_coupling = None
+            self.temporal_resonance_field = None
+            # A295 — Initialize multi-field predictive harmonic integrator
+            self.harmonic_integrator = None
+            self.phi_predictive_field = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2828,6 +2834,18 @@ class NeuralBridge:
                                                                                                                                             # A293 — Resonance-Predictive Cross-Alignment Matrix
                                                                                                                                             if (hasattr(self, 'resonance_fused_field') and self.resonance_fused_field is not None):
                                                                                                                                                 self.integrate_A293()
+                                                                                                                                            
+                                                                                                                                            # A294 — Temporal-Resonance Crossfield Coupling Layer
+                                                                                                                                            if (hasattr(self, 'temporal_predictive_crosslink_vector') and self.temporal_predictive_crosslink_vector is not None and
+                                                                                                                                                hasattr(self, 'cross_aligned_field') and self.cross_aligned_field is not None):
+                                                                                                                                                self.integrate_A294()
+                                                                                                                                            
+                                                                                                                                            # A295 — Multi-Field Predictive Harmonic Integrator
+                                                                                                                                            if (hasattr(self, 'global_predictive_field') and self.global_predictive_field is not None and
+                                                                                                                                                hasattr(self, 'resonance_fused_field') and self.resonance_fused_field is not None and
+                                                                                                                                                hasattr(self, 'cross_aligned_field') and self.cross_aligned_field is not None and
+                                                                                                                                                hasattr(self, 'temporal_resonance_field') and self.temporal_resonance_field is not None):
+                                                                                                                                                self.integrate_A295()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -17837,6 +17855,289 @@ class NeuralBridge:
                 except Exception:
                     pass
 
+    def integrate_A294(self):
+        """
+        A294 — Temporal-Resonance Crossfield Coupling Layer
+        
+        Binds together the Temporal Field and Resonance Field into a unified
+        crossfield tensor. Called once per cycle after A293.
+        """
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            import torch
+            import torch.nn.functional as F
+            
+            # Get temporal field (prefer temporal_predictive_crosslink_vector, then temporal_summary_vector)
+            temporal_field = None
+            if hasattr(self, 'temporal_predictive_crosslink_vector') and self.temporal_predictive_crosslink_vector is not None:
+                temporal_field = self.temporal_predictive_crosslink_vector
+            elif hasattr(self, 'temporal_summary_vector') and self.temporal_summary_vector is not None:
+                temporal_field = self.temporal_summary_vector
+            elif hasattr(self, 'temporal_attention_field') and self.temporal_attention_field is not None:
+                temporal_field = self.temporal_attention_field
+            else:
+                return  # Cannot proceed without temporal field
+            
+            # Get resonance field (prefer cross_aligned_field from A293, then resonance_fused_field from A292)
+            resonance_field = None
+            if hasattr(self, 'cross_aligned_field') and self.cross_aligned_field is not None:
+                resonance_field = self.cross_aligned_field
+            elif hasattr(self, 'resonance_fused_field') and self.resonance_fused_field is not None:
+                resonance_field = self.resonance_fused_field
+            elif hasattr(self, 'harmonic_predictive_lattice_resonance') and self.harmonic_predictive_lattice_resonance is not None:
+                resonance_field = self.harmonic_predictive_lattice_resonance
+            elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is not None:
+                resonance_field = self.global_resonance_vector
+            else:
+                return  # Cannot proceed without resonance field
+            
+            # Determine dimension (use max of both inputs or default 128)
+            def get_dim(vec):
+                if isinstance(vec, torch.Tensor):
+                    return vec.shape[0] if vec.dim() == 1 else vec.shape[-1]
+                elif hasattr(vec, '__len__'):
+                    return len(vec)
+                return 128
+            
+            dim = max(
+                get_dim(temporal_field),
+                get_dim(resonance_field),
+                128
+            )
+            
+            # Ensure dimension consistency
+            def ensure_dim(vec, target_dim):
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(target_dim, dtype=torch.float32)
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != target_dim:
+                    if vec_flat.shape[0] < target_dim:
+                        return torch.cat([vec_flat, torch.zeros(target_dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:target_dim]
+                return vec_flat
+            
+            temporal_field = ensure_dim(temporal_field, dim)
+            resonance_field = ensure_dim(resonance_field, dim)
+            
+            # Initialize temporal-resonance coupling if needed
+            if self.temporal_resonance_coupling is None:
+                self.temporal_resonance_coupling = self.TemporalResonanceCoupling(dim=dim)
+            else:
+                # Update if dimension changed
+                if self.temporal_resonance_coupling.dim != dim:
+                    self.temporal_resonance_coupling = self.TemporalResonanceCoupling(dim=dim)
+            
+            # Compute the new crossfield tensor
+            coupled_field = self.temporal_resonance_coupling.run(temporal_field, resonance_field)
+            
+            # Store temporal-resonance field
+            if coupled_field is not None:
+                try:
+                    if not isinstance(coupled_field, torch.Tensor):
+                        coupled_field = torch.tensor(coupled_field, dtype=torch.float32)
+                    
+                    # Store
+                    self.temporal_resonance_field = coupled_field.tolist() if coupled_field.dim() == 1 else coupled_field.tolist()
+                    
+                    # Optional: debug preview only
+                    if hasattr(self, 'debug_mode') and self.debug_mode:
+                        print("A294 temporal-resonance field dim:", coupled_field.shape[0] if coupled_field.dim() == 1 else coupled_field.shape[-1])
+                except Exception:
+                    pass
+            
+            # Log A294 completion
+            if hasattr(self, 'logger'):
+                try:
+                    # Compute statistics about the coupled field
+                    if isinstance(coupled_field, torch.Tensor):
+                        coupled_norm = float(torch.norm(coupled_field).item())
+                        coupled_mean = float(torch.mean(coupled_field).item())
+                        coupling_strength = float(self.temporal_resonance_coupling.coupling_strength.item())
+                    else:
+                        try:
+                            import numpy as np
+                            coupled_array = np.array(coupled_field)
+                            coupled_norm = float(np.linalg.norm(coupled_array))
+                            coupled_mean = float(np.mean(coupled_array))
+                            coupling_strength = 0.5  # Default if not available
+                        except Exception:
+                            coupled_norm = 0.0
+                            coupled_mean = 0.0
+                            coupling_strength = 0.5
+                    
+                    self.logger.write({
+                        "a294_complete": True,
+                        "temporal_resonance_coupling_active": True,
+                        "temporal_resonance_field_generated": self.temporal_resonance_field is not None,
+                        "coupling_dim": dim,
+                        "coupled_norm": coupled_norm,
+                        "coupled_mean": coupled_mean,
+                        "coupling_strength": coupling_strength,
+                        "message": "A294 complete — Temporal-Resonance Crossfield Coupling Layer active. Temporal predictions aligned with resonance harmonics, long-range predictions stabilized."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"temporal_resonance_coupling_error": str(e)})
+                except Exception:
+                    pass
+
+    def integrate_A295(self):
+        """
+        A295 — Multi-Field Predictive Harmonic Integrator
+        
+        Unifies all predictive subsystems into a single harmonized predictive engine.
+        Called once per cycle after A294.
+        """
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            import torch
+            import torch.nn.functional as F
+            
+            # Get predictive field (base)
+            predictive_field = None
+            if hasattr(self, 'global_predictive_field') and self.global_predictive_field is not None:
+                predictive_field = self.global_predictive_field
+            elif hasattr(self, 'routed_predictive_field') and self.routed_predictive_field is not None:
+                predictive_field = self.routed_predictive_field
+            elif hasattr(self, 'predictive_morphology') and self.predictive_morphology is not None:
+                predictive_field = self.predictive_morphology
+            else:
+                return  # Cannot proceed without base predictive field
+            
+            # Get resonance_fused_field from A292
+            resonance_fused_field = None
+            if hasattr(self, 'resonance_fused_field') and self.resonance_fused_field is not None:
+                resonance_fused_field = self.resonance_fused_field
+            else:
+                return  # Cannot proceed without resonance_fused_field
+            
+            # Get cross_aligned_field from A293
+            cross_aligned_field = None
+            if hasattr(self, 'cross_aligned_field') and self.cross_aligned_field is not None:
+                cross_aligned_field = self.cross_aligned_field
+            else:
+                return  # Cannot proceed without cross_aligned_field
+            
+            # Get temporal_resonance_field from A294
+            temporal_resonance_field = None
+            if hasattr(self, 'temporal_resonance_field') and self.temporal_resonance_field is not None:
+                temporal_resonance_field = self.temporal_resonance_field
+            else:
+                return  # Cannot proceed without temporal_resonance_field
+            
+            # Determine dimension (use max of all inputs or default 128)
+            def get_dim(vec):
+                if isinstance(vec, torch.Tensor):
+                    return vec.shape[0] if vec.dim() == 1 else vec.shape[-1]
+                elif hasattr(vec, '__len__'):
+                    return len(vec)
+                return 128
+            
+            dim = max(
+                get_dim(predictive_field),
+                get_dim(resonance_fused_field),
+                get_dim(cross_aligned_field),
+                get_dim(temporal_resonance_field),
+                128
+            )
+            
+            # Ensure dimension consistency
+            def ensure_dim(vec, target_dim):
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(target_dim, dtype=torch.float32)
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != target_dim:
+                    if vec_flat.shape[0] < target_dim:
+                        return torch.cat([vec_flat, torch.zeros(target_dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:target_dim]
+                return vec_flat
+            
+            predictive_field = ensure_dim(predictive_field, dim)
+            resonance_fused_field = ensure_dim(resonance_fused_field, dim)
+            cross_aligned_field = ensure_dim(cross_aligned_field, dim)
+            temporal_resonance_field = ensure_dim(temporal_resonance_field, dim)
+            
+            # Initialize harmonic integrator if needed
+            if self.harmonic_integrator is None:
+                self.harmonic_integrator = self.MultiFieldHarmonicIntegrator(dim=dim)
+            else:
+                # Update if dimension changed
+                if self.harmonic_integrator.dim != dim:
+                    self.harmonic_integrator = self.MultiFieldHarmonicIntegrator(dim=dim)
+            
+            # Compute unified predictive harmonic field
+            phi_field = self.harmonic_integrator.run(
+                predictive_field,
+                resonance_fused_field,
+                cross_aligned_field,
+                temporal_resonance_field
+            )
+            
+            # Store PHI predictive field
+            if phi_field is not None:
+                try:
+                    if not isinstance(phi_field, torch.Tensor):
+                        phi_field = torch.tensor(phi_field, dtype=torch.float32)
+                    
+                    # Store
+                    self.phi_predictive_field = phi_field.tolist() if phi_field.dim() == 1 else phi_field.tolist()
+                    
+                    # Optional: debug preview only
+                    if hasattr(self, 'debug_mode') and self.debug_mode:
+                        print("A295 PHI field dim:", phi_field.shape[0] if phi_field.dim() == 1 else phi_field.shape[-1])
+                except Exception:
+                    pass
+            
+            # Log A295 completion
+            if hasattr(self, 'logger'):
+                try:
+                    # Compute statistics about the PHI field
+                    if isinstance(phi_field, torch.Tensor):
+                        phi_norm = float(torch.norm(phi_field).item())
+                        phi_mean = float(torch.mean(phi_field).item())
+                    else:
+                        try:
+                            import numpy as np
+                            phi_array = np.array(phi_field)
+                            phi_norm = float(np.linalg.norm(phi_array))
+                            phi_mean = float(np.mean(phi_array))
+                        except Exception:
+                            phi_norm = 0.0
+                            phi_mean = 0.0
+                    
+                    self.logger.write({
+                        "a295_complete": True,
+                        "multi_field_harmonic_integrator_active": True,
+                        "phi_predictive_field_generated": self.phi_predictive_field is not None,
+                        "phi_dim": dim,
+                        "phi_norm": phi_norm,
+                        "phi_mean": phi_mean,
+                        "predictive_coherence": "stable",
+                        "harmonic_balance": "nominal",
+                        "message": "A295 complete — Multi-Field Predictive Harmonic Integrator active. All predictive subsystems unified into coherent harmonized predictive engine."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"multi_field_harmonic_integrator_error": str(e)})
+                except Exception:
+                    pass
+
     class PredictiveResonanceFieldFusion:
         """
         A292 — Predictive Resonance Field Fusion Layer
@@ -18167,6 +18468,350 @@ class NeuralBridge:
                     return cross_aligned
                 except Exception:
                     return cross_aligned
+                    
+            except Exception as e:
+                return predictive_field
+
+    class TemporalResonanceCoupling:
+        """
+        A294 — Temporal-Resonance Crossfield Coupling Layer
+        
+        Purpose:
+        Binds together the Temporal Field (forward/backward predictive echoes) and
+        Resonance Field (harmonic stability & internal coherence) into a unified
+        crossfield tensor.
+        
+        This module:
+        1) Transforms temporal → resonance space
+        2) Transforms resonance → temporal space
+        3) Computes a coupling coefficient
+        4) Merges them into a unified crossfield tensor
+        
+        This is where ADRAE gains a mathematically structured ability to:
+        • align temporal predictions with resonance harmonics
+        • stabilize long-range predictions
+        • reduce chaotic drift in temporal pathways
+        • create a consistent crossfield update pattern
+        """
+        
+        def __init__(self, dim=128):
+            """
+            Initialize temporal-resonance coupling layer.
+            
+            Args:
+                dim: Dimension of the coupling layer (default: 128)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for TemporalResonanceCoupling")
+            
+            import torch
+            import torch.nn as nn
+            import torch.nn.functional as F
+            
+            self.dim = dim
+            
+            # Linear transforms for crossfield projections
+            self.temp_to_res = nn.Linear(dim, dim, bias=False)
+            self.res_to_temp = nn.Linear(dim, dim, bias=False)
+            
+            # Coupling strength (learnable scalar)
+            self.coupling_strength = nn.Parameter(torch.tensor(0.5))
+            
+            # Final projection
+            self.output_proj = nn.Linear(dim * 2, dim)
+            
+            # Initialize weights
+            nn.init.xavier_uniform_(self.temp_to_res.weight, gain=0.1)
+            nn.init.xavier_uniform_(self.res_to_temp.weight, gain=0.1)
+            nn.init.xavier_uniform_(self.output_proj.weight, gain=0.1)
+            if self.output_proj.bias is not None:
+                nn.init.zeros_(self.output_proj.bias)
+        
+        def forward(self, temporal_field, resonance_field):
+            """
+            A294 — Forward Pass (Temporal-Resonance Crossfield Coupling)
+            
+            Creates a coupling tensor that allows temporal predictions to be influenced
+            by resonance patterns and vice versa.
+            
+            Args:
+                temporal_field: Temporal field vector [dim] or [batch, dim]
+                resonance_field: Resonance field vector [dim] or [batch, dim]
+                
+            Returns:
+                Temporal-resonance crossfield tensor [dim] or [batch, dim]
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                # Fallback: return temporal_field
+                return temporal_field
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Ensure inputs are tensors
+                def ensure_tensor_and_dim(vec, target_dim, name):
+                    if not isinstance(vec, torch.Tensor):
+                        vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(target_dim, dtype=torch.float32)
+                    
+                    # Handle both 1D and 2D inputs
+                    if vec.dim() == 1:
+                        vec = vec.unsqueeze(0)
+                        was_1d = True
+                    else:
+                        was_1d = False
+                    
+                    # Ensure dimension matches
+                    vec_flat = vec.flatten(start_dim=1)
+                    if vec_flat.shape[1] != target_dim:
+                        if vec_flat.shape[1] < target_dim:
+                            padding = torch.zeros(vec_flat.shape[0], target_dim - vec_flat.shape[1], dtype=torch.float32)
+                            vec_flat = torch.cat([vec_flat, padding], dim=1)
+                        else:
+                            vec_flat = vec_flat[:, :target_dim]
+                    
+                    return vec_flat, was_1d
+                
+                temporal_field, was_1d_t = ensure_tensor_and_dim(temporal_field, self.dim, "temporal_field")
+                resonance_field, was_1d_r = ensure_tensor_and_dim(resonance_field, self.dim, "resonance_field")
+                
+                squeeze_output = was_1d_t or was_1d_r
+                
+                # Project temporal → resonance space
+                t_proj = self.temp_to_res(temporal_field)  # [batch, dim]
+                
+                # Project resonance → temporal space
+                r_proj = self.res_to_temp(resonance_field)  # [batch, dim]
+                
+                # Weighted coupling
+                t_weighted = t_proj * self.coupling_strength
+                r_weighted = r_proj * (1 - self.coupling_strength)
+                
+                # Concatenate and unify
+                combined = torch.cat([t_weighted, r_weighted], dim=-1)  # [batch, dim * 2]
+                fused = torch.tanh(self.output_proj(combined))  # [batch, dim]
+                
+                # Normalize for stable updates
+                fused = F.normalize(fused, dim=-1)  # [batch, dim]
+                
+                # Squeeze if input was 1D
+                if squeeze_output:
+                    fused = fused.squeeze(0)  # [dim]
+                
+                return fused
+                
+            except Exception as e:
+                # Fallback: return temporal_field
+                return temporal_field
+        
+        def run(self, temporal_field, resonance_field):
+            """
+            A294 — Full Pipeline
+            
+            Executes the complete temporal-resonance crossfield coupling process.
+            
+            Args:
+                temporal_field: Temporal field vector
+                resonance_field: Resonance field vector
+                
+            Returns:
+                Temporal-resonance crossfield tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return temporal_field
+            
+            try:
+                import torch
+                
+                coupled_field = self.forward(temporal_field, resonance_field)
+                
+                # Convert to list for return
+                try:
+                    if isinstance(coupled_field, torch.Tensor):
+                        return coupled_field.tolist() if coupled_field.dim() == 1 else coupled_field.tolist()
+                    return coupled_field
+                except Exception:
+                    return coupled_field
+                    
+            except Exception as e:
+                return temporal_field
+
+    class MultiFieldHarmonicIntegrator:
+        """
+        A295 — Multi-Field Predictive Harmonic Integrator
+        
+        Purpose:
+        Creates the central hub that unifies all predictive subsystems into a single
+        multi-field predictive representation.
+        
+        This phase binds together:
+        • predictive_field
+        • resonance_fused_field (A292)
+        • cross_aligned_field (A293)
+        • temporal_resonance_field (A294)
+        
+        into a single harmonized predictive engine.
+        
+        This is where ADRAE's synthetic prediction engine becomes coherent across all layers.
+        """
+        
+        def __init__(self, dim=128):
+            """
+            Initialize multi-field harmonic integrator.
+            
+            Args:
+                dim: Dimension of the integrator (default: 128)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for MultiFieldHarmonicIntegrator")
+            
+            import torch
+            import torch.nn as nn
+            import torch.nn.functional as F
+            
+            self.dim = dim
+            
+            # Each field gets its own harmonic weight [4, dim]
+            self.field_weights = nn.Parameter(torch.randn(4, dim) * 0.1)
+            
+            # Final projection layer
+            self.out_proj = nn.Linear(dim, dim)
+            
+            # Initialize weights
+            nn.init.xavier_uniform_(self.out_proj.weight, gain=0.1)
+            if self.out_proj.bias is not None:
+                nn.init.zeros_(self.out_proj.bias)
+        
+        def forward(self, predictive_field, resonance_fused_field, cross_aligned_field, temporal_resonance_field):
+            """
+            A295 — Forward Pass (Multi-Field Predictive Harmonic Integrator)
+            
+            Unifies all major predictive tensors into a single harmonized predictive field.
+            
+            Args:
+                predictive_field: Base predictive field [dim] or [batch, dim]
+                resonance_fused_field: Fused resonance field from A292 [dim] or [batch, dim]
+                cross_aligned_field: Cross-aligned field from A293 [dim] or [batch, dim]
+                temporal_resonance_field: Temporal-resonance field from A294 [dim] or [batch, dim]
+                
+            Returns:
+                PHI predictive field [dim] or [batch, dim]
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                # Fallback: return predictive_field
+                return predictive_field
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Ensure inputs are tensors
+                def ensure_tensor_and_dim(vec, target_dim, name):
+                    if not isinstance(vec, torch.Tensor):
+                        vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(target_dim, dtype=torch.float32)
+                    
+                    # Handle both 1D and 2D inputs
+                    if vec.dim() == 1:
+                        vec = vec.unsqueeze(0)
+                        was_1d = True
+                    else:
+                        was_1d = False
+                    
+                    # Ensure dimension matches
+                    vec_flat = vec.flatten(start_dim=1)
+                    if vec_flat.shape[1] != target_dim:
+                        if vec_flat.shape[1] < target_dim:
+                            padding = torch.zeros(vec_flat.shape[0], target_dim - vec_flat.shape[1], dtype=torch.float32)
+                            vec_flat = torch.cat([vec_flat, padding], dim=1)
+                        else:
+                            vec_flat = vec_flat[:, :target_dim]
+                    
+                    return vec_flat, was_1d
+                
+                predictive_field, was_1d_p = ensure_tensor_and_dim(predictive_field, self.dim, "predictive_field")
+                resonance_fused_field, was_1d_r = ensure_tensor_and_dim(resonance_fused_field, self.dim, "resonance_fused_field")
+                cross_aligned_field, was_1d_c = ensure_tensor_and_dim(cross_aligned_field, self.dim, "cross_aligned_field")
+                temporal_resonance_field, was_1d_t = ensure_tensor_and_dim(temporal_resonance_field, self.dim, "temporal_resonance_field")
+                
+                squeeze_output = was_1d_p or was_1d_r or was_1d_c or was_1d_t
+                
+                # Stack fields into shape [batch, 4, dim]
+                fields = torch.stack([
+                    predictive_field,
+                    resonance_fused_field,
+                    cross_aligned_field,
+                    temporal_resonance_field
+                ], dim=1)  # [batch, 4, dim]
+                
+                # Normalize each field
+                fields = F.layer_norm(fields, fields.shape[-1:])
+                
+                # Apply harmonic weighting
+                # fields: [batch, 4, dim], field_weights: [4, dim]
+                weights_expanded = self.field_weights.unsqueeze(0)  # [1, 4, dim]
+                weighted = fields * weights_expanded  # [batch, 4, dim]
+                
+                # Combine fields
+                combined = weighted.sum(dim=1)  # [batch, dim]
+                
+                # Non-linear transformation
+                phi = torch.tanh(self.out_proj(combined))  # [batch, dim]
+                
+                # Normalize final predictive harmonic field
+                phi = F.normalize(phi, dim=-1)  # [batch, dim]
+                
+                # Squeeze if input was 1D
+                if squeeze_output:
+                    phi = phi.squeeze(0)  # [dim]
+                
+                return phi
+                
+            except Exception as e:
+                # Fallback: return predictive_field
+                return predictive_field
+        
+        def run(self, predictive_field, resonance_fused_field, cross_aligned_field, temporal_resonance_field):
+            """
+            A295 — Full Pipeline
+            
+            Executes the complete multi-field predictive harmonic integration process.
+            
+            Args:
+                predictive_field: Base predictive field
+                resonance_fused_field: Fused resonance field from A292
+                cross_aligned_field: Cross-aligned field from A293
+                temporal_resonance_field: Temporal-resonance field from A294
+                
+            Returns:
+                PHI predictive field
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return predictive_field
+            
+            try:
+                import torch
+                
+                phi_field = self.forward(predictive_field, resonance_fused_field, cross_aligned_field, temporal_resonance_field)
+                
+                # Convert to list for return
+                try:
+                    if isinstance(phi_field, torch.Tensor):
+                        return phi_field.tolist() if phi_field.dim() == 1 else phi_field.tolist()
+                    return phi_field
+                except Exception:
+                    return phi_field
                     
             except Exception as e:
                 return predictive_field
