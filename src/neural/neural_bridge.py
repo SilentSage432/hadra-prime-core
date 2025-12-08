@@ -1734,6 +1734,8 @@ class NeuralBridge:
             self.converged_predictive_field = None
             self.hierarchical_expansion_engine = None
             self.predictive_hierarchy = None
+            self.hierarchical_manifold_fusion_layer = None
+            self.predictive_manifold = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
