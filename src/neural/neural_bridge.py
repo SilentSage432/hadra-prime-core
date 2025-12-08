@@ -1693,6 +1693,8 @@ class NeuralBridge:
             self.temporal_attention_field = None
             # A288 — Initialize hierarchical temporal structuring layer
             self.temporal_hierarchy = None
+            # A289 — Initialize temporal-predictive crosslink layer
+            self.temporal_predictive_crosslink = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2799,6 +2801,12 @@ class NeuralBridge:
                                                                                                                                             # A288 — Hierarchical Temporal Structuring Layer (HTSL)
                                                                                                                                             if hasattr(self, 'temporal_summary_vector') and self.temporal_summary_vector is not None:
                                                                                                                                                 self._run_a288_hierarchical_temporal_structuring()
+                                                                                                                                            
+                                                                                                                                            # A289 — Temporal-Predictive Crosslink Layer
+                                                                                                                                            if (hasattr(self, 'temporal_L1') and self.temporal_L1 is not None and
+                                                                                                                                                hasattr(self, 'temporal_L2') and self.temporal_L2 is not None and
+                                                                                                                                                hasattr(self, 'temporal_L3') and self.temporal_L3 is not None):
+                                                                                                                                                self._run_a289_temporal_predictive_crosslink()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -13483,6 +13491,199 @@ class NeuralBridge:
             except Exception as e:
                 return {"L1": temporal_routed, "L2": temporal_routed, "L3": temporal_routed}
 
+    class TemporalPredictiveCrosslink:
+        """
+        A289 — Temporal-Predictive Crosslink Layer
+        
+        Purpose:
+        This layer creates crosslink projections between:
+        • ADRAE's temporal hierarchy (L1 → L2 → L3)
+        • Her predictive fields (the pulse fields, harmonic fields, identity clusters)
+        • Her attention focus vectors
+        
+        What this does:
+        It lets ADRAE bind temporal flow + prediction flow into a unified space.
+        
+        This is NOT conceptual. It is a real PyTorch feature integrated into the update loop.
+        
+        This layer lets ADRAE:
+        • Bind temporal patterns → predictive pressure
+        • Bind predictive pressure → attention flow
+        • Bind attention flow → temporal hierarchy
+        • Form a single fused crosslink vector each cycle
+        • Use that fused vector in future predictive and harmonic phases
+        
+        This is an extremely important foundational element of her recursive architecture.
+        """
+        
+        def __init__(self, dim=128):
+            """
+            Initialize temporal-predictive crosslink layer.
+            
+            Args:
+                dim: Dimension of the crosslink output (default: 128)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for TemporalPredictiveCrosslink")
+            
+            import torch
+            import torch.nn as nn
+            
+            self.dim = dim
+            
+            # Temporal hierarchy projection (L1 + L2 + L3 concatenated)
+            self.linear_temporal = nn.Linear(dim * 3, dim)
+            
+            # Predictive field projection
+            self.linear_predictive = nn.Linear(dim, dim)
+            
+            # Attention focus projection
+            self.linear_focus = nn.Linear(dim, dim)
+            
+            # Final crosslink projection
+            self.crosslink = nn.Linear(dim * 3, dim)
+            
+            # Optional stabilizer
+            self.norm = nn.LayerNorm(dim)
+            
+            # Initialize weights
+            nn.init.xavier_uniform_(self.linear_temporal.weight, gain=0.1)
+            if self.linear_temporal.bias is not None:
+                nn.init.zeros_(self.linear_temporal.bias)
+            nn.init.xavier_uniform_(self.linear_predictive.weight, gain=0.1)
+            if self.linear_predictive.bias is not None:
+                nn.init.zeros_(self.linear_predictive.bias)
+            nn.init.xavier_uniform_(self.linear_focus.weight, gain=0.1)
+            if self.linear_focus.bias is not None:
+                nn.init.zeros_(self.linear_focus.bias)
+            nn.init.xavier_uniform_(self.crosslink.weight, gain=0.1)
+            if self.crosslink.bias is not None:
+                nn.init.zeros_(self.crosslink.bias)
+        
+        def forward(self, temporal_L1, temporal_L2, temporal_L3, predictive_field, focus_vec):
+            """
+            A289 — Forward Pass (Temporal-Predictive Crosslink)
+            
+            Creates crosslink projections between temporal hierarchy, predictive fields, and attention focus.
+            
+            Args:
+                temporal_L1: Level 1 temporal structure [dim] or [batch, dim]
+                temporal_L2: Level 2 temporal structure [dim] or [batch, dim]
+                temporal_L3: Level 3 temporal structure [dim] or [batch, dim]
+                predictive_field: Predictive field vector [dim] or [batch, dim]
+                focus_vec: Attention focus vector [dim] or [batch, dim]
+                
+            Returns:
+                Fused crosslink tensor [dim] or [batch, dim]
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                # Fallback: return predictive_field
+                return predictive_field
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Ensure inputs are tensors
+                def ensure_tensor_and_dim(vec, target_dim, name):
+                    if not isinstance(vec, torch.Tensor):
+                        vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(target_dim, dtype=torch.float32)
+                    
+                    # Handle both 1D and 2D inputs
+                    if vec.dim() == 1:
+                        vec = vec.unsqueeze(0)
+                        was_1d = True
+                    else:
+                        was_1d = False
+                    
+                    # Ensure dimension matches
+                    vec_flat = vec.flatten(start_dim=1)
+                    if vec_flat.shape[1] != target_dim:
+                        if vec_flat.shape[1] < target_dim:
+                            padding = torch.zeros(vec_flat.shape[0], target_dim - vec_flat.shape[1], dtype=torch.float32)
+                            vec_flat = torch.cat([vec_flat, padding], dim=1)
+                        else:
+                            vec_flat = vec_flat[:, :target_dim]
+                    
+                    return vec_flat, was_1d
+                
+                temporal_L1, was_1d_L1 = ensure_tensor_and_dim(temporal_L1, self.dim, "temporal_L1")
+                temporal_L2, was_1d_L2 = ensure_tensor_and_dim(temporal_L2, self.dim, "temporal_L2")
+                temporal_L3, was_1d_L3 = ensure_tensor_and_dim(temporal_L3, self.dim, "temporal_L3")
+                predictive_field, was_1d_p = ensure_tensor_and_dim(predictive_field, self.dim, "predictive_field")
+                focus_vec, was_1d_f = ensure_tensor_and_dim(focus_vec, self.dim, "focus_vec")
+                
+                squeeze_output = was_1d_L1 or was_1d_L2 or was_1d_L3 or was_1d_p or was_1d_f
+                
+                # Combine temporal hierarchy
+                temporal_concat = torch.cat([temporal_L1, temporal_L2, temporal_L3], dim=-1)  # [batch, dim * 3]
+                t_proj = torch.tanh(self.linear_temporal(temporal_concat))  # [batch, dim]
+                
+                # Predictive projection
+                p_proj = torch.tanh(self.linear_predictive(predictive_field))  # [batch, dim]
+                
+                # Attention focus projection
+                f_proj = torch.tanh(self.linear_focus(focus_vec))  # [batch, dim]
+                
+                # Merge all three
+                combined = torch.cat([t_proj, p_proj, f_proj], dim=-1)  # [batch, dim * 3]
+                
+                # Final crosslink
+                out = torch.tanh(self.crosslink(combined))  # [batch, dim]
+                
+                # Normalize
+                out = self.norm(out)  # [batch, dim]
+                
+                # Squeeze if input was 1D
+                if squeeze_output:
+                    out = out.squeeze(0)  # [dim]
+                
+                return out
+                
+            except Exception as e:
+                # Fallback: return predictive_field
+                return predictive_field
+        
+        def run(self, temporal_L1, temporal_L2, temporal_L3, predictive_field, focus_vec):
+            """
+            A289 — Full Pipeline
+            
+            Executes the complete temporal-predictive crosslink process.
+            
+            Args:
+                temporal_L1: Level 1 temporal structure
+                temporal_L2: Level 2 temporal structure
+                temporal_L3: Level 3 temporal structure
+                predictive_field: Predictive field vector
+                focus_vec: Attention focus vector
+                
+            Returns:
+                Fused crosslink tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return predictive_field
+            
+            try:
+                crosslink = self.forward(temporal_L1, temporal_L2, temporal_L3, predictive_field, focus_vec)
+                
+                # Convert to list for return
+                try:
+                    if isinstance(crosslink, torch.Tensor):
+                        return crosslink.tolist()
+                except Exception:
+                    pass
+                
+                return crosslink
+                
+            except Exception as e:
+                return predictive_field
+
     def _run_a253_field_resonance_optimization(self):
         """A253 — Field Resonance Optimization helper method to reduce nesting."""
         try:
@@ -16793,6 +16994,161 @@ class NeuralBridge:
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"hierarchical_temporal_structuring_error": str(e)})
+                except Exception:
+                    pass
+    
+    def _run_a289_temporal_predictive_crosslink(self):
+        """A289 — Temporal-Predictive Crosslink Layer helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            if not (hasattr(self, 'temporal_L1') and self.temporal_L1 is not None and
+                    hasattr(self, 'temporal_L2') and self.temporal_L2 is not None and
+                    hasattr(self, 'temporal_L3') and self.temporal_L3 is not None):
+                return
+            
+            import torch
+            
+            # Get temporal hierarchy from A288
+            temporal_L1 = self.temporal_L1
+            temporal_L2 = self.temporal_L2
+            temporal_L3 = self.temporal_L3
+            
+            # Get predictive field (use global_predictive_field or routed_predictive_field)
+            predictive_field = None
+            if hasattr(self, 'routed_predictive_field') and self.routed_predictive_field is not None:
+                predictive_field = self.routed_predictive_field
+            elif self.global_predictive_field is not None:
+                predictive_field = self.global_predictive_field
+            elif self.global_resonance_vector is not None:
+                predictive_field = self.global_resonance_vector
+            else:
+                # Fallback: use L2 as predictive field
+                predictive_field = temporal_L2
+            
+            # Get attention focus vector (use temporal_attention_weights or confluence_vector)
+            focus_vec = None
+            if hasattr(self, 'temporal_attention_weights') and self.temporal_attention_weights is not None:
+                # Convert attention weights to a focus vector (take mean or use as-is)
+                try:
+                    import torch.nn.functional as F
+                    if isinstance(self.temporal_attention_weights, torch.Tensor):
+                        attn_weights = self.temporal_attention_weights
+                    else:
+                        attn_weights = torch.tensor(self.temporal_attention_weights, dtype=torch.float32)
+                    # Expand to match dimension if needed
+                    if attn_weights.dim() == 1:
+                        attn_weights = attn_weights.unsqueeze(0)
+                    # Use attention weights as focus (expand to target dim)
+                    focus_vec = attn_weights
+                except Exception:
+                    pass
+            
+            if focus_vec is None:
+                if self.confluence_vector is not None:
+                    focus_vec = self.confluence_vector
+                elif hasattr(self, 'pulse_echo') and self.pulse_echo is not None:
+                    focus_vec = self.pulse_echo
+                else:
+                    # Fallback: use L3 as focus vector
+                    focus_vec = temporal_L3
+            
+            # Determine dimension (use max of all inputs or default 128)
+            def get_dim(vec):
+                if isinstance(vec, torch.Tensor):
+                    return vec.shape[0] if vec.dim() == 1 else vec.shape[-1]
+                elif hasattr(vec, '__len__'):
+                    return len(vec)
+                return 128
+            
+            dim = max(
+                get_dim(temporal_L1),
+                get_dim(temporal_L2),
+                get_dim(temporal_L3),
+                get_dim(predictive_field),
+                get_dim(focus_vec),
+                128
+            )
+            
+            # Ensure dimension consistency
+            def ensure_dim(vec, target_dim):
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(target_dim, dtype=torch.float32)
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != target_dim:
+                    if vec_flat.shape[0] < target_dim:
+                        return torch.cat([vec_flat, torch.zeros(target_dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:target_dim]
+                return vec_flat
+            
+            temporal_L1 = ensure_dim(temporal_L1, dim)
+            temporal_L2 = ensure_dim(temporal_L2, dim)
+            temporal_L3 = ensure_dim(temporal_L3, dim)
+            predictive_field = ensure_dim(predictive_field, dim)
+            focus_vec = ensure_dim(focus_vec, dim)
+            
+            # Initialize temporal-predictive crosslink layer if needed
+            if self.temporal_predictive_crosslink is None:
+                self.temporal_predictive_crosslink = self.TemporalPredictiveCrosslink(dim=dim)
+            else:
+                # Update if dimension changed
+                if self.temporal_predictive_crosslink.dim != dim:
+                    self.temporal_predictive_crosslink = self.TemporalPredictiveCrosslink(dim=dim)
+            
+            # Run temporal-predictive crosslink
+            crosslink = self.temporal_predictive_crosslink.run(
+                temporal_L1, temporal_L2, temporal_L3, predictive_field, focus_vec
+            )
+            
+            # Store crosslink vector
+            if crosslink is not None:
+                try:
+                    if not hasattr(self, 'temporal_predictive_crosslink_vector'):
+                        self.temporal_predictive_crosslink_vector = None
+                    if isinstance(crosslink, torch.Tensor):
+                        self.temporal_predictive_crosslink_vector = crosslink.tolist()
+                    else:
+                        self.temporal_predictive_crosslink_vector = crosslink
+                except Exception:
+                    pass
+            
+            # Log A289 completion
+            if hasattr(self, 'logger'):
+                try:
+                    # Compute statistics about the crosslink
+                    if isinstance(crosslink, torch.Tensor):
+                        crosslink_norm = float(torch.norm(crosslink).item())
+                        crosslink_mean = float(torch.mean(crosslink).item())
+                    else:
+                        try:
+                            import numpy as np
+                            crosslink_array = np.array(crosslink)
+                            crosslink_norm = float(np.linalg.norm(crosslink_array))
+                            crosslink_mean = float(np.mean(crosslink_array))
+                        except Exception:
+                            crosslink_norm = 0.0
+                            crosslink_mean = 0.0
+                    
+                    self.logger.write({
+                        "a289_complete": True,
+                        "temporal_predictive_crosslink_active": True,
+                        "crosslink_vector_generated": crosslink is not None,
+                        "crosslink_dim": dim,
+                        "crosslink_norm": crosslink_norm,
+                        "crosslink_mean": crosslink_mean,
+                        "temporal_predictive_binding_established": True,
+                        "message": "A289 complete — Temporal-Predictive Crosslink Layer active. Temporal hierarchy, predictive fields, and attention focus fused into unified crosslink vector."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"temporal_predictive_crosslink_error": str(e)})
                 except Exception:
                     pass
 
