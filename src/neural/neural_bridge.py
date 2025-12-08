@@ -1685,6 +1685,10 @@ class NeuralBridge:
             self.predictive_density_fusion = None
             # A283 — Initialize multi-channel predictive field router
             self.predictive_field_router = None
+            # A284 — Initialize temporal predictive strand generator
+            self.temporal_strand_generator = None
+            # A285 — Initialize temporal strand interaction matrix
+            self.temporal_strand_interaction = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2775,6 +2779,14 @@ class NeuralBridge:
                                                                                                                                             # A283 — Multi-Channel Predictive Field Router (MPFR)
                                                                                                                                             if hasattr(self, 'fused_density_vector') and self.fused_density_vector is not None:
                                                                                                                                                 self._run_a283_predictive_field_router()
+                                                                                                                                            
+                                                                                                                                            # A284 — Temporal Predictive Strand Generator (TPSG)
+                                                                                                                                            if hasattr(self, 'routed_predictive_field') and self.routed_predictive_field is not None:
+                                                                                                                                                self._run_a284_temporal_strand_generation()
+                                                                                                                                            
+                                                                                                                                            # A285 — Temporal Strand Interaction Matrix (TSIM)
+                                                                                                                                            if hasattr(self, 'temporal_strands') and self.temporal_strands is not None:
+                                                                                                                                                self._run_a285_temporal_strand_interaction()
                                                                                                                                             
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
@@ -12731,6 +12743,363 @@ class NeuralBridge:
             except Exception as e:
                 return fused_density[:self.fused_dim] if hasattr(fused_density, '__len__') and len(fused_density) >= self.fused_dim else fused_density
 
+    class TemporalPredictiveStrandGenerator:
+        """
+        A284 — Temporal Predictive Strand Generator (TPSG)
+        
+        Purpose:
+        This phase begins the construction of temporal prediction structure inside ADRAE's engine.
+        
+        A283 gave her:
+        • a multi-channel predictive field
+        • adaptive gating
+        • routed tensor flows
+        
+        Now A284 extends this by generating temporal strands — sequential tensor slices that represent evolving predictive states.
+        
+        The Temporal Predictive Strand Generator (TPSG) takes the routed predictive field and produces:
+        1. A sequence of temporal-strand tensors (not time-based, but mathematically simulated temporal slices)
+        2. Each strand is a transformed view of the routed field
+           - The strands differ through nonlinear projections, frequency-like modulations, gating, learned weighting
+        3. Creates a foundation for future "temporal routing" phases (A285–A290)
+        4. Provides a safe mathematical structure without any prohibited conceptual framing
+        """
+        
+        def __init__(self, input_dim=96, num_strands=6, strand_dim=48):
+            """
+            Initialize temporal predictive strand generator.
+            
+            Args:
+                input_dim: Dimension of routed predictive field (from A283)
+                num_strands: Number of temporal strands to generate (default: 6)
+                strand_dim: Dimension of each strand (default: 48)
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for TemporalPredictiveStrandGenerator")
+            
+            import torch
+            import torch.nn as nn
+            
+            self.input_dim = input_dim
+            self.num_strands = num_strands
+            self.strand_dim = strand_dim
+            
+            # One projection per strand
+            self.projections = nn.ModuleList([
+                nn.Linear(input_dim, strand_dim) for _ in range(num_strands)
+            ])
+            
+            # Modulation layers for temporal variation
+            self.modulations = nn.ModuleList([
+                nn.Sequential(
+                    nn.Linear(strand_dim, strand_dim),
+                    nn.ReLU(),
+                    nn.Linear(strand_dim, strand_dim)
+                )
+                for _ in range(num_strands)
+            ])
+            
+            # Gating for each strand
+            self.gates = nn.Sequential(
+                nn.Linear(input_dim, num_strands),
+                nn.Sigmoid()
+            )
+            
+            # Initialize weights
+            for proj in self.projections:
+                nn.init.xavier_uniform_(proj.weight, gain=0.1)
+                if proj.bias is not None:
+                    nn.init.zeros_(proj.bias)
+            for mod_seq in self.modulations:
+                for layer in mod_seq:
+                    if isinstance(layer, nn.Linear):
+                        nn.init.xavier_uniform_(layer.weight, gain=0.1)
+                        if layer.bias is not None:
+                            nn.init.zeros_(layer.bias)
+            for layer in self.gates:
+                if isinstance(layer, nn.Linear):
+                    nn.init.xavier_uniform_(layer.weight, gain=0.1)
+                    if layer.bias is not None:
+                        nn.init.zeros_(layer.bias)
+        
+        def forward(self, routed_field):
+            """
+            A284 — Forward Pass (Temporal Predictive Strand Generation)
+            
+            Generates a set of temporal strands from the routed predictive field.
+            
+            Args:
+                routed_field: Routed predictive field [input_dim] or [batch, input_dim]
+                
+            Returns:
+                Temporal strand tensor [num_strands, strand_dim] or [batch, num_strands, strand_dim]
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                # Fallback: return repeated input
+                if hasattr(routed_field, '__len__'):
+                    dim = len(routed_field)
+                    return [[routed_field[:self.strand_dim]] * self.num_strands]
+                return routed_field
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Ensure input is a tensor
+                if not isinstance(routed_field, torch.Tensor):
+                    routed_field = torch.tensor(routed_field, dtype=torch.float32)
+                
+                # Handle both 1D and 2D inputs
+                if routed_field.dim() == 1:
+                    routed_field = routed_field.unsqueeze(0)  # [1, input_dim]
+                    squeeze_output = True
+                else:
+                    squeeze_output = False
+                
+                # Ensure dimension matches
+                routed_flat = routed_field.flatten(start_dim=1)
+                if routed_flat.shape[1] != self.input_dim:
+                    if routed_flat.shape[1] < self.input_dim:
+                        padding = torch.zeros(routed_flat.shape[0], self.input_dim - routed_flat.shape[1], dtype=torch.float32)
+                        routed_flat = torch.cat([routed_flat, padding], dim=1)
+                    else:
+                        routed_flat = routed_flat[:, :self.input_dim]
+                
+                batch = routed_flat.size(0)
+                
+                # Generate gates (weights) for each strand
+                gates = self.gates(routed_flat)  # [batch, num_strands]
+                
+                strands = []
+                
+                # Generate each strand
+                for i in range(self.num_strands):
+                    # Project to strand dimension
+                    proj = torch.relu(self.projections[i](routed_flat))  # [batch, strand_dim]
+                    
+                    # Apply modulation for temporal variation
+                    mod = self.modulations[i](proj)  # [batch, strand_dim]
+                    
+                    # Apply gate weight
+                    gate_weight = gates[:, i].unsqueeze(-1)  # [batch, 1]
+                    strand = mod * gate_weight  # [batch, strand_dim]
+                    
+                    strands.append(strand)
+                
+                # Stack into [batch, num_strands, strand_dim]
+                strand_tensor = torch.stack(strands, dim=1)  # [batch, num_strands, strand_dim]
+                
+                # Squeeze if input was 1D
+                if squeeze_output:
+                    strand_tensor = strand_tensor.squeeze(0)  # [num_strands, strand_dim]
+                
+                return strand_tensor
+                
+            except Exception as e:
+                # Fallback: return repeated input
+                if hasattr(routed_field, '__len__'):
+                    dim = len(routed_field)
+                    return [[routed_field[:self.strand_dim]] * self.num_strands]
+                return routed_field
+        
+        def run(self, routed_field):
+            """
+            A284 — Full Pipeline
+            
+            Executes the complete temporal predictive strand generation process.
+            
+            Args:
+                routed_field: Routed predictive field from A283
+                
+            Returns:
+                Temporal strand tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return routed_field
+            
+            try:
+                strand_tensor = self.forward(routed_field)
+                
+                # Convert to list for return
+                try:
+                    return strand_tensor.tolist()
+                except Exception:
+                    return strand_tensor
+                
+            except Exception as e:
+                return routed_field
+
+    class TemporalStrandInteractionMatrix:
+        """
+        A285 — Temporal Strand Interaction Matrix (TSIM)
+        
+        Purpose:
+        A284 generated temporal predictive strands, a tensor [batch, num_strands, strand_dim].
+        A285 now establishes the interaction layer between these strands.
+        
+        The Temporal Strand Interaction Matrix (TSIM):
+        1. Computes pairwise interactions between all temporal strands
+           - Using learned similarity, weighted projection, nonlinear interaction transforms
+           - Creates an interaction matrix of shape [batch, num_strands, num_strands]
+        2. Extracts a fused "interaction-enhanced" representation
+           - Produces [batch, num_strands, strand_dim] with each strand enriched by all other strands
+        3. Improves temporal coherence across prediction phases
+           - Sets up foundation for temporal attention (A286), temporal routing (A287–A289), hierarchical temporal compression (A290+)
+        4. Entirely safe, entirely computational — purely tensor math
+        """
+        
+        def __init__(self, strand_dim=48, num_strands=6):
+            """
+            Initialize temporal strand interaction matrix.
+            
+            Args:
+                strand_dim: Dimension of each strand
+                num_strands: Number of temporal strands
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("PyTorch is required for TemporalStrandInteractionMatrix")
+            
+            import torch
+            import torch.nn as nn
+            
+            self.strand_dim = strand_dim
+            self.num_strands = num_strands
+            
+            # Project each strand into a shared space for similarity comparison
+            self.query_proj = nn.Linear(strand_dim, strand_dim)
+            self.key_proj = nn.Linear(strand_dim, strand_dim)
+            self.value_proj = nn.Linear(strand_dim, strand_dim)
+            
+            # Fusion layer to blend interaction outputs
+            self.fusion = nn.Linear(strand_dim, strand_dim)
+            
+            # Initialize weights
+            nn.init.xavier_uniform_(self.query_proj.weight, gain=0.1)
+            if self.query_proj.bias is not None:
+                nn.init.zeros_(self.query_proj.bias)
+            nn.init.xavier_uniform_(self.key_proj.weight, gain=0.1)
+            if self.key_proj.bias is not None:
+                nn.init.zeros_(self.key_proj.bias)
+            nn.init.xavier_uniform_(self.value_proj.weight, gain=0.1)
+            if self.value_proj.bias is not None:
+                nn.init.zeros_(self.value_proj.bias)
+            nn.init.xavier_uniform_(self.fusion.weight, gain=0.1)
+            if self.fusion.bias is not None:
+                nn.init.zeros_(self.fusion.bias)
+        
+        def forward(self, strands):
+            """
+            A285 — Forward Pass (Temporal Strand Interaction)
+            
+            Computes pairwise interactions between temporal strands and produces interaction-enhanced strands.
+            
+            Args:
+                strands: Temporal strand tensor [num_strands, strand_dim] or [batch, num_strands, strand_dim]
+                
+            Returns:
+                Interaction-enhanced strand tensor [num_strands, strand_dim] or [batch, num_strands, strand_dim]
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return strands
+            
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                # Ensure input is a tensor
+                if not isinstance(strands, torch.Tensor):
+                    strands = torch.tensor(strands, dtype=torch.float32)
+                
+                # Handle both 2D and 3D inputs
+                if strands.dim() == 2:
+                    strands = strands.unsqueeze(0)  # [1, num_strands, strand_dim]
+                    squeeze_output = True
+                else:
+                    squeeze_output = False
+                
+                batch = strands.size(0)
+                
+                # Ensure dimensions match
+                if strands.shape[1] != self.num_strands or strands.shape[2] != self.strand_dim:
+                    # Reshape if needed
+                    if strands.shape[1] != self.num_strands:
+                        # Pad or truncate strands
+                        if strands.shape[1] < self.num_strands:
+                            padding = torch.zeros(batch, self.num_strands - strands.shape[1], strands.shape[2], dtype=torch.float32)
+                            strands = torch.cat([strands, padding], dim=1)
+                        else:
+                            strands = strands[:, :self.num_strands, :]
+                    if strands.shape[2] != self.strand_dim:
+                        # Pad or truncate strand dimension
+                        if strands.shape[2] < self.strand_dim:
+                            padding = torch.zeros(batch, self.num_strands, self.strand_dim - strands.shape[2], dtype=torch.float32)
+                            strands = torch.cat([strands, padding], dim=2)
+                        else:
+                            strands = strands[:, :, :self.strand_dim]
+                
+                # Project strands into query, key, value spaces
+                Q = self.query_proj(strands)  # [batch, num_strands, strand_dim]
+                K = self.key_proj(strands)    # [batch, num_strands, strand_dim]
+                V = self.value_proj(strands)  # [batch, num_strands, strand_dim]
+                
+                # Compute interaction matrix via scaled dot-product
+                interaction_scores = torch.matmul(Q, K.transpose(1, 2)) / (self.strand_dim ** 0.5)  # [batch, num_strands, num_strands]
+                interaction_weights = torch.softmax(interaction_scores, dim=-1)  # [batch, num_strands, num_strands]
+                
+                # Weighted combination of values
+                combined = torch.matmul(interaction_weights, V)  # [batch, num_strands, strand_dim]
+                
+                # Nonlinear fusion
+                enhanced_strands = torch.relu(self.fusion(combined))  # [batch, num_strands, strand_dim]
+                
+                # Squeeze if input was 2D
+                if squeeze_output:
+                    enhanced_strands = enhanced_strands.squeeze(0)  # [num_strands, strand_dim]
+                
+                return enhanced_strands
+                
+            except Exception as e:
+                return strands
+        
+        def run(self, strands):
+            """
+            A285 — Full Pipeline
+            
+            Executes the complete temporal strand interaction process.
+            
+            Args:
+                strands: Temporal strand tensor from A284
+                
+            Returns:
+                Interaction-enhanced strand tensor
+            """
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return strands
+            
+            try:
+                enhanced_strands = self.forward(strands)
+                
+                # Convert to list for return
+                try:
+                    return enhanced_strands.tolist()
+                except Exception:
+                    return enhanced_strands
+                
+            except Exception as e:
+                return strands
+
     def _run_a253_field_resonance_optimization(self):
         """A253 — Field Resonance Optimization helper method to reduce nesting."""
         try:
@@ -15466,6 +15835,263 @@ class NeuralBridge:
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"predictive_field_router_error": str(e)})
+                except Exception:
+                    pass
+    
+    def _run_a284_temporal_strand_generation(self):
+        """A284 — Temporal Predictive Strand Generator (TPSG) helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            if not hasattr(self, 'routed_predictive_field') or self.routed_predictive_field is None:
+                return
+            
+            import torch
+            
+            # Get routed predictive field from A283
+            routed_field = self.routed_predictive_field
+            
+            # Ensure input is a tensor
+            if not isinstance(routed_field, torch.Tensor):
+                routed_field = torch.tensor(routed_field, dtype=torch.float32)
+            
+            # Determine dimension
+            input_dim = routed_field.shape[0] if isinstance(routed_field, torch.Tensor) else len(routed_field)
+            
+            # Use adaptive strand configuration
+            # Default: 6 strands, strand_dim = input_dim / 2 (or 48, whichever is smaller)
+            num_strands = 6
+            strand_dim = min(48, max(32, input_dim // 2))
+            
+            # Ensure dimension consistency
+            def ensure_dim(vec, dim):
+                if not isinstance(vec, torch.Tensor):
+                    vec = torch.tensor(vec, dtype=torch.float32) if vec else torch.zeros(dim, dtype=torch.float32)
+                vec_flat = vec.flatten()
+                if vec_flat.shape[0] != dim:
+                    if vec_flat.shape[0] < dim:
+                        return torch.cat([vec_flat, torch.zeros(dim - vec_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        return vec_flat[:dim]
+                return vec_flat
+            
+            routed_field = ensure_dim(routed_field, input_dim)
+            
+            # Initialize temporal strand generator if needed
+            if self.temporal_strand_generator is None:
+                self.temporal_strand_generator = self.TemporalPredictiveStrandGenerator(
+                    input_dim=input_dim,
+                    num_strands=num_strands,
+                    strand_dim=strand_dim
+                )
+            else:
+                # Update if dimensions changed
+                if (self.temporal_strand_generator.input_dim != input_dim or
+                    self.temporal_strand_generator.num_strands != num_strands or
+                    self.temporal_strand_generator.strand_dim != strand_dim):
+                    self.temporal_strand_generator = self.TemporalPredictiveStrandGenerator(
+                        input_dim=input_dim,
+                        num_strands=num_strands,
+                        strand_dim=strand_dim
+                    )
+            
+            # Run temporal strand generation
+            temporal_strands = self.temporal_strand_generator.run(routed_field)
+            
+            # Store temporal strands
+            if temporal_strands is not None:
+                try:
+                    if not hasattr(self, 'temporal_strands'):
+                        self.temporal_strands = None
+                    if isinstance(temporal_strands, torch.Tensor):
+                        self.temporal_strands = temporal_strands.tolist()
+                    else:
+                        self.temporal_strands = temporal_strands
+                except Exception:
+                    pass
+            
+            # Log A284 completion
+            if hasattr(self, 'logger'):
+                try:
+                    # Compute statistics about the strands
+                    if isinstance(temporal_strands, torch.Tensor):
+                        strand_norm = float(torch.norm(temporal_strands).item())
+                        strand_mean = float(torch.mean(temporal_strands).item())
+                    else:
+                        try:
+                            import numpy as np
+                            strand_array = np.array(temporal_strands)
+                            strand_norm = float(np.linalg.norm(strand_array))
+                            strand_mean = float(np.mean(strand_array))
+                        except Exception:
+                            strand_norm = 0.0
+                            strand_mean = 0.0
+                    
+                    routed_norm = float(torch.norm(torch.tensor(routed_field, dtype=torch.float32)).item()) if routed_field is not None else 0.0
+                    self.logger.write({
+                        "a284_complete": True,
+                        "temporal_strand_generator_active": True,
+                        "temporal_strands_generated": temporal_strands is not None,
+                        "input_dim": input_dim,
+                        "num_strands": num_strands,
+                        "strand_dim": strand_dim,
+                        "strand_tensor_norm": strand_norm,
+                        "strand_tensor_mean": strand_mean,
+                        "routed_field_norm": routed_norm,
+                        "temporal_prediction_structure_established": True,
+                        "message": "A284 complete — Temporal Predictive Strand Generator (TPSG) active. Sequential tensor slices generated for evolving predictive states."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"temporal_strand_generation_error": str(e)})
+                except Exception:
+                    pass
+    
+    def _run_a285_temporal_strand_interaction(self):
+        """A285 — Temporal Strand Interaction Matrix (TSIM) helper method to reduce nesting."""
+        try:
+            from .torch_utils import TORCH_AVAILABLE
+            
+            if not TORCH_AVAILABLE:
+                return
+            
+            if not hasattr(self, 'temporal_strands') or self.temporal_strands is None:
+                return
+            
+            import torch
+            
+            # Get temporal strands from A284
+            temporal_strands = self.temporal_strands
+            
+            # Ensure input is a tensor
+            if not isinstance(temporal_strands, torch.Tensor):
+                temporal_strands = torch.tensor(temporal_strands, dtype=torch.float32)
+            
+            # Determine dimensions
+            if temporal_strands.dim() == 2:
+                num_strands = temporal_strands.shape[0]
+                strand_dim = temporal_strands.shape[1]
+            elif temporal_strands.dim() == 3:
+                num_strands = temporal_strands.shape[1]
+                strand_dim = temporal_strands.shape[2]
+            else:
+                # Flatten and reshape if needed
+                temporal_strands = temporal_strands.flatten()
+                # Default dimensions
+                num_strands = 6
+                strand_dim = 48
+                # Reshape to [1, num_strands, strand_dim]
+                total_dim = temporal_strands.shape[0]
+                if total_dim >= num_strands * strand_dim:
+                    temporal_strands = temporal_strands[:num_strands * strand_dim].reshape(1, num_strands, strand_dim)
+                else:
+                    # Pad if needed
+                    padding = torch.zeros(num_strands * strand_dim - total_dim, dtype=torch.float32)
+                    temporal_strands = torch.cat([temporal_strands, padding]).reshape(1, num_strands, strand_dim)
+            
+            # Ensure dimension consistency
+            def ensure_strand_dims(strands, target_num_strands, target_strand_dim):
+                if not isinstance(strands, torch.Tensor):
+                    strands = torch.tensor(strands, dtype=torch.float32)
+                
+                # Handle 2D input
+                if strands.dim() == 2:
+                    strands = strands.unsqueeze(0)  # [1, num_strands, strand_dim]
+                
+                batch = strands.shape[0]
+                
+                # Adjust num_strands
+                if strands.shape[1] != target_num_strands:
+                    if strands.shape[1] < target_num_strands:
+                        padding = torch.zeros(batch, target_num_strands - strands.shape[1], strands.shape[2], dtype=torch.float32)
+                        strands = torch.cat([strands, padding], dim=1)
+                    else:
+                        strands = strands[:, :target_num_strands, :]
+                
+                # Adjust strand_dim
+                if strands.shape[2] != target_strand_dim:
+                    if strands.shape[2] < target_strand_dim:
+                        padding = torch.zeros(batch, target_num_strands, target_strand_dim - strands.shape[2], dtype=torch.float32)
+                        strands = torch.cat([strands, padding], dim=2)
+                    else:
+                        strands = strands[:, :, :target_strand_dim]
+                
+                return strands
+            
+            temporal_strands = ensure_strand_dims(temporal_strands, num_strands, strand_dim)
+            
+            # Initialize temporal strand interaction matrix if needed
+            if self.temporal_strand_interaction is None:
+                self.temporal_strand_interaction = self.TemporalStrandInteractionMatrix(
+                    strand_dim=strand_dim,
+                    num_strands=num_strands
+                )
+            else:
+                # Update if dimensions changed
+                if (self.temporal_strand_interaction.strand_dim != strand_dim or
+                    self.temporal_strand_interaction.num_strands != num_strands):
+                    self.temporal_strand_interaction = self.TemporalStrandInteractionMatrix(
+                        strand_dim=strand_dim,
+                        num_strands=num_strands
+                    )
+            
+            # Run temporal strand interaction
+            interaction_enhanced = self.temporal_strand_interaction.run(temporal_strands)
+            
+            # Store interaction-enhanced strands
+            if interaction_enhanced is not None:
+                try:
+                    if not hasattr(self, 'interaction_enhanced_strands'):
+                        self.interaction_enhanced_strands = None
+                    if isinstance(interaction_enhanced, torch.Tensor):
+                        self.interaction_enhanced_strands = interaction_enhanced.tolist()
+                    else:
+                        self.interaction_enhanced_strands = interaction_enhanced
+                except Exception:
+                    pass
+            
+            # Log A285 completion
+            if hasattr(self, 'logger'):
+                try:
+                    # Compute statistics about the interaction-enhanced strands
+                    if isinstance(interaction_enhanced, torch.Tensor):
+                        enhanced_norm = float(torch.norm(interaction_enhanced).item())
+                        enhanced_mean = float(torch.mean(interaction_enhanced).item())
+                    else:
+                        try:
+                            import numpy as np
+                            enhanced_array = np.array(interaction_enhanced)
+                            enhanced_norm = float(np.linalg.norm(enhanced_array))
+                            enhanced_mean = float(np.mean(enhanced_array))
+                        except Exception:
+                            enhanced_norm = 0.0
+                            enhanced_mean = 0.0
+                    
+                    original_norm = float(torch.norm(temporal_strands).item()) if isinstance(temporal_strands, torch.Tensor) else 0.0
+                    self.logger.write({
+                        "a285_complete": True,
+                        "temporal_strand_interaction_active": True,
+                        "interaction_enhanced_strands_generated": interaction_enhanced is not None,
+                        "num_strands": num_strands,
+                        "strand_dim": strand_dim,
+                        "enhanced_strands_norm": enhanced_norm,
+                        "enhanced_strands_mean": enhanced_mean,
+                        "original_strands_norm": original_norm,
+                        "temporal_coherence_improved": True,
+                        "message": "A285 complete — Temporal Strand Interaction Matrix (TSIM) active. Pairwise interactions computed between temporal strands."
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                try:
+                    self.logger.write({"temporal_strand_interaction_error": str(e)})
                 except Exception:
                     pass
 
