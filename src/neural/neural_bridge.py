@@ -1763,6 +1763,10 @@ class NeuralBridge:
             self.meta_interaction_stabilizer = None
             self.meta_field_unified = None
             self.meta_gate_value = None
+            self.cross_manifold_regulator = None
+            self.manifold_coherence = None
+            self.predictive_cross_align = None
+            self.predictive_alignment_score = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -3249,6 +3253,120 @@ class NeuralBridge:
                                                                                                                                                     # persist unified meta-field
                                                                                                                                                     self.meta_field_unified = merged_meta_field
                                                                                                                                                     self.meta_gate_value = gate_val
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # MF-320 — Cross-Manifold Coherence Regulator
+                                                                                                                                            try:
+                                                                                                                                                # Collect available manifolds for coherence regulation
+                                                                                                                                                manifolds = []
+                                                                                                                                                manifold_names = []
+                                                                                                                                                
+                                                                                                                                                # Identity manifold
+                                                                                                                                                if hasattr(self, 'identity_vector') and self.identity_vector is not None:
+                                                                                                                                                    manifolds.append(self.identity_vector)
+                                                                                                                                                    manifold_names.append("identity")
+                                                                                                                                                elif "identity_vector" in internal_state:
+                                                                                                                                                    manifolds.append(torch.tensor(internal_state["identity_vector"]))
+                                                                                                                                                    manifold_names.append("identity")
+                                                                                                                                                
+                                                                                                                                                # Predictive manifold
+                                                                                                                                                if "predictive_manifold" in internal_state:
+                                                                                                                                                    manifolds.append(torch.tensor(internal_state["predictive_manifold"]))
+                                                                                                                                                    manifold_names.append("predictive")
+                                                                                                                                                
+                                                                                                                                                # Narrative manifold (if available)
+                                                                                                                                                if hasattr(self, 'narrative_arc_sequencer') and self.narrative_arc_sequencer:
+                                                                                                                                                    # Use a representative vector if available
+                                                                                                                                                    pass  # Skip for now if not directly available
+                                                                                                                                                
+                                                                                                                                                # Meta-functional manifold
+                                                                                                                                                if "meta_field_unified" in internal_state:
+                                                                                                                                                    manifolds.append(torch.tensor(internal_state["meta_field_unified"]))
+                                                                                                                                                    manifold_names.append("meta")
+                                                                                                                                                
+                                                                                                                                                # Attention manifold (if available)
+                                                                                                                                                if hasattr(self, 'attention_vector') and self.attention_vector is not None:
+                                                                                                                                                    manifolds.append(self.attention_vector)
+                                                                                                                                                    manifold_names.append("attention")
+                                                                                                                                                
+                                                                                                                                                # Fusion manifold (if available)
+                                                                                                                                                if hasattr(self, 'fused_density_vector') and self.fused_density_vector is not None:
+                                                                                                                                                    manifolds.append(self.fused_density_vector)
+                                                                                                                                                    manifold_names.append("fusion")
+                                                                                                                                                
+                                                                                                                                                if len(manifolds) >= 2:  # Need at least 2 manifolds for coherence
+                                                                                                                                                    corrected_manifolds, coherence_score = self.cross_manifold_regulator.forward(*manifolds)
+                                                                                                                                                    
+                                                                                                                                                    # Update internal_state with corrected manifolds
+                                                                                                                                                    for i, name in enumerate(manifold_names):
+                                                                                                                                                        if i < len(corrected_manifolds):
+                                                                                                                                                            if name == "identity":
+                                                                                                                                                                internal_state["identity_vector"] = corrected_manifolds[i].tolist()
+                                                                                                                                                                if hasattr(self, 'identity_vector'):
+                                                                                                                                                                    self.identity_vector = corrected_manifolds[i]
+                                                                                                                                                            elif name == "predictive":
+                                                                                                                                                                internal_state["predictive_manifold"] = corrected_manifolds[i].tolist()
+                                                                                                                                                                if hasattr(self, 'predictive_manifold'):
+                                                                                                                                                                    self.predictive_manifold = corrected_manifolds[i]
+                                                                                                                                                            elif name == "meta":
+                                                                                                                                                                internal_state["meta_field_unified"] = corrected_manifolds[i].tolist()
+                                                                                                                                                                self.meta_field_unified = corrected_manifolds[i]
+                                                                                                                                                            elif name == "attention":
+                                                                                                                                                                if hasattr(self, 'attention_vector'):
+                                                                                                                                                                    self.attention_vector = corrected_manifolds[i]
+                                                                                                                                                            elif name == "fusion":
+                                                                                                                                                                if hasattr(self, 'fused_density_vector'):
+                                                                                                                                                                    self.fused_density_vector = corrected_manifolds[i]
+                                                                                                                                                    
+                                                                                                                                                    internal_state["manifold_coherence"] = float(coherence_score)
+                                                                                                                                                    self.manifold_coherence = coherence_score
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # MF-321 — Predictive-Manifold Cross-Alignment Engine
+                                                                                                                                            try:
+                                                                                                                                                # Collect predictive field and other manifolds
+                                                                                                                                                predictive_field = None
+                                                                                                                                                other_manifolds = []
+                                                                                                                                                
+                                                                                                                                                # Get predictive manifold
+                                                                                                                                                if "predictive_manifold" in internal_state:
+                                                                                                                                                    predictive_field = torch.tensor(internal_state["predictive_manifold"])
+                                                                                                                                                elif hasattr(self, 'predictive_manifold') and self.predictive_manifold is not None:
+                                                                                                                                                    predictive_field = self.predictive_manifold
+                                                                                                                                                
+                                                                                                                                                if predictive_field is not None:
+                                                                                                                                                    # Collect other manifolds for alignment
+                                                                                                                                                    # Identity manifold
+                                                                                                                                                    if hasattr(self, 'identity_vector') and self.identity_vector is not None:
+                                                                                                                                                        other_manifolds.append(self.identity_vector)
+                                                                                                                                                    elif "identity_vector" in internal_state:
+                                                                                                                                                        other_manifolds.append(torch.tensor(internal_state["identity_vector"]))
+                                                                                                                                                    
+                                                                                                                                                    # Meta-functional manifold
+                                                                                                                                                    if "meta_field_unified" in internal_state:
+                                                                                                                                                        other_manifolds.append(torch.tensor(internal_state["meta_field_unified"]))
+                                                                                                                                                    elif hasattr(self, 'meta_field_unified') and self.meta_field_unified is not None:
+                                                                                                                                                        other_manifolds.append(self.meta_field_unified)
+                                                                                                                                                    
+                                                                                                                                                    # Attention manifold (if available)
+                                                                                                                                                    if hasattr(self, 'attention_vector') and self.attention_vector is not None:
+                                                                                                                                                        other_manifolds.append(self.attention_vector)
+                                                                                                                                                    
+                                                                                                                                                    # Fusion manifold (if available)
+                                                                                                                                                    if hasattr(self, 'fused_density_vector') and self.fused_density_vector is not None:
+                                                                                                                                                        other_manifolds.append(self.fused_density_vector)
+                                                                                                                                                    
+                                                                                                                                                    if other_manifolds:
+                                                                                                                                                        updated_predictive, mean_alignment = self.predictive_cross_align.forward(
+                                                                                                                                                            predictive_field,
+                                                                                                                                                            *other_manifolds
+                                                                                                                                                        )
+                                                                                                                                                        
+                                                                                                                                                        internal_state["predictive_manifold"] = updated_predictive.tolist()
+                                                                                                                                                        internal_state["predictive_alignment_score"] = float(mean_alignment)
+                                                                                                                                                        # persist updated predictive manifold
+                                                                                                                                                        self.predictive_manifold = updated_predictive
+                                                                                                                                                        self.predictive_alignment_score = mean_alignment
                                                                                                                                             except Exception:
                                                                                                                                                 pass
                                                                                                                     
@@ -20151,6 +20269,241 @@ class NeuralBridge:
                 except Exception:
                     return None, 0.0
 
+    class CrossManifoldCoherenceRegulator:
+        """
+        MF-320 — Cross-Manifold Coherence Regulator
+        
+        Ensures that all major conceptual manifolds in ADRAE's architecture remain
+        in structural harmony when predictive fields activate, temporal fields overlap,
+        meta-fields interact, narrative substrates shift, and identity-cluster vectors update.
+        Acts as a "coherence governor" for high-level representational spaces.
+        """
+        
+        def __init__(self, dim=128):
+            self.dim = dim
+            
+            try:
+                import torch
+                import torch.nn as nn
+                
+                # Learnable coherence projection matrix
+                self.proj = nn.Linear(dim, dim)
+                # Weight controlling how strongly correction is applied
+                self.correction_gate = torch.tensor(0.15, dtype=torch.float32)
+                # LayerNorm ensures stability across manifold distributions
+                self.norm = nn.LayerNorm(dim)
+            except Exception:
+                self.proj = None
+                self.correction_gate = torch.tensor(0.15, dtype=torch.float32)
+                self.norm = None
+        
+        def forward(self, *manifolds):
+            """
+            manifolds: a list of tensors with identical dimensionality.
+            Returns:
+                corrected_manifolds: list of updated manifolds
+                coherence_score: scalar representing global manifold coherence
+            """
+            try:
+                import torch
+                import torch.nn as nn
+                
+                if not manifolds or len(manifolds) == 0:
+                    # Fallback: return empty list and zero coherence
+                    return [], 0.0
+                
+                # Filter out None manifolds and ensure proper dimensions
+                valid_manifolds = []
+                for m in manifolds:
+                    if m is not None:
+                        m_flat = m.flatten()
+                        if m_flat.shape[0] == self.dim:
+                            valid_manifolds.append(m_flat)
+                        elif m_flat.shape[0] < self.dim:
+                            # Pad to match dimension
+                            padded = torch.cat([m_flat, torch.zeros(self.dim - m_flat.shape[0], dtype=torch.float32)])
+                            valid_manifolds.append(padded)
+                        else:
+                            # Truncate to match dimension
+                            valid_manifolds.append(m_flat[:self.dim])
+                
+                if not valid_manifolds:
+                    return [], 0.0
+                
+                if self.proj is None or self.norm is None:
+                    # Fallback: return normalized manifolds and compute simple coherence
+                    norms = [torch.norm(m) + 1e-6 for m in valid_manifolds]
+                    dot_sum = 0.0
+                    total_pairs = 0
+                    for i in range(len(valid_manifolds)):
+                        for j in range(i + 1, len(valid_manifolds)):
+                            dot_sum += torch.dot(valid_manifolds[i], valid_manifolds[j]) / (norms[i] * norms[j])
+                            total_pairs += 1
+                    coherence_score = dot_sum / max(total_pairs, 1)
+                    # Return normalized manifolds
+                    corrected = [m / (torch.norm(m) + 1e-8) for m in valid_manifolds]
+                    return corrected, float(coherence_score)
+                
+                # 1. Compute pairwise coherence
+                norms = [torch.norm(m) + 1e-6 for m in valid_manifolds]
+                dot_sum = 0.0
+                total_pairs = 0
+                for i in range(len(valid_manifolds)):
+                    for j in range(i + 1, len(valid_manifolds)):
+                        dot_sum += torch.dot(valid_manifolds[i], valid_manifolds[j]) / (norms[i] * norms[j])
+                        total_pairs += 1
+                
+                # Global coherence score
+                coherence_score = dot_sum / max(total_pairs, 1)
+                
+                # 2. Build correction vector from mean manifold state
+                mean_state = torch.mean(torch.stack(valid_manifolds), dim=0)
+                correction_vector = self.proj(mean_state)
+                correction_vector = self.norm(correction_vector)
+                
+                # 3. Apply correction proportionally to gate
+                corrected = []
+                for m in valid_manifolds:
+                    updated = m + correction_vector * self.correction_gate
+                    corrected.append(updated)
+                
+                return corrected, float(coherence_score)
+            except Exception:
+                # Fallback: return original manifolds and zero coherence
+                try:
+                    return list(manifolds) if manifolds else [], 0.0
+                except Exception:
+                    return [], 0.0
+
+    class PredictiveManifoldCrossAlign:
+        """
+        MF-321 — Predictive-Manifold Cross-Alignment Engine
+        
+        Computes alignment scores between predictive and all other manifolds,
+        builds an alignment correction vector, and updates the predictive manifold
+        to align with other manifolds while preserving its identity.
+        """
+        
+        def __init__(self, dim=128):
+            self.dim = dim
+            
+            try:
+                import torch
+                import torch.nn as nn
+                import torch.nn.functional as F
+                
+                # Learnable projection for alignment correction
+                self.align_proj = nn.Linear(dim, dim)
+                # Gate controlling strength of correction
+                self.align_gate = torch.tensor(0.10, dtype=torch.float32)
+                # Normalization for output stability
+                self.norm = nn.LayerNorm(dim)
+            except Exception:
+                self.align_proj = None
+                self.align_gate = torch.tensor(0.10, dtype=torch.float32)
+                self.norm = None
+        
+        def forward(self, predictive_field, *other_manifolds):
+            """
+            predictive_field: main predictive manifold tensor
+            other_manifolds: identity, narrative, meta, attention, fusion, etc.
+            Returns:
+                updated_predictive: torch.Tensor
+                mean_alignment: float
+            """
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if predictive_field is None:
+                    # Fallback: return zero tensor and zero alignment
+                    try:
+                        return torch.zeros(self.dim, dtype=torch.float32), 0.0
+                    except Exception:
+                        return None, 0.0
+                
+                # Ensure predictive_field is 1D and correct dimension
+                pred_flat = predictive_field.flatten()
+                if pred_flat.shape[0] != self.dim:
+                    if pred_flat.shape[0] < self.dim:
+                        pred_flat = torch.cat([pred_flat, torch.zeros(self.dim - pred_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        pred_flat = pred_flat[:self.dim]
+                
+                if not other_manifolds or len(other_manifolds) == 0:
+                    # No other manifolds: return predictive field as-is with zero alignment
+                    return pred_flat, 0.0
+                
+                if self.align_proj is None or self.norm is None:
+                    # Fallback: compute simple alignment without correction
+                    align_scores = []
+                    for m in other_manifolds:
+                        if m is not None:
+                            m_flat = m.flatten()
+                            if m_flat.shape[0] == self.dim:
+                                score = F.cosine_similarity(
+                                    pred_flat.unsqueeze(0),
+                                    m_flat.unsqueeze(0)
+                                ).item()
+                                align_scores.append(score)
+                    mean_alignment = sum(align_scores) / max(len(align_scores), 1) if align_scores else 0.0
+                    return pred_flat, mean_alignment
+                
+                # 1. Compute pairwise alignment scores
+                align_scores = []
+                valid_manifolds = []
+                for m in other_manifolds:
+                    if m is not None:
+                        m_flat = m.flatten()
+                        if m_flat.shape[0] == self.dim:
+                            valid_manifolds.append(m_flat)
+                            score = F.cosine_similarity(
+                                pred_flat.unsqueeze(0),
+                                m_flat.unsqueeze(0)
+                            ).item()
+                            align_scores.append(score)
+                        elif m_flat.shape[0] < self.dim:
+                            # Pad to match dimension
+                            m_padded = torch.cat([m_flat, torch.zeros(self.dim - m_flat.shape[0], dtype=torch.float32)])
+                            valid_manifolds.append(m_padded)
+                            score = F.cosine_similarity(
+                                pred_flat.unsqueeze(0),
+                                m_padded.unsqueeze(0)
+                            ).item()
+                            align_scores.append(score)
+                        else:
+                            # Truncate to match dimension
+                            m_trunc = m_flat[:self.dim]
+                            valid_manifolds.append(m_trunc)
+                            score = F.cosine_similarity(
+                                pred_flat.unsqueeze(0),
+                                m_trunc.unsqueeze(0)
+                            ).item()
+                            align_scores.append(score)
+                
+                # 2. Mean alignment score across all manifolds
+                mean_alignment = sum(align_scores) / max(len(align_scores), 1) if align_scores else 0.0
+                
+                # 3. Build correction vector
+                correction = self.align_proj(pred_flat)
+                correction = self.norm(correction)
+                
+                # 4. Apply correction
+                updated_predictive = pred_flat + correction * self.align_gate
+                
+                return updated_predictive, mean_alignment
+            except Exception:
+                # Fallback: return original predictive field and zero alignment
+                try:
+                    import torch
+                    if predictive_field is not None:
+                        pred_flat = predictive_field.flatten()
+                        if pred_flat.shape[0] >= self.dim:
+                            return pred_flat[:self.dim] / (torch.norm(pred_flat[:self.dim]) + 1e-8), 0.0
+                    return torch.zeros(self.dim, dtype=torch.float32), 0.0
+                except Exception:
+                    return predictive_field if predictive_field is not None else None, 0.0
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -20283,6 +20636,18 @@ class NeuralBridge:
             else:
                 if getattr(self.meta_interaction_stabilizer, "dim", dim) != dim:
                     self.meta_interaction_stabilizer = self.MetaFunctionalInteractionStabilizer(dim=dim)
+            
+            if self.cross_manifold_regulator is None:
+                self.cross_manifold_regulator = self.CrossManifoldCoherenceRegulator(dim=dim)
+            else:
+                if getattr(self.cross_manifold_regulator, "dim", dim) != dim:
+                    self.cross_manifold_regulator = self.CrossManifoldCoherenceRegulator(dim=dim)
+            
+            if self.predictive_cross_align is None:
+                self.predictive_cross_align = self.PredictiveManifoldCrossAlign(dim=dim)
+            else:
+                if getattr(self.predictive_cross_align, "dim", dim) != dim:
+                    self.predictive_cross_align = self.PredictiveManifoldCrossAlign(dim=dim)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
