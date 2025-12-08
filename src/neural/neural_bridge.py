@@ -1743,6 +1743,7 @@ class NeuralBridge:
             self.recursive_feedback_engine = None
             self.routing_feedback_vector = None
             self.routing_bias_vector = None
+            self.hierarchy_refinement_layer = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -3033,6 +3034,30 @@ class NeuralBridge:
                                                                                                                                                 }
                                                                                                                                                 self.routing_feedback_vector = feedback_vec
                                                                                                                                                 self.routing_bias_vector = routing_bias
+                                                                                                                                            # A310 — Feedback-Weighted Predictive Hierarchy Refinement Layer
+                                                                                                                                            try:
+                                                                                                                                                if "predictive_hierarchy" in internal_state and "routing_feedback" in internal_state:
+                                                                                                                                                    hierarchy = [torch.tensor(v) for v in internal_state["predictive_hierarchy"]]
+                                                                                                                                                    fb = torch.tensor(internal_state["routing_feedback"]["feedback_vector"])
+                                                                                                                                                    routing_weights = internal_state["predictive_routing"]["routing_weights"]
+                                                                                                                                                    routing_bias = internal_state["routing_feedback"]["routing_bias"]
+                                                                                                                                                    routing_bias_tensor = (
+                                                                                                                                                        torch.tensor(routing_bias) if routing_bias is not None else None
+                                                                                                                                                    )
+                                                                                                                                                    refined_hierarchy = self.hierarchy_refinement_layer.refine(
+                                                                                                                                                        hierarchy,
+                                                                                                                                                        feedback_vector=fb,
+                                                                                                                                                        routing_weights=routing_weights,
+                                                                                                                                                        routing_bias=routing_bias_tensor
+                                                                                                                                                    )
+                                                                                                                                                else:
+                                                                                                                                                    refined_hierarchy = None
+                                                                                                                                            except Exception:
+                                                                                                                                                refined_hierarchy = None
+                                                                                                                                            if refined_hierarchy is not None:
+                                                                                                                                                internal_state["predictive_hierarchy"] = [v.tolist() for v in refined_hierarchy]
+                                                                                                                                                self.predictive_hierarchy = refined_hierarchy
+                                                                                                                                            
                                                                                                                                     except Exception as e:
                                                                                                                                         # If global imagination field formation fails, continue without it
                                                                                                                                         if hasattr(self, 'logger'):
@@ -19295,6 +19320,101 @@ class NeuralBridge:
             except Exception:
                 return None, None
 
+    class FeedbackWeightedPredictiveHierarchyRefinement:
+        """
+        A310 — Feedback-Weighted Predictive Hierarchy Refinement Layer
+        """
+        
+        def __init__(self, dim=128, alpha=0.45, beta=0.25):
+            self.dim = dim
+            self.alpha = alpha
+            self.beta = beta
+        
+        def refine(self, hierarchy, feedback_vector, routing_weights, routing_bias=None):
+            """
+            hierarchy: list[torch.Tensor]
+            feedback_vector: torch.Tensor (dim=128)
+            routing_weights: list[float]
+            routing_bias: torch.Tensor or None
+            Returns: refined_hierarchy (list[torch.Tensor])
+            """
+            try:
+                import torch
+                f = feedback_vector / torch.norm(feedback_vector)
+                
+                refined_layers = []
+                
+                for h, w in zip(hierarchy, routing_weights):
+                    h_norm = h / (torch.norm(h) + 1e-8)
+                    
+                    refined = h_norm + self.alpha * w * f
+                    
+                    if routing_bias is not None:
+                        refined += self.beta * routing_bias.mean()
+                    
+                    refined = refined / torch.norm(refined)
+                    refined_layers.append(refined)
+                
+                return refined_layers
+            except Exception:
+                return hierarchy
+
+    class PredictiveHierarchyManifoldIntegrator:
+        """
+        A311 — Predictive Hierarchy Integration With Manifold Dynamics
+        
+        Integrates predictive hierarchy layers with manifold deformation,
+        allowing hierarchy layers to respond to manifold curvature and shape.
+        """
+        
+        def __init__(self, dim=128, manifold_influence=0.35, curvature_influence=0.25):
+            self.dim = dim
+            self.manifold_influence = manifold_influence
+            self.curvature_influence = curvature_influence
+        
+        def integrate(self, hierarchy, manifold_vec, gradient_norm):
+            """
+            hierarchy: list[torch.Tensor]
+            manifold_vec: torch.Tensor (dim=128)
+            gradient_norm: float (curvature strength)
+            Returns: refined hierarchy (list[torch.Tensor])
+            """
+            try:
+                import torch
+                
+                # Normalize manifold vector
+                m = manifold_vec / (torch.norm(manifold_vec) + 1e-8)
+                
+                # Curvature factor (tanh to bound influence)
+                curvature_factor = torch.tanh(torch.tensor(gradient_norm, dtype=torch.float32))
+                
+                refined = []
+                
+                for h in hierarchy:
+                    # Normalize hierarchy layer
+                    h_norm = h / (torch.norm(h) + 1e-8)
+                    
+                    # Influence 1: manifold projection
+                    proj = torch.dot(h_norm, m) * m
+                    
+                    # Influence 2: curvature influence
+                    curved = h_norm + self.curvature_influence * curvature_factor * m
+                    
+                    # Combine influences
+                    combined = (
+                        h_norm +
+                        self.manifold_influence * proj +
+                        self.curvature_influence * curvature_factor * m
+                    )
+                    
+                    # Renormalize
+                    combined = combined / (torch.norm(combined) + 1e-8)
+                    refined.append(combined)
+                
+                return refined
+            except Exception:
+                return hierarchy
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -19367,6 +19487,12 @@ class NeuralBridge:
             else:
                 if getattr(self.recursive_feedback_engine, "dim", dim) != dim:
                     self.recursive_feedback_engine = self.RecursiveRoutingFeedbackEngine(dim=dim)
+            
+            if self.hierarchy_refinement_layer is None:
+                self.hierarchy_refinement_layer = self.FeedbackWeightedPredictiveHierarchyRefinement(dim=dim)
+            else:
+                if getattr(self.hierarchy_refinement_layer, "dim", dim) != dim:
+                    self.hierarchy_refinement_layer = self.FeedbackWeightedPredictiveHierarchyRefinement(dim=dim)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
