@@ -1738,6 +1738,8 @@ class NeuralBridge:
             self.predictive_manifold = None
             self.manifold_interaction_engine = None
             self.manifold_interaction_signature = None
+            self.multi_interaction_routing_layer = None
+            self.predictive_routed_output = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -2989,8 +2991,24 @@ class NeuralBridge:
                                                                                                                                                     "gradient_norm": float(interactions["gradient_norm"]),
                                                                                                                                                     "preview": interactions["nonlinear_preview"]
                                                                                                                                                 }
-                                                                                                                                                self.manifold_interaction_signature = interactions["interaction_signature"]
-                                                                                                                                            # A306 — Hierarchical Manifold Fusion Layer
+                self.manifold_interaction_signature = interactions["interaction_signature"]
+            # A308 — Multi-Interaction Predictive Routing Layer
+            try:
+                if "predictive_hierarchy" in internal_state and "manifold_interactions" in internal_state:
+                    hierarchy = [torch.tensor(v) for v in internal_state["predictive_hierarchy"]]
+                    sig = torch.tensor(internal_state["manifold_interactions"]["signature"])
+                    routed_output, routing_weights = self.multi_interaction_routing_layer.route(hierarchy, sig)
+                else:
+                    routed_output, routing_weights = None, None
+            except Exception:
+                routed_output, routing_weights = None, None
+            if routed_output is not None:
+                internal_state["predictive_routing"] = {
+                    "routed_output": routed_output.tolist(),
+                    "routing_weights": routing_weights
+                }
+                self.predictive_routed_output = routed_output
+            # A306 — Hierarchical Manifold Fusion Layer
                                                                                                                                             try:
                                                                                                                                                 if "predictive_hierarchy" in internal_state:
                                                                                                                                                     hierarchy = [torch.tensor(vec) for vec in internal_state["predictive_hierarchy"]]
@@ -19189,6 +19207,46 @@ class NeuralBridge:
             except Exception:
                 return None
 
+    class MultiInteractionPredictiveRoutingLayer:
+        """
+        A308 — Multi-Interaction Predictive Routing Layer
+        """
+        
+        def __init__(self, dim=128):
+            self.dim = dim
+        
+        def route(self, predictive_hierarchy, interaction_signature):
+            """
+            predictive_hierarchy: list[torch.Tensor]
+            interaction_signature: torch.Tensor (dim=128)
+            Returns:
+                routed_output: torch.Tensor (dim=128)
+                routing_weights: list[float]
+            """
+            try:
+                import torch
+                if predictive_hierarchy is None or len(predictive_hierarchy) == 0:
+                    return None, None
+                
+                sig = interaction_signature / (torch.norm(interaction_signature) + 1e-8)
+                
+                logits = []
+                for h in predictive_hierarchy:
+                    logits.append(torch.dot(h, sig))
+                logits = torch.stack(logits)
+                
+                routing_weights = torch.softmax(logits, dim=0)
+                
+                routed = torch.zeros(self.dim)
+                for w, h in zip(routing_weights, predictive_hierarchy):
+                    routed += w * h
+                
+                routed = routed / torch.norm(routed)
+                
+                return routed, routing_weights.tolist()
+            except Exception:
+                return None, None
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -19249,6 +19307,12 @@ class NeuralBridge:
             else:
                 if getattr(self.manifold_interaction_engine, "dim", dim) != dim:
                     self.manifold_interaction_engine = self.ManifoldInteractionDynamicsEngine(dim=dim)
+            
+            if self.multi_interaction_routing_layer is None:
+                self.multi_interaction_routing_layer = self.MultiInteractionPredictiveRoutingLayer(dim=dim)
+            else:
+                if getattr(self.multi_interaction_routing_layer, "dim", dim) != dim:
+                    self.multi_interaction_routing_layer = self.MultiInteractionPredictiveRoutingLayer(dim=dim)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
