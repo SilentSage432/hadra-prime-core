@@ -1781,6 +1781,8 @@ class NeuralBridge:
             self.routing_consistency_331 = None
             self.routing_coherence_332 = None
             self.routing_grad_stabilizer_333 = None
+            self.routing_divergence_penalty_334 = None
+            self.routing_entropy_regulator_335 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -21801,12 +21803,14 @@ class NeuralBridge:
         This is the foundation for multi-resolution predictive flow control in MF-331–350.
         """
         
-        def __init__(self, dim=128, num_levels=3, regularizer=None, coherence_engine=None, grad_stabilizer=None):
+        def __init__(self, dim=128, num_levels=3, regularizer=None, coherence_engine=None, grad_stabilizer=None, divergence_penalty=None, entropy_regulator=None):
             self.dim = dim
             self.num_levels = num_levels
             self.regularizer = regularizer  # Reference to MF-331 regularizer
             self.coherence_engine = coherence_engine  # Reference to MF-332 coherence engine
             self.grad_stabilizer = grad_stabilizer  # Reference to MF-333 gradient stabilizer
+            self.divergence_penalty = divergence_penalty  # Reference to MF-334 divergence penalty kernel
+            self.entropy_regulator = entropy_regulator  # Reference to MF-335 entropy regulator
             
             try:
                 import torch
@@ -21891,6 +21895,19 @@ class NeuralBridge:
                     # Apply MF-333 predictive routing gradient stabilizer if available
                     if self.grad_stabilizer is not None:
                         routing_weights = self.grad_stabilizer.forward(routing_weights)
+                    
+                    # Apply MF-334 divergence-aware routing penalty kernel if available
+                    if self.divergence_penalty is not None and self.coherence_engine is not None:
+                        # Use previous signature from coherence engine as reference
+                        expected_sig = getattr(self.coherence_engine, 'prev_signature', None)
+                        if expected_sig is not None:
+                            # Ensure shapes match
+                            if expected_sig.shape == routing_weights.shape:
+                                routing_weights = self.divergence_penalty.forward(routing_weights, expected_sig)
+                    
+                    # Apply MF-335 hierarchical routing entropy regulator if available
+                    if self.entropy_regulator is not None:
+                        routing_weights = self.entropy_regulator.forward(routing_weights)
                     
                     # Apply each transform weighted by routing coefficients
                     transformed = torch.zeros(self.dim, dtype=torch.float32)
@@ -22154,6 +22171,189 @@ class NeuralBridge:
                 # Fallback: return original tensor
                 return routing_tensor
 
+    class DivergenceAwareRoutingPenaltyKernel:
+        """
+        MF-334 — Divergence-Aware Routing Penalty Kernel
+        
+        Applies a penalty to routing vectors that diverge too far from expected
+        manifold-aligned behavior. Promotes stability and reduces erratic routing.
+        
+        This stabilizes:
+        - cross-manifold routing
+        - predictive field transitions
+        - identity retrieval
+        - preview vector formation
+        - long-term routing health
+        """
+        
+        def __init__(self, divergence_threshold=0.65, penalty_strength=0.25):
+            self.divergence_threshold = divergence_threshold
+            self.penalty_strength = penalty_strength
+        
+        def forward(self, routing_tensor, reference_tensor):
+            """
+            Apply divergence penalty to routing tensor.
+            
+            Args:
+                routing_tensor: the routing weights vector
+                reference_tensor: expected routing signature or manifold-aligned vector
+            
+            Returns:
+                penalized: tensor with divergence penalty applied
+            """
+            try:
+                import torch
+                
+                if routing_tensor is None or reference_tensor is None:
+                    return routing_tensor
+                
+                if not isinstance(routing_tensor, torch.Tensor):
+                    routing_tensor = torch.tensor(routing_tensor, dtype=torch.float32)
+                
+                if not isinstance(reference_tensor, torch.Tensor):
+                    reference_tensor = torch.tensor(reference_tensor, dtype=torch.float32)
+                
+                # Ensure shapes match
+                if routing_tensor.shape != reference_tensor.shape:
+                    # Fallback: return untouched if mismatch
+                    return routing_tensor
+                
+                # Compute divergence magnitude
+                divergence = torch.norm(routing_tensor - reference_tensor, p=2)
+                
+                # Convert to scalar if needed
+                if isinstance(divergence, torch.Tensor) and divergence.dim() > 0:
+                    divergence = divergence.item()
+                
+                divergence_val = float(divergence) if not isinstance(divergence, float) else divergence
+                
+                if divergence_val <= self.divergence_threshold:
+                    # Within expected bounds
+                    return routing_tensor
+                
+                # Compute penalty factor
+                excess = divergence_val - self.divergence_threshold
+                factor = 1.0 - self.penalty_strength * min(1.0, excess)
+                
+                # Apply penalty smoothly
+                penalized = routing_tensor * factor
+                
+                # Re-normalize to preserve distribution semantics
+                penalized_sum = penalized.sum()
+                if penalized_sum > 0:
+                    penalized = penalized / (penalized_sum + 1e-8)
+                else:
+                    # Fallback: uniform distribution
+                    penalized = torch.ones_like(routing_tensor) / routing_tensor.numel()
+                
+                return penalized
+            except Exception:
+                # Fallback: return original tensor
+                return routing_tensor
+
+    class HierarchicalRoutingEntropyRegulator:
+        """
+        MF-335 — Hierarchical Routing Entropy Regulator
+        
+        Regulates routing entropy across hierarchical routing layers to maintain
+        a healthy balance between exploration (diversity) and stability (focus).
+        
+        This is one of the most important stability modules in the MF-300 range.
+        
+        Ensures routing vectors:
+        - maintain healthy diversity
+        - avoid collapse into single-path dominance
+        - avoid overly diffuse, unfocused routing
+        - preserve gradient health across the MF-stack
+        """
+        
+        def __init__(self, target_entropy=1.25, entropy_tolerance=0.35):
+            self.target_entropy = target_entropy
+            self.entropy_tolerance = entropy_tolerance
+        
+        def _entropy(self, p):
+            """
+            Computes Shannon entropy of a probability distribution tensor.
+            
+            Args:
+                p: probability distribution tensor
+            
+            Returns:
+                entropy: Shannon entropy value
+            """
+            try:
+                import torch
+                
+                # Ensure p is a tensor
+                if not isinstance(p, torch.Tensor):
+                    p = torch.tensor(p, dtype=torch.float32)
+                
+                # Normalize
+                p = p / (p.sum() + 1e-8)
+                
+                # Compute log probabilities
+                log_p = torch.log(p + 1e-8)
+                
+                # Compute entropy: -sum(p * log(p))
+                entropy = -(p * log_p).sum()
+                
+                return entropy
+            except Exception:
+                return torch.tensor(0.0, dtype=torch.float32)
+        
+        def forward(self, routing_weights):
+            """
+            Regulate routing weights to maintain target entropy.
+            
+            Args:
+                routing_weights: tensor representing a probability distribution
+                                over routing options
+            
+            Returns:
+                adjusted: entropy-regulated routing weights
+            """
+            try:
+                import torch
+                
+                if routing_weights is None:
+                    return routing_weights
+                
+                if not isinstance(routing_weights, torch.Tensor):
+                    routing_weights = torch.tensor(routing_weights, dtype=torch.float32)
+                
+                # Normalize input
+                p = routing_weights / (routing_weights.sum() + 1e-8)
+                
+                # Compute current entropy
+                entropy = self._entropy(p)
+                
+                # Convert to scalar if needed
+                if isinstance(entropy, torch.Tensor):
+                    entropy_val = entropy.item() if entropy.numel() == 1 else float(entropy)
+                else:
+                    entropy_val = float(entropy)
+                
+                # Determine deviation from target entropy
+                deviation = entropy_val - self.target_entropy
+                
+                # Within acceptable bounds: return unchanged
+                if abs(deviation) <= self.entropy_tolerance:
+                    return p
+                
+                # If entropy too high (too diffuse), sharpen distribution
+                if deviation > 0:
+                    adjusted = p ** 1.25  # makes distribution sharper
+                else:
+                    adjusted = p ** 0.80  # makes distribution broader
+                
+                # Re-normalize and return
+                adjusted = adjusted / (adjusted.sum() + 1e-8)
+                
+                return adjusted
+            except Exception:
+                # Fallback: return original weights
+                return routing_weights
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -22353,16 +22553,30 @@ class NeuralBridge:
                 # Check if parameters need updating (optional, since they're set in __init__)
                 pass
             
+            if self.routing_divergence_penalty_334 is None:
+                self.routing_divergence_penalty_334 = self.DivergenceAwareRoutingPenaltyKernel(divergence_threshold=0.65, penalty_strength=0.25)
+            else:
+                # Check if parameters need updating (optional, since they're set in __init__)
+                pass
+            
+            if self.routing_entropy_regulator_335 is None:
+                self.routing_entropy_regulator_335 = self.HierarchicalRoutingEntropyRegulator(target_entropy=1.25, entropy_tolerance=0.35)
+            else:
+                # Check if parameters need updating (optional, since they're set in __init__)
+                pass
+            
             if self.routing_kernel_330 is None:
-                self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333)
+                self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335)
             else:
                 if getattr(self.routing_kernel_330, "dim", dim) != dim:
-                    self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333)
+                    self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335)
                 else:
-                    # Update regularizer, coherence engine, and grad stabilizer references if they changed
+                    # Update regularizer, coherence engine, grad stabilizer, divergence penalty, and entropy regulator references if they changed
                     self.routing_kernel_330.regularizer = self.routing_consistency_331
                     self.routing_kernel_330.coherence_engine = self.routing_coherence_332
                     self.routing_kernel_330.grad_stabilizer = self.routing_grad_stabilizer_333
+                    self.routing_kernel_330.divergence_penalty = self.routing_divergence_penalty_334
+                    self.routing_kernel_330.entropy_regulator = self.routing_entropy_regulator_335
             
             # Collect harmonic layers (only tensors present)
             candidates = [
