@@ -323,6 +323,10 @@ class NeuralBridge:
             self.cgfr = self.ConfluenceGradientFeedbackRouter(self.dim)
         except Exception:
             self.cgfr = None
+        try:
+            self.pcrfn = self.PredictiveConfluenceResonantFeedbackNormalizer(self.dim)
+        except Exception:
+            self.pcrfn = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -26137,6 +26141,77 @@ class NeuralBridge:
 
             return self.norm(adjusted)
 
+    class PredictiveConfluenceResonantFeedbackNormalizer(nn.Module):
+        """
+        MF-378 — Predictive-Confluence Resonant Feedback Normalizer (PCRFN)
+
+        Applies resonant normalization to stabilize feedback loops between
+        predictive and confluence signals. Prevents amplitude drift and
+        aligns magnitudes while preserving structural differences.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.res_gate = None
+                self.scale = None
+                self.norm = None
+                return
+
+            self.res_gate = nn.Linear(dim, dim)
+            self.scale = nn.Parameter(torch.tensor(0.01))
+            self.norm = nn.LayerNorm(dim)
+
+        def forward(self, pred_vec, conf_vec):
+            if (torch is None or
+                self.res_gate is None or
+                self.scale is None or
+                self.norm is None):
+                return pred_vec, conf_vec
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            pred_vec = ensure_tensor(pred_vec)
+            conf_vec = ensure_tensor(conf_vec)
+
+            if pred_vec is None:
+                return pred_vec, conf_vec
+            if conf_vec is None:
+                return pred_vec, conf_vec
+
+            # Compute a shared resonance signature
+            combined = pred_vec + conf_vec
+            resonance = torch.tanh(self.res_gate(combined))
+
+            # Normalize each vector around resonance signature
+            pred_adj = pred_vec - self.scale * resonance
+            conf_adj = conf_vec + self.scale * resonance
+
+            # Normalize outputs
+            pred_out = self.norm(pred_adj)
+            conf_out = self.norm(conf_adj)
+
+            return pred_out, conf_out
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -27491,6 +27566,71 @@ class NeuralBridge:
                                                             pass
                                             else:
                                                 self.mf377_feedback_routed_pred = None
+
+                                            # MF-378 — Predictive-Confluence Resonant Feedback Normalizer (PCRFN)
+                                            # Stabilize feedback loops by normalizing both predictive and confluence vectors
+                                            normalized_pred = None
+                                            normalized_conf = None
+                                            if (getattr(self, "pcrfn", None) is not None and
+                                                feedback_routed_pred is not None):
+                                                try:
+                                                    # Get confluence state (same as used in previous MF modules)
+                                                    confluence_state = None
+                                                    if hasattr(self, 'mf348_interacted_state') and self.mf348_interacted_state is not None:
+                                                        confluence_state = self.mf348_interacted_state
+                                                    elif hasattr(self, 'mf347_stabilized_state') and self.mf347_stabilized_state is not None:
+                                                        confluence_state = self.mf347_stabilized_state
+                                                    elif hasattr(self, 'mf346_routed_state') and self.mf346_routed_state is not None:
+                                                        confluence_state = self.mf346_routed_state
+                                                    elif 'stabilized_state' in locals():
+                                                        confluence_state = stabilized_state
+                                                    elif 'routed_state' in locals():
+                                                        confluence_state = routed_state
+
+                                                    # Apply resonant normalization if confluence state is available
+                                                    if confluence_state is not None:
+                                                        normalized_pred, normalized_conf = self.pcrfn(feedback_routed_pred, confluence_state)
+                                                        if normalized_pred is not None and normalized_conf is not None:
+                                                            self.mf378_normalized_pred = normalized_pred
+                                                            self.mf378_normalized_conf = normalized_conf
+                                                            # Update predictive vectors with normalized version
+                                                            if resonant_state is not None:
+                                                                resonant_state = normalized_pred
+                                                                self.mf375_resonant_state = normalized_pred
+                                                            reinforced_vector = normalized_pred
+                                                            self.mf374_reinforced_vector = normalized_pred
+                                                            stable_synthesis = normalized_pred
+                                                            self.mf373_stable_synthesis = normalized_pred
+                                                            synthesis_vector = normalized_pred
+                                                            self.mf372_synthesis_vector = normalized_pred
+                                                            gradient_coupled_pred = normalized_pred
+                                                            self.mf376_gradient_coupled_pred = normalized_pred
+                                                            feedback_routed_pred = normalized_pred
+                                                            self.mf377_feedback_routed_pred = normalized_pred
+                                                            # Update confluence state with normalized version
+                                                            if hasattr(self, 'mf348_interacted_state'):
+                                                                self.mf348_interacted_state = normalized_conf
+                                                            if hasattr(self, 'mf347_stabilized_state'):
+                                                                self.mf347_stabilized_state = normalized_conf
+                                                            if hasattr(self, 'mf346_routed_state'):
+                                                                self.mf346_routed_state = normalized_conf
+                                                        else:
+                                                            self.mf378_normalized_pred = None
+                                                            self.mf378_normalized_conf = None
+                                                    else:
+                                                        self.mf378_normalized_pred = None
+                                                        self.mf378_normalized_conf = None
+                                                except Exception as pcrfn_error:
+                                                    self.mf378_normalized_pred = None
+                                                    self.mf378_normalized_conf = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf378_error": str(pcrfn_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf378_normalized_pred = None
+                                                self.mf378_normalized_conf = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
