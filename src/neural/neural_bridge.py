@@ -259,6 +259,10 @@ class NeuralBridge:
             self.pcif = self.PredictiveCascadeInteractionField(self.dim)
         except Exception:
             self.pcif = None
+        try:
+            self.pisk = self.PredictiveInteractionStabilizationKernel(self.dim)
+        except Exception:
+            self.pisk = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -24836,6 +24840,63 @@ class NeuralBridge:
 
             return stabilized
 
+    class PredictiveInteractionStabilizationKernel(nn.Module):
+        """
+        MF-362 — Predictive Interaction Stabilization Kernel (PISK)
+
+        Stabilizes the predictive interaction signal coming from MF-361 (PCIF)
+        by applying spectral damping, residual smoothing, and normalization.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+
+            if torch is None or not hasattr(nn, "Linear"):
+                self.spectral_filter = None
+                self.smoothing = None
+                self.damping_coeff = None
+                self.norm = None
+                return
+
+            # Learned spectral dampening transform
+            self.spectral_filter = nn.Linear(dim, dim)
+
+            # Residual smoothing
+            self.smoothing = nn.Linear(dim, dim)
+
+            # Adaptive damping coefficients
+            self.damping_coeff = nn.Parameter(torch.randn(dim) * 0.01)
+
+            # Final layer normalization
+            self.norm = nn.LayerNorm(dim)
+
+        def forward(self, interaction_signal):
+            if (torch is None or
+                self.spectral_filter is None or
+                self.smoothing is None or
+                self.damping_coeff is None or
+                self.norm is None):
+                return interaction_signal
+
+            # Step 1: Spectral filtering (reduce high-frequency noise)
+            filtered = torch.tanh(self.spectral_filter(interaction_signal))
+
+            # Step 2: Compute damping
+            damping = torch.sigmoid(self.damping_coeff)
+
+            # Step 3: Apply damping to signal
+            damped = filtered * damping
+
+            # Step 4: Residual smoothing blend
+            smoothed = self.smoothing(damped)
+            combined = 0.7 * damped + 0.3 * smoothed
+
+            # Step 5: Final normalization
+            stabilized = self.norm(combined)
+
+            return stabilized
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -25905,6 +25966,23 @@ class NeuralBridge:
                                                                 if hasattr(self, 'logger'):
                                                                     try:
                                                                         self.logger.write({"mf361_error": str(pcif_error)})
+                                                                    except Exception:
+                                                                        pass
+
+                                                            # MF-362 — Predictive Interaction Stabilization Kernel
+                                                            try:
+                                                                if getattr(self, "pisk", None) is not None and internal_states.get("cascade_interaction") is not None:
+                                                                    pisk_out = self.pisk(internal_states["cascade_interaction"])
+                                                                    internal_states["cascade_interaction_stabilized"] = pisk_out
+                                                                    primary_state = primary_state + pisk_out * 0.02
+                                                                    self.mf362_cascade_interaction_stabilized = pisk_out
+                                                                else:
+                                                                    self.mf362_cascade_interaction_stabilized = None
+                                                            except Exception as pisk_error:
+                                                                self.mf362_cascade_interaction_stabilized = None
+                                                                if hasattr(self, 'logger'):
+                                                                    try:
+                                                                        self.logger.write({"mf362_error": str(pisk_error)})
                                                                     except Exception:
                                                                         pass
 
