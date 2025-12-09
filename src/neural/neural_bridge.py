@@ -502,6 +502,14 @@ class NeuralBridge:
             )
         except Exception:
             self.mf410_pstk = None
+        # MF-411 — Phase-Gradient Alignment Field Layer (PGAF-L)
+        try:
+            self.mf411_pgaf_l = self.PhaseGradientAlignmentFieldLayer(
+                substrate_dim=self.dim,
+                grad_dim=4
+            )
+        except Exception:
+            self.mf411_pgaf_l = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -29951,6 +29959,137 @@ class NeuralBridge:
                     return F.normalize(MS_out, dim=-1)
                 except Exception:
                     return MS_out
+
+    class PhaseGradientAlignmentFieldLayer(nn.Module):
+        """
+        MF-411 — Phase-Gradient Alignment Field Layer (PGAF-L)
+
+        Introduces gradient-aligned phase structuring, allowing the phase-space output from MF-410
+        to be aligned with dynamically computed directional gradients. This layer does not interpret
+        gradients in semantic or cognitive terms—gradients remain purely numerical directional
+        derivatives over tensor fields.
+
+        MF-411 takes PS_out (phase-space encoded modulation field) and produces a phase-gradient
+        aligned representation via three core steps:
+
+        Core Computational Functions:
+        1. Gradient Extraction Operator: computes directional gradients across feature dimensions
+           using finite differences, indicating directional phase-changes across the embedded manifold.
+        2. Phase-Gradient Interaction Tensor: introduces a rank-3 tensor that maps interactions
+           between phase-space signal and directional phase gradients, generating gradient-aligned
+           phase vectors.
+        3. Alignment Fusion Field: fuses phase-space signal and gradient interaction using learned
+           alignment coefficients (α and β).
+        4. Gradient-Stabilized Projection: applies a limiter to prevent phase-gradient amplification.
+        5. Substrate-Aligned Output: projects the final result into a substrate-aligned output,
+           producing the gradient-aligned phase representation consumed by MF-412.
+
+        Outcome:
+        MF-411 outputs PG_out, which incorporates directional derivatives, tensor-based
+        phase–gradient interaction, phase–gradient fusion, gradient-regulated stabilization, and
+        substrate-aligned projection. This prepares the system for MF-412, where alignment fields
+        are extended into Phase-Flow Convergence Dynamics, enabling regulated flow structures across
+        phase-gradients.
+        """
+
+        def __init__(self, substrate_dim, grad_dim=4):
+            super().__init__()
+            self.substrate_dim = substrate_dim
+            self.grad_dim = grad_dim
+
+            # Tensor mapping gradients into aligned phase-space orientations
+            # Shape: [grad_dim, grad_dim, substrate_dim]
+            self.T_pg = nn.Parameter(
+                torch.randn(grad_dim, grad_dim, substrate_dim) * 0.01
+            )
+
+            # Fusion coefficients
+            self.alpha = nn.Parameter(torch.tensor(0.6))
+            self.beta = nn.Parameter(torch.tensor(0.4))
+
+            # Final projection into substrate-compatible orientation
+            self.alignment_matrix = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def forward(self, PS_out):
+            """
+            PS_out: phase-space encoded field from MF-410, shape [batch, dim]
+            """
+            if torch is None or PS_out is None:
+                return PS_out
+
+            # Ensure PS_out is a tensor
+            if not isinstance(PS_out, torch.Tensor):
+                try:
+                    PS_out = torch.tensor(PS_out, dtype=torch.float32)
+                except Exception:
+                    return PS_out
+
+            # Ensure proper shape
+            if PS_out.dim() == 1:
+                PS_out = PS_out.unsqueeze(0)
+            if PS_out.shape[-1] != self.substrate_dim:
+                # Resize if needed
+                if PS_out.shape[-1] < self.substrate_dim:
+                    padding = torch.zeros(PS_out.shape[:-1] + (self.substrate_dim - PS_out.shape[-1],), dtype=PS_out.dtype)
+                    PS_out = torch.cat([PS_out, padding], dim=-1)
+                else:
+                    PS_out = PS_out[..., :self.substrate_dim]
+
+            try:
+                import torch.nn.functional as F
+                # 1. Compute phase gradients across feature dimensions
+                # G has shape [batch, dim-1]
+                if PS_out.shape[-1] > 1:
+                    G_raw = PS_out[:, 1:] - PS_out[:, :-1]
+                    # Pad to maintain dimensional consistency
+                    G = F.pad(G_raw, (0, 1), mode="replicate")
+                else:
+                    # If only one dimension, use zeros
+                    G = torch.zeros_like(PS_out)
+
+                # Ensure G has the right shape for indexing
+                # We need to index by grad_dim, so pad or truncate if needed
+                if G.shape[-1] < self.grad_dim:
+                    padding = torch.zeros(G.shape[:-1] + (self.grad_dim - G.shape[-1],), dtype=G.dtype)
+                    G = torch.cat([G, padding], dim=-1)
+                elif G.shape[-1] > self.grad_dim:
+                    G = G[..., :self.grad_dim]
+
+                # 2. Gradient-phase interaction tensor
+                # A[i] = Σ_j T_pg[i, j, :] * G[j]
+                A_list = []
+                for i in range(self.grad_dim):
+                    interaction = torch.zeros_like(PS_out)
+                    for j in range(self.grad_dim):
+                        # T_pg[i, j] is shape [substrate_dim]
+                        # G[:, j] is shape [batch]
+                        g_j = G[:, j].unsqueeze(-1)  # [batch, 1]
+                        tensor_ij = self.T_pg[i, j].unsqueeze(0)  # [1, substrate_dim]
+                        interaction += g_j * tensor_ij  # [batch, substrate_dim]
+                    A_list.append(interaction)
+
+                A = torch.stack(A_list, dim=0).sum(dim=0)  # [batch, dim]
+
+                # 3. Alignment Fusion
+                F_combined = self.alpha * PS_out + self.beta * A
+
+                # 4. Gradient-Stabilized Limiter
+                F_reg = F_combined / (1 + torch.abs(F_combined))
+
+                # 5. Substrate-aligned projection
+                PG_out = torch.matmul(F_reg, self.alignment_matrix)
+                PG_out = F.normalize(PG_out, dim=-1)
+
+                return PG_out
+            except Exception:
+                # If alignment fails, return normalized input
+                try:
+                    import torch.nn.functional as F
+                    return F.normalize(PS_out, dim=-1)
+                except Exception:
+                    return PS_out
 
     def integrate_A301(self):
         """
