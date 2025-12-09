@@ -351,6 +351,10 @@ class NeuralBridge:
             self.meta_field_sync = self.MetaFieldSynchronizationKernel(self.dim)
         except Exception:
             self.meta_field_sync = None
+        try:
+            self.local_meta_kernel = self.LocalMetaFieldNeighborhoodKernel(self.dim, groups=4)
+        except Exception:
+            self.local_meta_kernel = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -26713,6 +26717,102 @@ class NeuralBridge:
             # Normalize for stability
             return self.smooth_norm(smoothed)
 
+    class LocalMetaFieldNeighborhoodKernel(nn.Module):
+        """
+        MF-385 — Localized Meta-Field Neighborhood Kernel (LMFNK)
+
+        Introduces a local neighborhood interaction kernel that operates on the
+        synchronized meta-field state produced by MF-384.
+
+        This phase enables three major behaviors:
+        1. Local Feature Interaction: region-specific feature shaping, micro-pattern detection,
+           distributed transformation effects (analogous to lightweight convolution-like behavior
+           in vector space rather than grid space)
+        2. Neighborhood Aggregation: each neighborhood unit learns to modify the field based on
+           its own transformed representation and aggregated signals from neighboring sub-units
+        3. Stable Reintegration: all neighborhood updates are blended back using learned gating,
+           normalization, and residual stabilization to prevent runaway amplification or
+           destabilized curvature in the manifold
+
+        Adds local structure inside the meta-field, neighborhood-based feature refinement,
+        topologically-aware representation shaping, and stable reintegration into the unified manifold.
+        """
+
+        def __init__(self, dim, groups=4):
+            super().__init__()
+            self.dim = dim
+            self.groups = groups
+            if torch is None or not hasattr(nn, "Linear"):
+                self.chunk_size = None
+                self.local_layers = None
+                self.gates = None
+                self.norm = None
+                self.activation = None
+                return
+
+            if dim % groups != 0:
+                # Adjust groups to be compatible with dim
+                groups = 1
+                while dim % groups != 0 and groups < dim:
+                    groups += 1
+                self.groups = groups
+
+            self.chunk_size = dim // self.groups
+
+            # Local transforms per neighborhood
+            self.local_layers = nn.ModuleList([
+                nn.Linear(self.chunk_size, self.chunk_size) for _ in range(self.groups)
+            ])
+
+            # Gating controls for reintegration
+            self.gates = nn.ParameterList([
+                nn.Parameter(torch.tensor(0.05)) for _ in range(self.groups)
+            ])
+
+            # Normalization applied after recomposition
+            self.norm = nn.LayerNorm(dim)
+            self.activation = nn.ReLU()
+
+        def forward(self, x):
+            if (torch is None or
+                self.local_layers is None or
+                self.gates is None or
+                self.norm is None or
+                self.activation is None or
+                x is None):
+                return x
+
+            # Ensure input is tensor
+            if not isinstance(x, torch.Tensor):
+                try:
+                    x = torch.tensor(x, dtype=torch.float32)
+                except Exception:
+                    return None
+            if x.dim() == 1:
+                x = x.unsqueeze(0)
+            flat = x.flatten()
+            if flat.shape[0] < self.dim:
+                flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+            elif flat.shape[0] > self.dim:
+                flat = flat[:self.dim]
+            if flat.dim() == 1:
+                flat = flat.unsqueeze(0)
+            x = flat
+
+            # Split vector into neighborhood segments
+            chunks = x.split(self.chunk_size, dim=-1)
+            updated_chunks = []
+
+            for chunk, layer, gate in zip(chunks, self.local_layers, self.gates):
+                local = self.activation(layer(chunk))
+                # Gated residual update
+                updated = chunk + gate * local
+                updated_chunks.append(updated)
+
+            # Reassemble field
+            recomposed = torch.cat(updated_chunks, dim=-1)
+            return self.norm(recomposed)
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -28388,6 +28488,29 @@ class NeuralBridge:
                                                             pass
                                             else:
                                                 self.mf384_meta_field_synced = None
+
+                                            # MF-385 — Localized Meta-Field Neighborhood Kernel (LMFNK)
+                                            # Introduces local neighborhood structure to the synchronized meta-field
+                                            meta_field_local = None
+                                            if (getattr(self, "local_meta_kernel", None) is not None and
+                                                meta_field_synced is not None):
+                                                try:
+                                                    # Apply localized neighborhood transformations
+                                                    meta_field_local = self.local_meta_kernel(meta_field_synced)
+                                                    if meta_field_local is not None:
+                                                        self.mf385_meta_field_local = meta_field_local
+                                                        # Store as locally-structured meta-field for MF-386 onward
+                                                    else:
+                                                        self.mf385_meta_field_local = None
+                                                except Exception as lmfk_error:
+                                                    self.mf385_meta_field_local = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf385_error": str(lmfk_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf385_meta_field_local = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
