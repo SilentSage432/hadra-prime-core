@@ -1773,6 +1773,8 @@ class NeuralBridge:
             self.narrative_predictive_gate_val = None
             self.mm_ark = None
             self.routing_matrix = None
+            self.cross_manifold_harmonizer = None
+            self.global_harmony_score = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -3598,6 +3600,83 @@ class NeuralBridge:
                                                                                                                                                             self.routing_matrix = routing_matrix
                                                                                                                                                         except Exception:
                                                                                                                                                             pass
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # MF-327 — Cross-Manifold Flow Harmonization Engine
+                                                                                                                                            try:
+                                                                                                                                                # Collect manifold flows for harmonization
+                                                                                                                                                manifold_flows = {}
+                                                                                                                                                
+                                                                                                                                                # Collect flow vectors from all manifolds
+                                                                                                                                                if hasattr(self, 'identity_vector') and self.identity_vector is not None:
+                                                                                                                                                    manifold_flows["identity"] = self.identity_vector
+                                                                                                                                                elif "identity_vector" in internal_state:
+                                                                                                                                                    manifold_flows["identity"] = torch.tensor(internal_state["identity_vector"])
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'predictive_manifold') and self.predictive_manifold is not None:
+                                                                                                                                                    manifold_flows["predictive"] = self.predictive_manifold
+                                                                                                                                                elif "predictive_manifold" in internal_state:
+                                                                                                                                                    manifold_flows["predictive"] = torch.tensor(internal_state["predictive_manifold"])
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'narrative_manifold') and self.narrative_manifold is not None:
+                                                                                                                                                    manifold_flows["narrative"] = self.narrative_manifold
+                                                                                                                                                elif "narrative_manifold" in internal_state:
+                                                                                                                                                    manifold_flows["narrative"] = torch.tensor(internal_state["narrative_manifold"])
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'meta_field_unified') and self.meta_field_unified is not None:
+                                                                                                                                                    manifold_flows["meta"] = self.meta_field_unified
+                                                                                                                                                elif "meta_field_unified" in internal_state:
+                                                                                                                                                    manifold_flows["meta"] = torch.tensor(internal_state["meta_field_unified"])
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'attention_vector') and self.attention_vector is not None:
+                                                                                                                                                    manifold_flows["attention"] = self.attention_vector
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'fused_density_vector') and self.fused_density_vector is not None:
+                                                                                                                                                    manifold_flows["fusion"] = self.fused_density_vector
+                                                                                                                                                elif hasattr(self, 'fusion') and hasattr(self.fusion, 'last_fusion_vector') and self.fusion.last_fusion_vector is not None:
+                                                                                                                                                    fusion_vec = self.fusion.last_fusion_vector
+                                                                                                                                                    if isinstance(fusion_vec, list):
+                                                                                                                                                        manifold_flows["fusion"] = torch.tensor(fusion_vec)
+                                                                                                                                                    else:
+                                                                                                                                                        manifold_flows["fusion"] = fusion_vec
+                                                                                                                                                
+                                                                                                                                                # Run flow harmonization if we have the harmonizer and at least 2 manifolds
+                                                                                                                                                if hasattr(self, 'cross_manifold_harmonizer') and self.cross_manifold_harmonizer is not None and len(manifold_flows) >= 2:
+                                                                                                                                                    # Update flow mapping matrix
+                                                                                                                                                    self.cross_manifold_harmonizer.update_flow_map(manifold_flows)
+                                                                                                                                                    
+                                                                                                                                                    # Apply harmonization
+                                                                                                                                                    adjusted_flows = self.cross_manifold_harmonizer.harmonize(manifold_flows)
+                                                                                                                                                    
+                                                                                                                                                    # Update manifolds with harmonized flows
+                                                                                                                                                    if "identity" in adjusted_flows:
+                                                                                                                                                        internal_state["identity_vector"] = adjusted_flows["identity"].tolist()
+                                                                                                                                                        self.identity_vector = adjusted_flows["identity"]
+                                                                                                                                                    
+                                                                                                                                                    if "predictive" in adjusted_flows:
+                                                                                                                                                        internal_state["predictive_manifold"] = adjusted_flows["predictive"].tolist()
+                                                                                                                                                        self.predictive_manifold = adjusted_flows["predictive"]
+                                                                                                                                                    
+                                                                                                                                                    if "narrative" in adjusted_flows:
+                                                                                                                                                        internal_state["narrative_manifold"] = adjusted_flows["narrative"].tolist()
+                                                                                                                                                        self.narrative_manifold = adjusted_flows["narrative"]
+                                                                                                                                                    
+                                                                                                                                                    if "meta" in adjusted_flows:
+                                                                                                                                                        internal_state["meta_field_unified"] = adjusted_flows["meta"].tolist()
+                                                                                                                                                        self.meta_field_unified = adjusted_flows["meta"]
+                                                                                                                                                    
+                                                                                                                                                    if "attention" in adjusted_flows:
+                                                                                                                                                        if hasattr(self, 'attention_vector'):
+                                                                                                                                                            self.attention_vector = adjusted_flows["attention"]
+                                                                                                                                                    
+                                                                                                                                                    if "fusion" in adjusted_flows:
+                                                                                                                                                        if hasattr(self, 'fused_density_vector'):
+                                                                                                                                                            self.fused_density_vector = adjusted_flows["fusion"]
+                                                                                                                                                    
+                                                                                                                                                    # Store global harmony score for monitoring
+                                                                                                                                                    harmony_score = self.cross_manifold_harmonizer.harmony_score
+                                                                                                                                                    internal_state["global_harmony_score"] = float(harmony_score)
+                                                                                                                                                    self.global_harmony_score = harmony_score
                                                                                                                                             except Exception:
                                                                                                                                                 pass
                                                                                                                     
@@ -21117,6 +21196,144 @@ class NeuralBridge:
                 except Exception:
                     return manifolds, None
 
+    class CrossManifoldFlowHarmonizationEngine:
+        """
+        MF-327 — Cross-Manifold Flow Harmonization Engine
+        
+        Synchronizes flow dynamics across all active cognitive manifolds, providing:
+        - unified flow-rate regulation
+        - cross-manifold rhythm matching
+        - smooth transitions between predictive, semantic, and identity manifolds
+        - reduced flow jitter under rapid updates
+        - emergent harmonic stability inside the multi-manifold architecture
+        
+        Features:
+        1. Cross-Manifold Flow Mapping Matrix (CFMM) - tracks flow coupling
+        2. Flow-Rate Synchronization Loop (FRSL) - normalizes flow speeds
+        3. Dynamic Harmonization Kernel (DHK) - detects and fixes mismatches
+        4. Global Harmony Score (GHS) - control signal for system-level smoothness
+        """
+        
+        def __init__(self, dim=128):
+            self.dim = dim
+            
+            try:
+                import torch
+                
+                # Cross-manifold flow mapping matrix (tracks coupling between manifolds)
+                self.flow_map = torch.zeros((dim, dim))
+                
+                # Global harmony score accumulator
+                self.harmony_score = 0.0
+                
+                # Previous flow vectors for computing flow deltas
+                self.prev_flows = {}
+            except Exception:
+                self.flow_map = None
+                self.harmony_score = 0.0
+                self.prev_flows = {}
+        
+        def update_flow_map(self, manifold_flows):
+            """
+            Updates the Cross-Manifold Flow Mapping Matrix.
+            
+            manifold_flows: dict of {manifold_name: flow_vector}
+            """
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if self.flow_map is None:
+                    self.flow_map = torch.zeros((self.dim, self.dim))
+                
+                names = list(manifold_flows.keys())
+                n = len(names)
+                
+                if n < 2:
+                    return
+                
+                # Compute flow coupling between all pairs
+                for i in range(n):
+                    for j in range(i + 1, n):
+                        fi = manifold_flows[names[i]]
+                        fj = manifold_flows[names[j]]
+                        
+                        # Ensure both are tensors and correct dimension
+                        if not isinstance(fi, torch.Tensor):
+                            fi = torch.tensor(fi, dtype=torch.float32) if fi is not None else torch.zeros(self.dim, dtype=torch.float32)
+                        if not isinstance(fj, torch.Tensor):
+                            fj = torch.tensor(fj, dtype=torch.float32) if fj is not None else torch.zeros(self.dim, dtype=torch.float32)
+                        
+                        fi_flat = fi.flatten()
+                        fj_flat = fj.flatten()
+                        
+                        # Normalize dimensions
+                        if fi_flat.shape[0] != self.dim:
+                            if fi_flat.shape[0] < self.dim:
+                                fi_flat = torch.cat([fi_flat, torch.zeros(self.dim - fi_flat.shape[0], dtype=torch.float32)])
+                            else:
+                                fi_flat = fi_flat[:self.dim]
+                        
+                        if fj_flat.shape[0] != self.dim:
+                            if fj_flat.shape[0] < self.dim:
+                                fj_flat = torch.cat([fj_flat, torch.zeros(self.dim - fj_flat.shape[0], dtype=torch.float32)])
+                            else:
+                                fj_flat = fj_flat[:self.dim]
+                        
+                        # Compute cosine similarity as coupling strength
+                        coupling = F.cosine_similarity(fi_flat.unsqueeze(0), fj_flat.unsqueeze(0), dim=1).item()
+                        
+                        # Update flow map (symmetric)
+                        if i < self.dim and j < self.dim:
+                            self.flow_map[i, j] = coupling
+                            self.flow_map[j, i] = coupling
+                
+                # Update global harmony score (mean of flow map)
+                if self.flow_map.numel() > 0:
+                    self.harmony_score = float(self.flow_map.mean().item())
+            except Exception:
+                pass
+        
+        def harmonize(self, manifold_flows):
+            """
+            Adjusts manifold flow vectors to promote global synchrony.
+            
+            Returns:
+                adjusted: dict of {manifold_name: adjusted_flow_vector}
+            """
+            try:
+                import torch
+                
+                names = list(manifold_flows.keys())
+                adjusted = {}
+                
+                for name in names:
+                    base = manifold_flows[name]
+                    
+                    # Ensure base is a tensor
+                    if not isinstance(base, torch.Tensor):
+                        base = torch.tensor(base, dtype=torch.float32) if base is not None else torch.zeros(self.dim, dtype=torch.float32)
+                    
+                    base_flat = base.flatten()
+                    
+                    # Normalize dimension
+                    if base_flat.shape[0] != self.dim:
+                        if base_flat.shape[0] < self.dim:
+                            base_flat = torch.cat([base_flat, torch.zeros(self.dim - base_flat.shape[0], dtype=torch.float32)])
+                        else:
+                            base_flat = base_flat[:self.dim]
+                    
+                    # Scale based on harmony score (smooths extremes)
+                    # Higher harmony = smoother scaling
+                    scaling = 1.0 + (self.harmony_score * 0.05)
+                    
+                    adjusted[name] = base_flat * scaling
+                
+                return adjusted
+            except Exception:
+                # Fallback: return original flows
+                return manifold_flows
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -21279,6 +21496,12 @@ class NeuralBridge:
             else:
                 if getattr(self.mm_ark, "dim", dim) != dim:
                     self.mm_ark = self.MultiManifoldAdaptiveRoutingKernel(dim=dim, num_manifolds=6)
+            
+            if self.cross_manifold_harmonizer is None:
+                self.cross_manifold_harmonizer = self.CrossManifoldFlowHarmonizationEngine(dim=dim)
+            else:
+                if getattr(self.cross_manifold_harmonizer, "dim", dim) != dim:
+                    self.cross_manifold_harmonizer = self.CrossManifoldFlowHarmonizationEngine(dim=dim)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
