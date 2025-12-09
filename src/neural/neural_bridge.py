@@ -263,6 +263,10 @@ class NeuralBridge:
             self.pisk = self.PredictiveInteractionStabilizationKernel(self.dim)
         except Exception:
             self.pisk = None
+        try:
+            self.pcik = self.PredictiveConfluenceIntegrationKernel(self.dim)
+        except Exception:
+            self.pcik = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -24897,6 +24901,70 @@ class NeuralBridge:
 
             return stabilized
 
+    class PredictiveConfluenceIntegrationKernel(nn.Module):
+        """
+        MF-363 — Predictive Confluence Integration Kernel (PCIK)
+
+        Integrates MF-362 stabilized predictive interaction signals with
+        the active confluence field using adaptive gating, alignment transforms,
+        and residual normalization.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+
+            if torch is None or not hasattr(nn, "Linear"):
+                self.predictive_align = None
+                self.confluence_align = None
+                self.predictive_gate = None
+                self.confluence_gate = None
+                self.merge = None
+                self.norm = None
+                return
+
+            # Linear transforms for alignment
+            self.predictive_align = nn.Linear(dim, dim)
+            self.confluence_align = nn.Linear(dim, dim)
+
+            # Adaptive gating layers
+            self.predictive_gate = nn.Linear(dim, dim)
+            self.confluence_gate = nn.Linear(dim, dim)
+
+            # Merge + normalization
+            self.merge = nn.Linear(dim, dim)
+            self.norm = nn.LayerNorm(dim)
+
+        def forward(self, stabilized_predictive, confluence_state):
+            if (torch is None or
+                self.predictive_align is None or
+                self.confluence_align is None or
+                self.predictive_gate is None or
+                self.confluence_gate is None or
+                self.merge is None or
+                self.norm is None):
+                return stabilized_predictive
+
+            # Alignment transforms
+            p_aligned = torch.relu(self.predictive_align(stabilized_predictive))
+            c_aligned = torch.relu(self.confluence_align(confluence_state))
+
+            # Gating (both fields influence the gating of the other)
+            p_gate = torch.sigmoid(self.predictive_gate(c_aligned))
+            c_gate = torch.sigmoid(self.confluence_gate(p_aligned))
+
+            # Apply gating
+            gated_p = p_aligned * p_gate
+            gated_c = c_aligned * c_gate
+
+            # Merge the two stabilized streams
+            merged = self.merge(gated_p + gated_c)
+
+            # Normalize to prevent magnitude divergence
+            integrated = self.norm(torch.tanh(merged))
+
+            return integrated
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -25983,6 +26051,28 @@ class NeuralBridge:
                                                                 if hasattr(self, 'logger'):
                                                                     try:
                                                                         self.logger.write({"mf362_error": str(pisk_error)})
+                                                                    except Exception:
+                                                                        pass
+
+                                                            # MF-363 — Predictive Confluence Integration Kernel
+                                                            try:
+                                                                if (getattr(self, "pcik", None) is not None and
+                                                                    internal_states.get("cascade_interaction_stabilized") is not None and
+                                                                    internal_states.get("confluence_state") is not None):
+                                                                    pcik_out = self.pcik(
+                                                                        internal_states["cascade_interaction_stabilized"],
+                                                                        internal_states["confluence_state"]
+                                                                    )
+                                                                    internal_states["predictive_confluence_integrated"] = pcik_out
+                                                                    primary_state = primary_state + pcik_out * 0.018
+                                                                    self.mf363_predictive_confluence_integrated = pcik_out
+                                                                else:
+                                                                    self.mf363_predictive_confluence_integrated = None
+                                                            except Exception as pcik_error:
+                                                                self.mf363_predictive_confluence_integrated = None
+                                                                if hasattr(self, 'logger'):
+                                                                    try:
+                                                                        self.logger.write({"mf363_error": str(pcik_error)})
                                                                     except Exception:
                                                                         pass
 
