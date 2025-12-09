@@ -1788,6 +1788,7 @@ class NeuralBridge:
             self.routing_consistency_graph_338 = None
             self.predictive_field_manifold_coherence_339 = None
             self.temporal_predictive_memory_alignment_340 = None
+            self.temporal_manifold_phase_smoothing_341 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -22996,6 +22997,152 @@ class NeuralBridge:
             except Exception:
                 pass
 
+    class TemporalManifoldPhaseSmoothingKernel:
+        """
+        MF-341 — Temporal Manifold Phase Smoothing Kernel
+        
+        ML framing only:
+        - Computes directional consistency across recent manifold states.
+        - Produces a bounded smoothing factor to reduce phase noise.
+        - Applies no semantics, no agency — only vector-level math.
+        """
+        
+        def __init__(self, max_window=16):
+            self.max_window = max_window
+            self.manifold_history = []  # Rolling buffer of past manifold vectors
+            self.last_smoothing_factor = 1.0
+            self.last_phase_consistency = 0.0
+        
+        def forward(self, current_manifold, manifold_history=None):
+            """
+            Compute temporal manifold phase smoothing.
+            
+            Args:
+                current_manifold: dict containing "vector" (tensor or list)
+                manifold_history: optional list of past manifold vectors (if None, uses internal history)
+            
+            Returns:
+                dict with smoothing_factor and phase_consistency
+            """
+            try:
+                import torch
+                from .torch_utils import TORCH_AVAILABLE
+                
+                if not TORCH_AVAILABLE:
+                    return {"smoothing_factor": 1.0, "phase_consistency": 0.0}
+                
+                # Use provided history or internal history
+                history = manifold_history if manifold_history is not None else self.manifold_history
+                
+                # If history is empty, no adjustment
+                if not history or "vector" not in current_manifold:
+                    return {"smoothing_factor": 1.0, "phase_consistency": 0.0}
+                
+                # Extract current vector
+                current_vec = current_manifold["vector"]
+                
+                # Convert to tensor
+                if not isinstance(current_vec, torch.Tensor):
+                    try:
+                        c = torch.tensor(current_vec, dtype=torch.float32)
+                    except Exception:
+                        return {"smoothing_factor": 1.0, "phase_consistency": 0.0}
+                else:
+                    c = current_vec.float()
+                
+                # Normalize current vector
+                c_norm_val = torch.norm(c)
+                if c_norm_val < 1e-8:
+                    return {"smoothing_factor": 1.0, "phase_consistency": 0.0}
+                c_norm = c / (c_norm_val + 1e-8)
+                
+                # Gather recent manifold states
+                recent = history[-self.max_window:]
+                
+                sims = []
+                for h in recent:
+                    if h is None:
+                        continue
+                    
+                    # Convert to tensor if needed
+                    if not isinstance(h, torch.Tensor):
+                        try:
+                            h_t = torch.tensor(h, dtype=torch.float32)
+                        except Exception:
+                            continue
+                    else:
+                        h_t = h.float()
+                    
+                    # Flatten and ensure same length
+                    h_flat = h_t.flatten()
+                    c_flat = c_norm.flatten()
+                    
+                    min_len = min(h_flat.shape[0], c_flat.shape[0])
+                    if min_len == 0:
+                        continue
+                    
+                    h_flat = h_flat[:min_len]
+                    c_flat = c_flat[:min_len]
+                    
+                    # Normalize history vector
+                    h_norm_val = torch.norm(h_flat)
+                    if h_norm_val < 1e-8:
+                        continue
+                    h_norm = h_flat / (h_norm_val + 1e-8)
+                    
+                    # Directional agreement (cosine similarity)
+                    sim = torch.dot(c_flat, h_norm)
+                    sims.append(sim)
+                
+                if len(sims) == 0:
+                    return {"smoothing_factor": 1.0, "phase_consistency": 0.0}
+                
+                # Stack similarities and compute mean
+                sims_t = torch.stack(sims)
+                phase_consistency = torch.clamp(sims_t.mean(), -1.0, 1.0)
+                
+                # Map consistency → smoothing factor using sigmoid
+                smoothing_factor = torch.sigmoid(phase_consistency * 2.0).item()
+                
+                # Store results
+                self.last_smoothing_factor = smoothing_factor
+                self.last_phase_consistency = phase_consistency.item() if isinstance(phase_consistency, torch.Tensor) else float(phase_consistency)
+                
+                return {
+                    "smoothing_factor": smoothing_factor,
+                    "phase_consistency": self.last_phase_consistency,
+                }
+            except Exception:
+                return {"smoothing_factor": self.last_smoothing_factor, "phase_consistency": self.last_phase_consistency}
+        
+        def update_history(self, manifold_vector):
+            """
+            Add a manifold vector to the rolling history buffer.
+            
+            Args:
+                manifold_vector: tensor or list to add to history
+            """
+            try:
+                import torch
+                
+                # Convert to tensor if needed
+                if not isinstance(manifold_vector, torch.Tensor):
+                    try:
+                        vec_t = torch.tensor(manifold_vector, dtype=torch.float32)
+                    except Exception:
+                        return
+                else:
+                    vec_t = manifold_vector.clone().detach()
+                
+                # Add to history
+                self.manifold_history.append(vec_t)
+                
+                # Trim to max_window size
+                if len(self.manifold_history) > self.max_window:
+                    self.manifold_history = self.manifold_history[-self.max_window:]
+            except Exception:
+                pass
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -23238,6 +23385,12 @@ class NeuralBridge:
                 # Already initialized
                 pass
             
+            if self.temporal_manifold_phase_smoothing_341 is None:
+                self.temporal_manifold_phase_smoothing_341 = self.TemporalManifoldPhaseSmoothingKernel(max_window=16)
+            else:
+                # Already initialized
+                pass
+            
             if self.routing_kernel_330 is None:
                 self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336, drift_corrector=self.routing_drift_corrector_337, consistency_graph=self.routing_consistency_graph_338)
             else:
@@ -23434,6 +23587,80 @@ class NeuralBridge:
                     if hasattr(self, 'logger'):
                         try:
                             self.logger.write({"mf340_error": str(e)})
+                        except Exception:
+                            pass
+            
+            # MF-341 — Temporal Manifold Phase Smoothing Kernel
+            # Apply phase smoothing to manifold states to reduce discontinuities
+            if self.temporal_manifold_phase_smoothing_341 is not None:
+                try:
+                    import torch
+                    
+                    # Collect manifold vectors from various sources
+                    manifold_vectors = []
+                    
+                    # Get manifolds from routing kernel if available
+                    if self.routing_kernel_330 is not None:
+                        # Try to get manifolds from internal state or recent processing
+                        # We'll apply smoothing to any available manifold representations
+                        pass
+                    
+                    # Get manifolds from meta field engine if available
+                    if hasattr(self, 'meta_field_engine') and self.meta_field_engine is not None:
+                        # Check for manifold-related fields
+                        if hasattr(self.meta_field_engine, 'emergent_fields') and self.meta_field_engine.emergent_fields:
+                            for field in self.meta_field_engine.emergent_fields[-3:]:  # Last 3 fields
+                                if field is not None:
+                                    manifold_vectors.append(field)
+                    
+                    # Get stable meta field as a manifold representation
+                    if hasattr(self, 'stable_meta_field') and self.stable_meta_field is not None:
+                        manifold_vectors.append(self.stable_meta_field)
+                    
+                    # Apply smoothing to each manifold vector
+                    for i, manifold_vec in enumerate(manifold_vectors):
+                        if manifold_vec is None:
+                            continue
+                        
+                        # Convert to list if tensor
+                        if isinstance(manifold_vec, torch.Tensor):
+                            manifold_list = manifold_vec.flatten().tolist()
+                        else:
+                            manifold_list = manifold_vec
+                        
+                        # Compute phase smoothing
+                        mf341_result = self.temporal_manifold_phase_smoothing_341.forward(
+                            current_manifold={"vector": manifold_list},
+                            manifold_history=None  # Use internal history
+                        )
+                        
+                        # Store smoothing results
+                        if i == 0:  # Store results from first manifold
+                            self.mf341_smoothing_factor = mf341_result.get("smoothing_factor", 1.0)
+                            self.mf341_phase_consistency = mf341_result.get("phase_consistency", 0.0)
+                        
+                        # Apply smoothing factor to manifold vector
+                        if isinstance(manifold_vec, torch.Tensor):
+                            smoothed_vector = manifold_vec * mf341_result.get("smoothing_factor", 1.0)
+                            
+                            # Update the source
+                            if i < len(manifold_vectors) and manifold_vectors[i] is manifold_vec:
+                                if hasattr(self, 'stable_meta_field') and self.stable_meta_field is manifold_vec:
+                                    self.stable_meta_field = smoothed_vector
+                                elif hasattr(self, 'meta_field_engine') and hasattr(self.meta_field_engine, 'emergent_fields'):
+                                    # Update in emergent fields if it matches
+                                    for j, field in enumerate(self.meta_field_engine.emergent_fields):
+                                        if field is manifold_vec:
+                                            self.meta_field_engine.emergent_fields[j] = smoothed_vector
+                                            break
+                        
+                        # Update history buffer with current manifold (before smoothing for consistency)
+                        self.temporal_manifold_phase_smoothing_341.update_history(manifold_vec)
+                except Exception as e:
+                    # Silently continue if MF-341 fails
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({"mf341_error": str(e)})
                         except Exception:
                             pass
         except Exception as e:
