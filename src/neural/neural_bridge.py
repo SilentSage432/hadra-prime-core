@@ -1785,6 +1785,8 @@ class NeuralBridge:
             self.routing_entropy_regulator_335 = None
             self.routing_alignment_336 = None
             self.routing_drift_corrector_337 = None
+            self.routing_consistency_graph_338 = None
+            self.predictive_field_manifold_coherence_339 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -21805,7 +21807,7 @@ class NeuralBridge:
         This is the foundation for multi-resolution predictive flow control in MF-331–350.
         """
         
-        def __init__(self, dim=128, num_levels=3, regularizer=None, coherence_engine=None, grad_stabilizer=None, divergence_penalty=None, entropy_regulator=None, alignment_layer=None, drift_corrector=None):
+        def __init__(self, dim=128, num_levels=3, regularizer=None, coherence_engine=None, grad_stabilizer=None, divergence_penalty=None, entropy_regulator=None, alignment_layer=None, drift_corrector=None, consistency_graph=None):
             self.dim = dim
             self.num_levels = num_levels
             self.regularizer = regularizer  # Reference to MF-331 regularizer
@@ -21815,6 +21817,7 @@ class NeuralBridge:
             self.entropy_regulator = entropy_regulator  # Reference to MF-335 entropy regulator
             self.alignment_layer = alignment_layer  # Reference to MF-336 cross-manifold alignment layer
             self.drift_corrector = drift_corrector  # Reference to MF-337 drift corrector
+            self.consistency_graph = consistency_graph  # Reference to MF-338 unified multi-routing consistency graph
             
             try:
                 import torch
@@ -21922,6 +21925,50 @@ class NeuralBridge:
                     # This is the final stabilization step before routing outputs influence manifolds
                     if self.drift_corrector is not None:
                         routing_weights = self.drift_corrector.forward(routing_weights)
+                    
+                    # Apply MF-338 unified multi-routing consistency graph if available
+                    # Collect routing-related vectors from various subsystems
+                    if self.consistency_graph is not None:
+                        try:
+                            routing_sources = []
+                            
+                            # Current routing weights
+                            routing_sources.append(routing_weights)
+                            
+                            # Previous signature from coherence engine
+                            if self.coherence_engine is not None:
+                                prev_sig = getattr(self.coherence_engine, 'prev_signature', None)
+                                if prev_sig is not None:
+                                    routing_sources.append(prev_sig)
+                            
+                            # Previous gradient estimate from grad stabilizer
+                            if self.grad_stabilizer is not None:
+                                prev_grad = getattr(self.grad_stabilizer, 'prev_grad_estimate', None)
+                                if prev_grad is not None:
+                                    routing_sources.append(prev_grad)
+                            
+                            # Divergence threshold as a reference signal
+                            if self.divergence_penalty is not None:
+                                div_thresh = getattr(self.divergence_penalty, 'divergence_threshold', None)
+                                if div_thresh is not None:
+                                    div_tensor = torch.tensor([div_thresh], dtype=torch.float32)
+                                    routing_sources.append(div_tensor)
+                            
+                            # Target entropy as a reference signal
+                            if self.entropy_regulator is not None:
+                                target_ent = getattr(self.entropy_regulator, 'target_entropy', None)
+                                if target_ent is not None:
+                                    ent_tensor = torch.tensor([target_ent], dtype=torch.float32)
+                                    routing_sources.append(ent_tensor)
+                            
+                            # Generate global routing graph
+                            global_routing_graph = self.consistency_graph.forward(routing_sources)
+                            
+                            # Note: global_routing_graph can be used for future manifold/predictive field updates
+                            # For now, we just generate it to establish the consistency graph
+                        except Exception:
+                            # Silently continue if graph generation fails
+                            pass
                     
                     # Apply each transform weighted by routing coefficients
                     transformed = torch.zeros(self.dim, dtype=torch.float32)
@@ -22587,6 +22634,219 @@ class NeuralBridge:
                 # Fallback: return original tensor
                 return routing_tensor
 
+    class UnifiedMultiRoutingConsistencyGraph:
+        """
+        MF-338 — Unified Multi-Routing Consistency Graph
+        
+        Builds a global routing-consistency graph by combining multiple routing 
+        vectors across manifold levels, routing scales, and predictive stages,
+        and produces a unifying correction factor.
+        """
+        
+        def __init__(self, num_nodes=5, fusion_strength=0.20):
+            try:
+                import torch
+                import torch.nn as nn
+                
+                self.num_nodes = num_nodes
+                self.fusion_strength = fusion_strength
+                
+                # adjacency matrix representing relationships between routing subsystems
+                # Use regular tensor that can be treated as a parameter if needed
+                self.adj_matrix = torch.randn(num_nodes, num_nodes, dtype=torch.float32) * 0.01
+                
+                # historical global routing signature
+                self.global_signature = torch.zeros(num_nodes, dtype=torch.float32)
+            except Exception:
+                self.num_nodes = num_nodes
+                self.fusion_strength = fusion_strength
+                self.adj_matrix = None
+                self.global_signature = None
+        
+        def forward(self, routing_sources: list):
+            """
+            routing_sources: list of tensors representing routing vectors
+                             from different subsystems (multi-scale, manifold, etc.)
+            """
+            try:
+                import torch
+                
+                if len(routing_sources) == 0:
+                    return None
+                
+                if self.adj_matrix is None or self.global_signature is None:
+                    return None
+                
+                # unify into consistent shape [num_nodes]
+                pooled = []
+                for r in routing_sources:
+                    if r is None:
+                        continue
+                    if not isinstance(r, torch.Tensor):
+                        try:
+                            r = torch.tensor(r, dtype=torch.float32)
+                        except Exception:
+                            continue
+                    if r.numel() == 0:
+                        continue
+                    # Get mean value as scalar
+                    mean_val = r.mean() if r.numel() > 0 else torch.tensor(0.0, dtype=torch.float32)
+                    if not isinstance(mean_val, torch.Tensor):
+                        mean_val = torch.tensor(mean_val, dtype=torch.float32)
+                    pooled.append(mean_val.unsqueeze(0))
+                
+                if len(pooled) < self.num_nodes:
+                    # pad to full length
+                    while len(pooled) < self.num_nodes:
+                        pooled.append(torch.tensor([0.0], dtype=torch.float32))
+                
+                stacked = torch.cat(pooled[:self.num_nodes], dim=0)
+                
+                # propagate through adjacency graph
+                graph_out = self.adj_matrix @ stacked
+                
+                # blend with historical signature
+                unified = (
+                    (1 - self.fusion_strength) * stacked +
+                    self.fusion_strength * graph_out
+                )
+                
+                # update historical record
+                self.global_signature.copy_(unified.detach())
+                
+                return unified
+            except Exception:
+                return None
+
+    class PredictiveFieldManifoldCoherenceOperator:
+        """
+        MF-339 — Predictive Field–Manifold Coherence Operator
+        
+        Pure ML framing:
+        - Computes a predictive manifold consistency score.
+        - Produces a stabilizing coefficient to align field predictions
+          with manifold routing behavior.
+        - No agency. No identity. No self-modeling.
+        - Strictly a numerical transformation for stabilizing multi-layer flows.
+        """
+        
+        def __init__(self):
+            self.last_coherence_gain = 1.0
+            self.last_alignments = {
+                "align_fa": 0.0,
+                "align_fr": 0.0,
+                "align_ar": 0.0
+            }
+        
+        def forward(self, fusion_state, attention_state, routing_state):
+            """
+            Compute predictive field-manifold coherence.
+            
+            Args:
+                fusion_state: dict with "preview" key containing fusion vector
+                attention_state: dict with "focus_preview" key containing attention vector
+                routing_state: dict with "routing_vector" key containing routing vector
+            
+            Returns:
+                dict with coherence_gain and alignment scores
+            """
+            try:
+                import torch
+                from .torch_utils import TORCH_AVAILABLE
+                
+                if not TORCH_AVAILABLE:
+                    return {"coherence_gain": 1.0}
+                
+                # Extract embeddings safely
+                f = fusion_state.get("preview", None) if isinstance(fusion_state, dict) else None
+                a = attention_state.get("focus_preview", None) if isinstance(attention_state, dict) else None
+                r = routing_state.get("routing_vector", None) if isinstance(routing_state, dict) else None
+                
+                # Fallback: try to get from direct tensor access
+                if f is None and hasattr(fusion_state, 'last_fusion_vector'):
+                    f = fusion_state.last_fusion_vector
+                if a is None and hasattr(attention_state, 'last_focus_vector'):
+                    a = attention_state.last_focus_vector
+                
+                if f is None or a is None or r is None:
+                    return {"coherence_gain": self.last_coherence_gain}
+                
+                # Convert to tensors if needed
+                if not isinstance(f, torch.Tensor):
+                    try:
+                        f_t = torch.tensor(f, dtype=torch.float32)
+                    except Exception:
+                        return {"coherence_gain": self.last_coherence_gain}
+                else:
+                    f_t = f.float()
+                
+                if not isinstance(a, torch.Tensor):
+                    try:
+                        a_t = torch.tensor(a, dtype=torch.float32)
+                    except Exception:
+                        return {"coherence_gain": self.last_coherence_gain}
+                else:
+                    a_t = a.float()
+                
+                if not isinstance(r, torch.Tensor):
+                    try:
+                        r_t = torch.tensor(r, dtype=torch.float32)
+                    except Exception:
+                        return {"coherence_gain": self.last_coherence_gain}
+                else:
+                    r_t = r.float()
+                
+                # Flatten to ensure 1D vectors
+                f_flat = f_t.flatten()
+                a_flat = a_t.flatten()
+                r_flat = r_t.flatten()
+                
+                # Normalize
+                f_norm = torch.norm(f_flat)
+                a_norm = torch.norm(a_flat)
+                r_norm = torch.norm(r_flat)
+                
+                if f_norm < 1e-8 or a_norm < 1e-8 or r_norm < 1e-8:
+                    return {"coherence_gain": self.last_coherence_gain}
+                
+                f_n = f_flat / (f_norm + 1e-8)
+                a_n = a_flat / (a_norm + 1e-8)
+                r_n = r_flat / (r_norm + 1e-8)
+                
+                # Ensure same length for dot products
+                min_len = min(f_n.shape[0], a_n.shape[0], r_n.shape[0])
+                f_n = f_n[:min_len]
+                a_n = a_n[:min_len]
+                r_n = r_n[:min_len]
+                
+                # Predictive consistency score
+                align_fa = torch.dot(f_n, a_n)
+                align_fr = torch.dot(f_n, r_n)
+                align_ar = torch.dot(a_n, r_n)
+                
+                # Aggregate
+                raw_score = (align_fa + align_fr + align_ar) / 3.0
+                
+                # Map to stable coefficient using sigmoid
+                coherence_gain = torch.sigmoid(raw_score * 1.8).item()
+                
+                # Store for next call
+                self.last_coherence_gain = coherence_gain
+                self.last_alignments = {
+                    "align_fa": align_fa.item() if isinstance(align_fa, torch.Tensor) else float(align_fa),
+                    "align_fr": align_fr.item() if isinstance(align_fr, torch.Tensor) else float(align_fr),
+                    "align_ar": align_ar.item() if isinstance(align_ar, torch.Tensor) else float(align_ar)
+                }
+                
+                return {
+                    "coherence_gain": coherence_gain,
+                    "align_fa": self.last_alignments["align_fa"],
+                    "align_fr": self.last_alignments["align_fr"],
+                    "align_ar": self.last_alignments["align_ar"],
+                }
+            except Exception:
+                return {"coherence_gain": self.last_coherence_gain}
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -22811,13 +23071,25 @@ class NeuralBridge:
                 # Check if parameters need updating (optional, since they're set in __init__)
                 pass
             
+            if self.routing_consistency_graph_338 is None:
+                self.routing_consistency_graph_338 = self.UnifiedMultiRoutingConsistencyGraph(num_nodes=5, fusion_strength=0.20)
+            else:
+                # Check if parameters need updating (optional, since they're set in __init__)
+                pass
+            
+            if self.predictive_field_manifold_coherence_339 is None:
+                self.predictive_field_manifold_coherence_339 = self.PredictiveFieldManifoldCoherenceOperator()
+            else:
+                # Already initialized
+                pass
+            
             if self.routing_kernel_330 is None:
-                self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336, drift_corrector=self.routing_drift_corrector_337)
+                self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336, drift_corrector=self.routing_drift_corrector_337, consistency_graph=self.routing_consistency_graph_338)
             else:
                 if getattr(self.routing_kernel_330, "dim", dim) != dim:
-                    self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336, drift_corrector=self.routing_drift_corrector_337)
+                    self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336, drift_corrector=self.routing_drift_corrector_337, consistency_graph=self.routing_consistency_graph_338)
                 else:
-                    # Update regularizer, coherence engine, grad stabilizer, divergence penalty, entropy regulator, alignment layer, and drift corrector references if they changed
+                    # Update regularizer, coherence engine, grad stabilizer, divergence penalty, entropy regulator, alignment layer, drift corrector, and consistency graph references if they changed
                     self.routing_kernel_330.regularizer = self.routing_consistency_331
                     self.routing_kernel_330.coherence_engine = self.routing_coherence_332
                     self.routing_kernel_330.grad_stabilizer = self.routing_grad_stabilizer_333
@@ -22825,6 +23097,7 @@ class NeuralBridge:
                     self.routing_kernel_330.entropy_regulator = self.routing_entropy_regulator_335
                     self.routing_kernel_330.alignment_layer = self.routing_alignment_336
                     self.routing_kernel_330.drift_corrector = self.routing_drift_corrector_337
+                    self.routing_kernel_330.consistency_graph = self.routing_consistency_graph_338
             
             # Collect harmonic layers (only tensors present)
             candidates = [
@@ -22899,6 +23172,61 @@ class NeuralBridge:
                     })
                 except Exception:
                     pass
+            
+            # MF-339 — Predictive Field–Manifold Coherence Operator
+            # Apply coherence transformation to align fusion, attention, and routing
+            if self.predictive_field_manifold_coherence_339 is not None:
+                try:
+                    # Get fusion and attention status
+                    fusion_status = self.fusion_status()
+                    attention_status = self.attention_status()
+                    
+                    # Get routing state from consistency graph or routing kernel
+                    routing_state = {}
+                    if self.routing_consistency_graph_338 is not None and hasattr(self.routing_consistency_graph_338, 'global_signature'):
+                        routing_vec = self.routing_consistency_graph_338.global_signature
+                        if routing_vec is not None:
+                            routing_state["routing_vector"] = routing_vec
+                    elif self.routing_kernel_330 is not None:
+                        # Fallback: use routing weights if available
+                        if hasattr(self.routing_kernel_330, 'level_thresholds'):
+                            routing_state["routing_vector"] = self.routing_kernel_330.level_thresholds
+                    
+                    # Compute coherence
+                    mf339_result = self.predictive_field_manifold_coherence_339.forward(
+                        fusion_state=fusion_status,
+                        attention_state=attention_status,
+                        routing_state=routing_state
+                    )
+                    
+                    # Store coherence gain for potential use in routing updates
+                    self.mf339_coherence_gain = mf339_result.get("coherence_gain", 1.0)
+                    self.mf339_alignments = {
+                        "align_fa": mf339_result.get("align_fa", 0.0),
+                        "align_fr": mf339_result.get("align_fr", 0.0),
+                        "align_ar": mf339_result.get("align_ar", 0.0)
+                    }
+                    
+                    # Apply coherence gain to routing updates if routing kernel is available
+                    # This stabilizes routing based on field-manifold alignment
+                    if self.routing_kernel_330 is not None and hasattr(self.routing_kernel_330, 'transforms'):
+                        # The coherence gain can influence future routing decisions
+                        # Store it for use in routing forward pass
+                        if not hasattr(self.routing_kernel_330, 'coherence_gain'):
+                            self.routing_kernel_330.coherence_gain = self.mf339_coherence_gain
+                        else:
+                            # Smooth update of coherence gain
+                            self.routing_kernel_330.coherence_gain = (
+                                0.7 * self.routing_kernel_330.coherence_gain +
+                                0.3 * self.mf339_coherence_gain
+                            )
+                except Exception as e:
+                    # Silently continue if MF-339 fails
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({"mf339_error": str(e)})
+                        except Exception:
+                            pass
         except Exception as e:
             if hasattr(self, 'logger'):
                 try:
