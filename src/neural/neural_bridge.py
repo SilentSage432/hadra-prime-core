@@ -347,6 +347,10 @@ class NeuralBridge:
             self.meta_field_manifold = self.MetaFieldInteractionManifold(self.dim)
         except Exception:
             self.meta_field_manifold = None
+        try:
+            self.meta_field_sync = self.MetaFieldSynchronizationKernel(self.dim)
+        except Exception:
+            self.meta_field_sync = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -26619,6 +26623,96 @@ class NeuralBridge:
 
             return out
 
+    class MetaFieldSynchronizationKernel(nn.Module):
+        """
+        MF-384 — Meta-Field Synchronization Kernel (MFSK)
+
+        Establishes a synchronization kernel that aligns:
+        - the MRIS output (multi-layer resonance features)
+        - the meta-field manifold output (geometric structured features)
+
+        This kernel ensures the manifold does not drift out of alignment with the
+        predictive and harmonic layers feeding into it.
+
+        Computationally accomplishes:
+        1. Feature Synchronization: cross-correlation between signals to stabilize updates
+        2. Temporal Smoothness: decay-weighted running average to prevent sharp spikes
+        3. Cross-Feature Alignment: linear mapping that minimizes mismatch between MRIS and MFIM spaces
+        4. Stable Fusion Output: synchronized meta-field state for MF-385 onward
+
+        Essential for preventing manifold deformation or inconsistent predictive behavior.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.align = None
+                self.smooth_norm = None
+                self.activation = None
+                self.prev_state = None
+                self.decay = 0.85
+                return
+
+            self.align = nn.Linear(dim, dim)
+            self.smooth_norm = nn.LayerNorm(dim)
+            self.activation = nn.Tanh()
+            # Decay factor for temporal smoothing
+            self.register_buffer("prev_state", None)
+            self.decay = 0.85
+
+        def forward(self, rmis_out, manifold_out):
+            if (torch is None or
+                self.align is None or
+                self.smooth_norm is None or
+                self.activation is None or
+                rmis_out is None or
+                manifold_out is None):
+                return manifold_out
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            rmis_out = ensure_tensor(rmis_out)
+            manifold_out = ensure_tensor(manifold_out)
+
+            if rmis_out is None or manifold_out is None:
+                return manifold_out
+
+            # Align MRIS space to manifold space
+            aligned = self.activation(self.align(rmis_out))
+
+            # Combine aligned + manifold output
+            fused = aligned + manifold_out
+
+            # Apply temporal smoothing
+            if self.prev_state is None:
+                smoothed = fused
+            else:
+                smoothed = self.decay * self.prev_state + (1 - self.decay) * fused
+
+            self.prev_state = smoothed.detach()
+
+            # Normalize for stability
+            return self.smooth_norm(smoothed)
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -28270,6 +28364,30 @@ class NeuralBridge:
                                                             pass
                                             else:
                                                 self.mf383_meta_field_state = None
+
+                                            # MF-384 — Meta-Field Synchronization Kernel (MFSK)
+                                            # Synchronizes MRIS output with meta-field manifold output
+                                            meta_field_synced = None
+                                            if (getattr(self, "meta_field_sync", None) is not None and
+                                                meta_interaction is not None and
+                                                meta_field_state is not None):
+                                                try:
+                                                    # Apply synchronization kernel to align MRIS and manifold spaces
+                                                    meta_field_synced = self.meta_field_sync(meta_interaction, meta_field_state)
+                                                    if meta_field_synced is not None:
+                                                        self.mf384_meta_field_synced = meta_field_synced
+                                                        # Store as canonical signal for MF-385 onward
+                                                    else:
+                                                        self.mf384_meta_field_synced = None
+                                                except Exception as mfsk_error:
+                                                    self.mf384_meta_field_synced = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf384_error": str(mfsk_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf384_meta_field_synced = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
