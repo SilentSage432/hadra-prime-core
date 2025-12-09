@@ -518,6 +518,14 @@ class NeuralBridge:
             )
         except Exception:
             self.mf412_pfcd_l = None
+        # MF-413 — Dynamic Phase-Flow Stabilization Map Layer (DPFSM-L)
+        try:
+            self.mf413_dpfsm_l = self.DynamicPhaseFlowStabilizationMapLayer(
+                substrate_dim=self.dim,
+                stab_dim=4
+            )
+        except Exception:
+            self.mf413_dpfsm_l = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -30258,6 +30266,167 @@ class NeuralBridge:
                     return F.normalize(PG_out, dim=-1)
                 except Exception:
                     return PG_out
+
+    class DynamicPhaseFlowStabilizationMapLayer(nn.Module):
+        """
+        MF-413 — Dynamic Phase-Flow Stabilization Map Layer (DPFSM-L)
+
+        Constructs a stabilization map that regulates dynamic phase-flow behavior across the
+        full manifold. This layer processes PF_out from MF-412 to produce a stability-regulated
+        phase-flow map, ensuring that dynamic flows align with substrate constraints and maintain
+        bounded, coherent behavior.
+
+        Core Computational Components:
+        1. Flow-Stability Vector Extraction: computes stability indicators along dimensions
+           using absolute finite differences, encoding local instability magnitude.
+        2. Stabilization Projection: compresses instability into a stabilizing vector through
+           a learned projection matrix.
+        3. Dynamic Stabilization Tensor: produces stabilization interactions using a rank-3
+           tensor that maps stabilization components across the manifold.
+        4. Stabilization Fusion Field: merges original phase-flow, stabilization projection,
+           and stabilization interaction vectors via learned fusion coefficients (α, β, γ).
+        5. Stabilization Limiter: maintains bounded behavior even under large flow magnitudes.
+        6. Dynamic Stabilization Map Output: projects the final result into a substrate-aligned
+           stabilization map for consumption by MF-414.
+
+        Outcome:
+        MF-413 outputs DS_out, which integrates local instability signals, stabilization
+        projection, stabilization tensor interactions, modulation-aware fusion, bounded
+        stability limiting, and substrate-aligned projection. This formally completes the
+        stabilization arc derived from MF-410 → MF-412, preparing the system for the
+        Stabilized Influence Reprojection Series.
+        """
+
+        def __init__(self, substrate_dim, stab_dim=4):
+            super().__init__()
+            self.stab_dim = stab_dim
+
+            # Stabilization projection matrix
+            self.W_stab = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+            # Dynamic stabilization tensor
+            # Shape: [stab_dim, stab_dim, substrate_dim]
+            self.T_stab = nn.Parameter(
+                torch.randn(stab_dim, stab_dim, substrate_dim) * 0.01
+            )
+
+            # Fusion coefficients
+            self.alpha = nn.Parameter(torch.tensor(0.55))
+            self.beta = nn.Parameter(torch.tensor(0.25))
+            self.gamma = nn.Parameter(torch.tensor(0.20))
+
+            # Final alignment projection
+            self.alignment_matrix = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def forward(self, PF_out):
+            """
+            PF_out: phase-flow field from MF-412, shape [batch, dim]
+            """
+            if torch is None or PF_out is None:
+                return PF_out
+
+            # Ensure PF_out is a tensor
+            if not isinstance(PF_out, torch.Tensor):
+                try:
+                    PF_out = torch.tensor(PF_out, dtype=torch.float32)
+                except Exception:
+                    return PF_out
+
+            # Ensure proper shape
+            if PF_out.dim() == 1:
+                PF_out = PF_out.unsqueeze(0)
+
+            try:
+                import torch.nn.functional as F
+
+                substrate_dim = PF_out.shape[-1]
+                # Ensure dimensions match
+                if PF_out.shape[-1] != self.alignment_matrix.shape[0]:
+                    if PF_out.shape[-1] < self.alignment_matrix.shape[0]:
+                        padding = torch.zeros(
+                            PF_out.shape[:-1] + (self.alignment_matrix.shape[0] - PF_out.shape[-1],),
+                            dtype=PF_out.dtype,
+                            device=PF_out.device if hasattr(PF_out, 'device') else None
+                        )
+                        PF_out = torch.cat([PF_out, padding], dim=-1)
+                    else:
+                        PF_out = PF_out[..., :self.alignment_matrix.shape[0]]
+
+                # 1. Flow-stability extraction (absolute finite differences)
+                if PF_out.shape[-1] > 1:
+                    S_raw = torch.abs(PF_out[:, 1:] - PF_out[:, :-1])
+                    S = F.pad(S_raw, (0, 1), mode="replicate")
+                else:
+                    S = torch.zeros_like(PF_out)
+
+                # Ensure S matches substrate_dim
+                if S.shape[-1] != substrate_dim:
+                    if S.shape[-1] < substrate_dim:
+                        padding = torch.zeros(
+                            S.shape[:-1] + (substrate_dim - S.shape[-1],),
+                            dtype=S.dtype,
+                            device=S.device if hasattr(S, 'device') else None
+                        )
+                        S = torch.cat([S, padding], dim=-1)
+                    else:
+                        S = S[..., :substrate_dim]
+
+                # 2. Stabilization projection
+                S_proj = torch.matmul(S, self.W_stab)
+                S_proj = F.normalize(S_proj, dim=-1)
+
+                # 3. Dynamic stabilization tensor interaction
+                # Ensure S_proj dimensions are compatible
+                S_flat = S_proj
+                if S_flat.shape[-1] < self.stab_dim:
+                    padding = torch.zeros(
+                        S_flat.shape[:-1] + (self.stab_dim - S_flat.shape[-1],),
+                        dtype=S_flat.dtype,
+                        device=S_flat.device if hasattr(S_flat, 'device') else None
+                    )
+                    S_flat = torch.cat([S_flat, padding], dim=-1)
+                elif S_flat.shape[-1] > self.stab_dim:
+                    S_flat = S_flat[..., :self.stab_dim]
+
+                D_list = []
+                for i in range(self.stab_dim):
+                    interaction = torch.zeros_like(PF_out)
+                    for j in range(self.stab_dim):
+                        # T_stab[i, j] is shape [substrate_dim]
+                        # S_flat[:, j] is shape [batch]
+                        s_j = S_flat[:, j].unsqueeze(-1)  # [batch, 1]
+                        tensor_ij = self.T_stab[i, j].unsqueeze(0)  # [1, substrate_dim]
+                        interaction += s_j * tensor_ij  # [batch, substrate_dim]
+                    D_list.append(interaction)
+
+                D = torch.stack(D_list, dim=0).sum(dim=0)  # [batch, dim]
+
+                # 4. Stabilization fusion
+                F_combined = (
+                    self.alpha * PF_out
+                    + self.beta * S_proj
+                    + self.gamma * D
+                )
+
+                # 5. Stabilization limiter
+                F_reg = F_combined / (1 + torch.abs(F_combined))
+
+                # 6. Substrate-aligned projection
+                DS_out = torch.matmul(F_reg, self.alignment_matrix)
+                DS_out = F.normalize(DS_out, dim=-1)
+
+                return DS_out
+            except Exception:
+                # If stabilization fails, return normalized input
+                try:
+                    import torch.nn.functional as F
+                    return F.normalize(PF_out, dim=-1)
+                except Exception:
+                    return PF_out
 
     def integrate_A301(self):
         """
