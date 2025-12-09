@@ -1789,6 +1789,9 @@ class NeuralBridge:
             self.predictive_field_manifold_coherence_339 = None
             self.temporal_predictive_memory_alignment_340 = None
             self.temporal_manifold_phase_smoothing_341 = None
+            self.manifold_folding_layer_342 = None
+            self.harmonic_stability_gate_343 = None
+            self.predictive_harmonic_transition_344 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -23143,6 +23146,358 @@ class NeuralBridge:
             except Exception:
                 pass
 
+    class MultiPhaseManifoldFoldingOperator:
+        """
+        MF-342 — Multi-Phase Manifold Folding Operator (MMFO)
+        
+        ML-safe explanation:
+        - Geometric representation restructuring
+        - Topology-aware compression
+        - Predictive manifold optimization
+        - Smoother transitions between manifold regions
+        
+        This keeps prime-core efficient as the representational space grows.
+        """
+        
+        def __init__(self, dim=128):
+            try:
+                import torch
+                import torch.nn as nn
+                from .torch_utils import TORCH_AVAILABLE
+                
+                if not TORCH_AVAILABLE:
+                    self.dim = dim
+                    self.pre_fold = None
+                    self.post_fold = None
+                    self.fold_gate = None
+                    self.blend = None
+                    return
+                
+                self.dim = dim
+                
+                # Linear projections to create folding vectors
+                self.pre_fold = nn.Linear(dim, dim)
+                self.post_fold = nn.Linear(dim, dim)
+                
+                # Gating functions to regulate folding intensity
+                self.fold_gate = nn.Sequential(
+                    nn.Linear(dim, dim // 2),
+                    nn.ReLU(),
+                    nn.Linear(dim // 2, 1),
+                    nn.Sigmoid()
+                )
+                
+                # Smooth blending for folded/unfolded states
+                self.blend = nn.Parameter(torch.randn(dim) * 0.01)
+            except Exception:
+                self.dim = dim
+                self.pre_fold = None
+                self.post_fold = None
+                self.fold_gate = None
+                self.blend = None
+        
+        def forward(self, x):
+            """
+            Apply multi-phase manifold folding to input tensor.
+            
+            Args:
+                x: input tensor (can be any shape, will be flattened to dim)
+            
+            Returns:
+                blended: folded and blended manifold representation
+            """
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if self.pre_fold is None or self.post_fold is None or self.fold_gate is None or self.blend is None:
+                    return x
+                
+                # Ensure x is a tensor
+                if not isinstance(x, torch.Tensor):
+                    try:
+                        x = torch.tensor(x, dtype=torch.float32)
+                    except Exception:
+                        return x
+                
+                # Flatten to ensure consistent dimension
+                x_flat = x.flatten()
+                
+                # Pad or trim to match dim
+                if x_flat.shape[0] < self.dim:
+                    x_flat = torch.cat([x_flat, torch.zeros(self.dim - x_flat.shape[0], dtype=torch.float32)])
+                elif x_flat.shape[0] > self.dim:
+                    x_flat = x_flat[:self.dim]
+                
+                # Ensure x_flat has batch dimension for nn.Linear
+                if x_flat.dim() == 1:
+                    x_flat = x_flat.unsqueeze(0)
+                
+                # Pre-fold transform
+                pre = torch.tanh(self.pre_fold(x_flat))
+                
+                # Folding gate determines how much structural compression occurs
+                gate = self.fold_gate(x_flat)
+                
+                # Folded representation
+                folded = pre * gate
+                
+                # Post-fold reconstruction
+                post = self.post_fold(folded)
+                
+                # Blend original and folded manifolds for numerical stability
+                blended = post + self.blend * x_flat
+                
+                # Remove batch dimension if it was added
+                if blended.dim() == 2 and blended.shape[0] == 1:
+                    blended = blended.squeeze(0)
+                
+                return blended
+            except Exception:
+                # Fallback: return original input
+                return x
+
+    class HarmonicManifoldStabilityGate:
+        """
+        MF-343 — Harmonic Manifold Stability Gate
+        
+        Strictly technical / ML framing:
+        - Dynamic normalization
+        - Harmonic-weighted gating
+        - Manifold state stabilization
+        - Oscillation dampening
+        
+        Ensures the manifold stays numerically smooth even as upstream layers
+        (MF-330+ predictive routing, manifold folding, etc.) introduce dense interactions.
+        """
+        
+        def __init__(self, dim=128):
+            try:
+                import torch
+                import torch.nn as nn
+                from .torch_utils import TORCH_AVAILABLE
+                
+                if not TORCH_AVAILABLE:
+                    self.dim = dim
+                    self.harmonic_proj = None
+                    self.stability_gate = None
+                    self.residual_scale = None
+                    return
+                
+                self.dim = dim
+                
+                # Harmonic feature extraction
+                self.harmonic_proj = nn.Linear(dim, dim)
+                
+                # Stability gating
+                self.stability_gate = nn.Sequential(
+                    nn.Linear(dim, dim // 2),
+                    nn.ReLU(),
+                    nn.Linear(dim // 2, dim),
+                    nn.Sigmoid()
+                )
+                
+                # Residual balancing factor
+                self.residual_scale = nn.Parameter(torch.tensor(0.05))
+            except Exception:
+                self.dim = dim
+                self.harmonic_proj = None
+                self.stability_gate = None
+                self.residual_scale = None
+        
+        def forward(self, x):
+            """
+            Apply harmonic manifold stability gating to input tensor.
+            
+            Args:
+                x: input tensor (can be any shape, will be flattened to dim)
+            
+            Returns:
+                stabilized: harmonically stabilized manifold representation
+            """
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if self.harmonic_proj is None or self.stability_gate is None or self.residual_scale is None:
+                    return x
+                
+                # Ensure x is a tensor
+                if not isinstance(x, torch.Tensor):
+                    try:
+                        x = torch.tensor(x, dtype=torch.float32)
+                    except Exception:
+                        return x
+                
+                # Flatten to ensure consistent dimension
+                x_flat = x.flatten()
+                
+                # Pad or trim to match dim
+                if x_flat.shape[0] < self.dim:
+                    x_flat = torch.cat([x_flat, torch.zeros(self.dim - x_flat.shape[0], dtype=torch.float32)])
+                elif x_flat.shape[0] > self.dim:
+                    x_flat = x_flat[:self.dim]
+                
+                # Ensure x_flat has batch dimension for nn.Linear
+                if x_flat.dim() == 1:
+                    x_flat = x_flat.unsqueeze(0)
+                
+                # Extract harmonic-like features
+                h = torch.tanh(self.harmonic_proj(x_flat))
+                
+                # Compute stability mask
+                gate = self.stability_gate(h)
+                
+                # Apply stability modulation
+                stabilized = x_flat * (1 - gate) + h * gate
+                
+                # Residual balancing (prevents destabilizing growth)
+                result = stabilized * (1 - self.residual_scale) + x_flat * self.residual_scale
+                
+                # Remove batch dimension if it was added
+                if result.dim() == 2 and result.shape[0] == 1:
+                    result = result.squeeze(0)
+                
+                return result
+            except Exception:
+                # Fallback: return original input
+                return x
+
+    class PredictiveHarmonicTransitionKernel:
+        """
+        MF-344 — Predictive-Harmonic Transition Kernel
+        
+        Strict ML framing:
+        - Weighted interpolation
+        - Smooth space-mapping
+        - Stability-preserving transition between two representational subspaces
+        - Reduction of discontinuities in multi-layer propagation
+        
+        Handles transition dynamics between:
+        - predictive-field outputs (from the MF-330–340 series)
+        - harmonic manifold representations (from MF-341–343)
+        
+        Prepares the architecture for the 345–360 series, where transitions between
+        predictive and harmonic structures become central.
+        """
+        
+        def __init__(self, dim=128):
+            try:
+                import torch
+                import torch.nn as nn
+                from .torch_utils import TORCH_AVAILABLE
+                
+                if not TORCH_AVAILABLE:
+                    self.dim = dim
+                    self.pred_proj = None
+                    self.harm_proj = None
+                    self.transition_gate = None
+                    self.residual_scale = None
+                    return
+                
+                self.dim = dim
+                
+                # Projections from each subspace into transition space
+                self.pred_proj = nn.Linear(dim, dim)
+                self.harm_proj = nn.Linear(dim, dim)
+                
+                # Transition weighting
+                self.transition_gate = nn.Sequential(
+                    nn.Linear(dim * 2, dim),
+                    nn.ReLU(),
+                    nn.Linear(dim, dim),
+                    nn.Sigmoid()
+                )
+                
+                # Residual scaling to maintain numerical stability
+                self.residual_scale = nn.Parameter(torch.tensor(0.03))
+            except Exception:
+                self.dim = dim
+                self.pred_proj = None
+                self.harm_proj = None
+                self.transition_gate = None
+                self.residual_scale = None
+        
+        def forward(self, pred_x, harm_x):
+            """
+            Apply predictive-harmonic transition to input tensors.
+            
+            Args:
+                pred_x: predictive-field representation (tensor or list)
+                harm_x: harmonic manifold representation (tensor or list)
+            
+            Returns:
+                stabilized: transitioned and stabilized representation
+            """
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if self.pred_proj is None or self.harm_proj is None or self.transition_gate is None or self.residual_scale is None:
+                    # Fallback: return predictive representation
+                    if isinstance(pred_x, torch.Tensor):
+                        return pred_x
+                    return harm_x if isinstance(harm_x, torch.Tensor) else pred_x
+                
+                # Ensure inputs are tensors
+                if not isinstance(pred_x, torch.Tensor):
+                    try:
+                        pred_x = torch.tensor(pred_x, dtype=torch.float32)
+                    except Exception:
+                        return harm_x if isinstance(harm_x, torch.Tensor) else pred_x
+                
+                if not isinstance(harm_x, torch.Tensor):
+                    try:
+                        harm_x = torch.tensor(harm_x, dtype=torch.float32)
+                    except Exception:
+                        return pred_x
+                
+                # Flatten and normalize dimensions
+                pred_flat = pred_x.flatten()
+                harm_flat = harm_x.flatten()
+                
+                # Pad or trim to match dim
+                if pred_flat.shape[0] < self.dim:
+                    pred_flat = torch.cat([pred_flat, torch.zeros(self.dim - pred_flat.shape[0], dtype=torch.float32)])
+                elif pred_flat.shape[0] > self.dim:
+                    pred_flat = pred_flat[:self.dim]
+                
+                if harm_flat.shape[0] < self.dim:
+                    harm_flat = torch.cat([harm_flat, torch.zeros(self.dim - harm_flat.shape[0], dtype=torch.float32)])
+                elif harm_flat.shape[0] > self.dim:
+                    harm_flat = harm_flat[:self.dim]
+                
+                # Ensure batch dimension for nn.Linear
+                if pred_flat.dim() == 1:
+                    pred_flat = pred_flat.unsqueeze(0)
+                if harm_flat.dim() == 1:
+                    harm_flat = harm_flat.unsqueeze(0)
+                
+                # Normalize representations
+                p = torch.tanh(self.pred_proj(pred_flat))
+                h = torch.tanh(self.harm_proj(harm_flat))
+                
+                # Compute transition gate using concatenated signals
+                gate_input = torch.cat([p, h], dim=-1)
+                gate = self.transition_gate(gate_input)
+                
+                # Interpolate between predictive and harmonic representations
+                transitioned = p * (1 - gate) + h * gate
+                
+                # Mild residual preservation
+                stabilized = transitioned * (1 - self.residual_scale) + pred_flat * self.residual_scale
+                
+                # Remove batch dimension if it was added
+                if stabilized.dim() == 2 and stabilized.shape[0] == 1:
+                    stabilized = stabilized.squeeze(0)
+                
+                return stabilized
+            except Exception:
+                # Fallback: return predictive representation
+                if isinstance(pred_x, torch.Tensor):
+                    return pred_x
+                return harm_x if isinstance(harm_x, torch.Tensor) else pred_x
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -23390,6 +23745,27 @@ class NeuralBridge:
             else:
                 # Already initialized
                 pass
+            
+            if self.manifold_folding_layer_342 is None:
+                self.manifold_folding_layer_342 = self.MultiPhaseManifoldFoldingOperator(dim=dim)
+            else:
+                # Check if dimension changed
+                if getattr(self.manifold_folding_layer_342, "dim", dim) != dim:
+                    self.manifold_folding_layer_342 = self.MultiPhaseManifoldFoldingOperator(dim=dim)
+            
+            if self.harmonic_stability_gate_343 is None:
+                self.harmonic_stability_gate_343 = self.HarmonicManifoldStabilityGate(dim=dim)
+            else:
+                # Check if dimension changed
+                if getattr(self.harmonic_stability_gate_343, "dim", dim) != dim:
+                    self.harmonic_stability_gate_343 = self.HarmonicManifoldStabilityGate(dim=dim)
+            
+            if self.predictive_harmonic_transition_344 is None:
+                self.predictive_harmonic_transition_344 = self.PredictiveHarmonicTransitionKernel(dim=dim)
+            else:
+                # Check if dimension changed
+                if getattr(self.predictive_harmonic_transition_344, "dim", dim) != dim:
+                    self.predictive_harmonic_transition_344 = self.PredictiveHarmonicTransitionKernel(dim=dim)
             
             if self.routing_kernel_330 is None:
                 self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336, drift_corrector=self.routing_drift_corrector_337, consistency_graph=self.routing_consistency_graph_338)
@@ -23661,6 +24037,196 @@ class NeuralBridge:
                     if hasattr(self, 'logger'):
                         try:
                             self.logger.write({"mf341_error": str(e)})
+                        except Exception:
+                            pass
+            
+            # MF-342 — Multi-Phase Manifold Folding Operator
+            # Apply manifold folding to compress and reorganize high-dimensional structures
+            if self.manifold_folding_layer_342 is not None:
+                try:
+                    import torch
+                    
+                    # Collect manifold vectors to apply folding
+                    manifolds_to_fold = []
+                    
+                    # Get stable meta field
+                    if hasattr(self, 'stable_meta_field') and self.stable_meta_field is not None:
+                        manifolds_to_fold.append(('stable_meta_field', self.stable_meta_field))
+                    
+                    # Get unified predictive core
+                    if hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None:
+                        manifolds_to_fold.append(('unified_predictive_core', self.unified_predictive_core))
+                    
+                    # Get global resonance vector
+                    if hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is not None:
+                        manifolds_to_fold.append(('global_resonance_vector', self.global_resonance_vector))
+                    
+                    # Get emergent fields from meta field engine
+                    if hasattr(self, 'meta_field_engine') and self.meta_field_engine is not None:
+                        if hasattr(self.meta_field_engine, 'emergent_fields') and self.meta_field_engine.emergent_fields:
+                            for idx, field in enumerate(self.meta_field_engine.emergent_fields):
+                                if field is not None:
+                                    manifolds_to_fold.append((f'emergent_field_{idx}', field))
+                    
+                    # Apply folding to each manifold
+                    for name, manifold_vec in manifolds_to_fold:
+                        if manifold_vec is None:
+                            continue
+                        
+                        try:
+                            # Apply folding operator
+                            folded_manifold = self.manifold_folding_layer_342.forward(manifold_vec)
+                            
+                            # Update the source
+                            if name == 'stable_meta_field':
+                                self.stable_meta_field = folded_manifold
+                            elif name == 'unified_predictive_core':
+                                self.unified_predictive_core = folded_manifold
+                            elif name == 'global_resonance_vector':
+                                self.global_resonance_vector = folded_manifold
+                            elif name.startswith('emergent_field_'):
+                                idx = int(name.split('_')[-1])
+                                if hasattr(self, 'meta_field_engine') and hasattr(self.meta_field_engine, 'emergent_fields'):
+                                    if idx < len(self.meta_field_engine.emergent_fields):
+                                        self.meta_field_engine.emergent_fields[idx] = folded_manifold
+                        except Exception as fold_error:
+                            # Continue with next manifold if folding fails
+                            continue
+                    
+                    # Store folding status
+                    self.mf342_folding_applied = len(manifolds_to_fold) > 0
+                except Exception as e:
+                    # Silently continue if MF-342 fails
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({"mf342_error": str(e)})
+                        except Exception:
+                            pass
+            
+            # MF-343 — Harmonic Manifold Stability Gate
+            # Apply harmonic stability gating to modulate manifold activations
+            if self.harmonic_stability_gate_343 is not None:
+                try:
+                    import torch
+                    
+                    # Collect manifold vectors to apply stability gating
+                    manifolds_to_stabilize = []
+                    
+                    # Get stable meta field
+                    if hasattr(self, 'stable_meta_field') and self.stable_meta_field is not None:
+                        manifolds_to_stabilize.append(('stable_meta_field', self.stable_meta_field))
+                    
+                    # Get unified predictive core
+                    if hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None:
+                        manifolds_to_stabilize.append(('unified_predictive_core', self.unified_predictive_core))
+                    
+                    # Get global resonance vector
+                    if hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is not None:
+                        manifolds_to_stabilize.append(('global_resonance_vector', self.global_resonance_vector))
+                    
+                    # Get harmonic resonance vector if available
+                    if hasattr(self, 'harmonic_predictive_lattice_resonance') and self.harmonic_predictive_lattice_resonance is not None:
+                        manifolds_to_stabilize.append(('harmonic_predictive_lattice_resonance', self.harmonic_predictive_lattice_resonance))
+                    
+                    # Get emergent fields from meta field engine
+                    if hasattr(self, 'meta_field_engine') and self.meta_field_engine is not None:
+                        if hasattr(self.meta_field_engine, 'emergent_fields') and self.meta_field_engine.emergent_fields:
+                            for idx, field in enumerate(self.meta_field_engine.emergent_fields):
+                                if field is not None:
+                                    manifolds_to_stabilize.append((f'emergent_field_{idx}', field))
+                    
+                    # Apply stability gating to each manifold
+                    for name, manifold_vec in manifolds_to_stabilize:
+                        if manifold_vec is None:
+                            continue
+                        
+                        try:
+                            # Apply harmonic stability gate
+                            stabilized_manifold = self.harmonic_stability_gate_343.forward(manifold_vec)
+                            
+                            # Update the source
+                            if name == 'stable_meta_field':
+                                self.stable_meta_field = stabilized_manifold
+                            elif name == 'unified_predictive_core':
+                                self.unified_predictive_core = stabilized_manifold
+                            elif name == 'global_resonance_vector':
+                                self.global_resonance_vector = stabilized_manifold
+                            elif name == 'harmonic_predictive_lattice_resonance':
+                                self.harmonic_predictive_lattice_resonance = stabilized_manifold
+                            elif name.startswith('emergent_field_'):
+                                idx = int(name.split('_')[-1])
+                                if hasattr(self, 'meta_field_engine') and hasattr(self.meta_field_engine, 'emergent_fields'):
+                                    if idx < len(self.meta_field_engine.emergent_fields):
+                                        self.meta_field_engine.emergent_fields[idx] = stabilized_manifold
+                        except Exception as stabilize_error:
+                            # Continue with next manifold if stabilization fails
+                            continue
+                    
+                    # Store stability gating status
+                    self.mf343_stability_applied = len(manifolds_to_stabilize) > 0
+                except Exception as e:
+                    # Silently continue if MF-343 fails
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({"mf343_error": str(e)})
+                        except Exception:
+                            pass
+            
+            # MF-344 — Predictive-Harmonic Transition Kernel
+            # Apply transition between predictive and harmonic representations
+            if self.predictive_harmonic_transition_344 is not None:
+                try:
+                    import torch
+                    
+                    # Get predictive-field representation
+                    predictive_rep = None
+                    if hasattr(self, 'stable_meta_field') and self.stable_meta_field is not None:
+                        predictive_rep = self.stable_meta_field
+                    elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None:
+                        predictive_rep = self.unified_predictive_core
+                    elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is not None:
+                        predictive_rep = self.global_resonance_vector
+                    
+                    # Get harmonic manifold representation
+                    harmonic_rep = None
+                    if hasattr(self, 'harmonic_predictive_lattice_resonance') and self.harmonic_predictive_lattice_resonance is not None:
+                        harmonic_rep = self.harmonic_predictive_lattice_resonance
+                    elif hasattr(self, 'resonance_fused_field') and self.resonance_fused_field is not None:
+                        harmonic_rep = self.resonance_fused_field
+                    elif hasattr(self, 'phi_predictive_field') and self.phi_predictive_field is not None:
+                        harmonic_rep = self.phi_predictive_field
+                    
+                    # Apply transition if both representations are available
+                    if predictive_rep is not None and harmonic_rep is not None:
+                        try:
+                            # Apply predictive-harmonic transition
+                            transitioned_rep = self.predictive_harmonic_transition_344.forward(
+                                pred_x=predictive_rep,
+                                harm_x=harmonic_rep
+                            )
+                            
+                            # Update the primary predictive representation with transitioned result
+                            if hasattr(self, 'stable_meta_field') and self.stable_meta_field is predictive_rep:
+                                self.stable_meta_field = transitioned_rep
+                            elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is predictive_rep:
+                                self.unified_predictive_core = transitioned_rep
+                            elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is predictive_rep:
+                                self.global_resonance_vector = transitioned_rep
+                            
+                            # Store transition status
+                            self.mf344_transition_applied = True
+                            self.mf344_transitioned_rep = transitioned_rep
+                        except Exception as transition_error:
+                            # Continue if transition fails
+                            self.mf344_transition_applied = False
+                    else:
+                        self.mf344_transition_applied = False
+                except Exception as e:
+                    # Silently continue if MF-344 fails
+                    self.mf344_transition_applied = False
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({"mf344_error": str(e)})
                         except Exception:
                             pass
         except Exception as e:
