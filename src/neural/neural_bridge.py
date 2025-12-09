@@ -486,6 +486,14 @@ class NeuralBridge:
             )
         except Exception:
             self.mf408_cafml = None
+        # MF-409 — Multi-Scale Modulation Synthesis Layer (MSMSL)
+        try:
+            self.mf409_msmsl = self.MultiScaleModulationSynthesisLayer(
+                substrate_dim=self.dim,
+                axis_count=4
+            )
+        except Exception:
+            self.mf409_msmsl = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -29642,6 +29650,148 @@ class NeuralBridge:
                     return F.normalize(D_out, dim=-1)
                 except Exception:
                     return D_out
+
+    class MultiScaleModulationSynthesisLayer(nn.Module):
+        """
+        MF-409 — Multi-Scale Modulation Synthesis Layer (MSMSL)
+
+        Builds on the curvature-adaptive output of MF-408 (CA_out) by generating multi-scale
+        modulation representations. This enables the system to operate across:
+        - fine-grained modulation scales
+        - coarse-grained modulation scales
+        - unified synthesis manifolds
+
+        The purpose is to create a stable, multi-resolution modulation field strictly composed
+        of tensor transformations.
+
+        No semantics. No interpretation. No agency. Only scale-adaptive mathematical fusion.
+
+        Core Computational Functions:
+        1. Fine-Scale Modulation Extraction: a fine-scale pathway amplifies local variations,
+           enhancing high-frequency modulation components.
+        2. Coarse-Scale Modulation Extraction: a coarse-scale pathway smooths and aggregates
+           global structure using averaging operators.
+        3. Scale Interaction Tensor: uses a rank-3 tensor to merge fine and coarse scales,
+           producing multi-scale modulation components.
+        4. Multi-Scale Fusion: merges components using learned scale weights (α_fine, α_coarse, β).
+        5. Scale-Stabilized Limiter: applies a limiter to prevent cross-scale amplification.
+        6. Multi-Scale Projection Output: projects the final multi-scale field into
+           substrate-compatible space, producing the unified multi-scale modulation field for MF-410.
+
+        Outcome:
+        MF-409 introduces fine-scale modulation, coarse-scale modulation, multi-scale interaction
+        tensors, scale-aware synthesis, and stabilized multi-scale projection output (MS_out).
+        This output becomes the base for MF-410, where modulation begins coupling with
+        phase-space transformation kernels, enabling multi-phase influence structuring.
+        """
+
+        def __init__(self, substrate_dim, axis_count=4):
+            super().__init__()
+            self.substrate_dim = substrate_dim
+            self.axis_count = axis_count
+
+            # Fine-scale projection
+            self.fine_matrix = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+            # Coarse-scale projection
+            self.coarse_matrix = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+            # Rank-3 multi-scale interaction tensor
+            # Shape: [axis_count, axis_count, substrate_dim]
+            self.scale_tensor = nn.Parameter(
+                torch.randn(axis_count, axis_count, substrate_dim) * 0.01
+            )
+
+            # Scale fusion coefficients
+            self.alpha_fine = nn.Parameter(torch.tensor(0.5))
+            self.alpha_coarse = nn.Parameter(torch.tensor(0.5))
+            self.beta = nn.Parameter(torch.tensor(0.3))
+
+            # Alignment projection matrix
+            self.alignment_matrix = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def forward(self, CA_out):
+            """
+            CA_out: curvature-adaptive field from MF-408, shape [batch, dim]
+            """
+            if torch is None or CA_out is None:
+                return CA_out
+
+            # Ensure CA_out is a tensor
+            if not isinstance(CA_out, torch.Tensor):
+                try:
+                    CA_out = torch.tensor(CA_out, dtype=torch.float32)
+                except Exception:
+                    return CA_out
+
+            # Ensure proper shape
+            if CA_out.dim() == 1:
+                CA_out = CA_out.unsqueeze(0)
+            if CA_out.shape[-1] != self.substrate_dim:
+                # Resize if needed
+                if CA_out.shape[-1] < self.substrate_dim:
+                    padding = torch.zeros(CA_out.shape[:-1] + (self.substrate_dim - CA_out.shape[-1],), dtype=CA_out.dtype)
+                    CA_out = torch.cat([CA_out, padding], dim=-1)
+                else:
+                    CA_out = CA_out[..., :self.substrate_dim]
+
+            try:
+                import torch.nn.functional as F
+                # 1. Fine-scale modulation
+                F_fine = torch.matmul(CA_out, self.fine_matrix)
+                F_fine = F.normalize(F_fine, dim=-1)
+
+                # 2. Coarse-scale modulation
+                coarse_avg = torch.mean(CA_out, dim=-1, keepdim=True)  # [batch, 1]
+                # Expand to match substrate_dim for matrix multiplication
+                coarse_avg_expanded = coarse_avg.expand(-1, self.substrate_dim)  # [batch, substrate_dim]
+                F_coarse = torch.matmul(coarse_avg_expanded, self.coarse_matrix)
+                F_coarse = F.normalize(F_coarse, dim=-1)
+
+                # 3. Multi-scale interaction via rank-3 tensor
+                scale_vectors = []
+                for i in range(self.axis_count):
+                    weighted = torch.zeros_like(CA_out)
+                    for j in range(self.axis_count):
+                        # scale_tensor[i, j] is shape [substrate_dim]
+                        # F_fine[:, j] and F_coarse[:, j] are shape [batch]
+                        # We need to broadcast properly
+                        fine_j = F_fine[:, j].unsqueeze(-1)  # [batch, 1]
+                        coarse_j = F_coarse[:, j].unsqueeze(-1)  # [batch, 1]
+                        tensor_ij = self.scale_tensor[i, j].unsqueeze(0)  # [1, substrate_dim]
+                        weighted += fine_j * tensor_ij + coarse_j * tensor_ij  # [batch, substrate_dim]
+                    scale_vectors.append(weighted)
+
+                S_mix = torch.stack(scale_vectors, dim=0).sum(dim=0)  # [batch, dim]
+
+                # 4. Multi-scale fusion
+                F_combined = (
+                    self.alpha_fine * F_fine
+                    + self.alpha_coarse * F_coarse
+                    + self.beta * S_mix
+                )
+
+                # 5. Scale-stabilized limiter
+                F_reg = F_combined / (1 + torch.abs(F_combined))
+
+                # 6. Multi-scale projection output
+                MS_out = torch.matmul(F_reg, self.alignment_matrix)
+                MS_out = F.normalize(MS_out, dim=-1)
+
+                return MS_out
+            except Exception:
+                # If synthesis fails, return normalized input
+                try:
+                    import torch.nn.functional as F
+                    return F.normalize(CA_out, dim=-1)
+                except Exception:
+                    return CA_out
 
     def integrate_A301(self):
         """
