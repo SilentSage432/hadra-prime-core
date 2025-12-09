@@ -331,6 +331,10 @@ class NeuralBridge:
             self.ds_rdsk = self.DualStreamResonantDriftSuppressionKernel(self.dim)
         except Exception:
             self.ds_rdsk = None
+        try:
+            self.upcrf = self.UnifiedPredictiveConfluenceResonanceField(self.dim)
+        except Exception:
+            self.upcrf = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -26291,6 +26295,84 @@ class NeuralBridge:
 
             return pred_out, conf_out
 
+    class UnifiedPredictiveConfluenceResonanceField(nn.Module):
+        """
+        MF-380 — Unified Predictive–Confluence Resonance Field Constructor (UPCRF)
+
+        Introduces the first true merged-field representation for predictive and confluence streams —
+        not a mixed tensor, not a blend, but a separately maintained, jointly modulated resonance field.
+
+        This is a learnable latent field that captures the joint dynamics of predictive and confluence
+        signals while still allowing them to remain distinct. It modulates both streams without erasing
+        their differences, preparing the architecture for higher-order manifold integration (MF-381 → MF-400).
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.field_gate = None
+                self.pred_mod = None
+                self.conf_mod = None
+                self.scale = None
+                self.norm = None
+                return
+
+            self.field_gate = nn.Linear(dim * 2, dim)
+            self.pred_mod = nn.Linear(dim, dim)
+            self.conf_mod = nn.Linear(dim, dim)
+            self.scale = nn.Parameter(torch.tensor(0.008))
+            self.norm = nn.LayerNorm(dim)
+
+        def forward(self, pred_vec, conf_vec):
+            if (torch is None or
+                self.field_gate is None or
+                self.pred_mod is None or
+                self.conf_mod is None or
+                self.scale is None or
+                self.norm is None):
+                return pred_vec, conf_vec, None
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            pred_vec = ensure_tensor(pred_vec)
+            conf_vec = ensure_tensor(conf_vec)
+
+            if pred_vec is None or conf_vec is None:
+                return pred_vec, conf_vec, None
+
+            # Construct unified resonance field
+            combined = torch.cat([pred_vec, conf_vec], dim=-1)
+            field = torch.tanh(self.field_gate(combined))
+
+            # Inject field back as modulation
+            pred_adj = pred_vec + self.scale * torch.tanh(self.pred_mod(field))
+            conf_adj = conf_vec + self.scale * torch.tanh(self.conf_mod(field))
+
+            # Normalize outputs for stability
+            pred_out = self.norm(pred_adj)
+            conf_out = self.norm(conf_adj)
+
+            return pred_out, conf_out, field
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -27763,6 +27845,69 @@ class NeuralBridge:
                                             else:
                                                 self.mf379_drift_suppressed_pred = None
                                                 self.mf379_drift_suppressed_conf = None
+
+                                            # MF-380 — Unified Predictive–Confluence Resonance Field Constructor (UPCRF)
+                                            # Builds a shared resonance latent field that modulates both streams
+                                            resonance_field = None
+                                            if (getattr(self, "upcrf", None) is not None and
+                                                drift_suppressed_pred is not None and
+                                                drift_suppressed_conf is not None):
+                                                try:
+                                                    # Apply unified resonance field constructor
+                                                    pred_vec, conf_vec, resonance_field = self.upcrf(
+                                                        drift_suppressed_pred,
+                                                        drift_suppressed_conf
+                                                    )
+                                                    if pred_vec is not None and conf_vec is not None:
+                                                        self.mf380_resonance_field = resonance_field
+                                                        self.mf380_unified_pred = pred_vec
+                                                        self.mf380_unified_conf = conf_vec
+                                                        # Update predictive vectors with unified resonance-modulated version
+                                                        if resonant_state is not None:
+                                                            resonant_state = pred_vec
+                                                            self.mf375_resonant_state = pred_vec
+                                                        reinforced_vector = pred_vec
+                                                        self.mf374_reinforced_vector = pred_vec
+                                                        stable_synthesis = pred_vec
+                                                        self.mf373_stable_synthesis = pred_vec
+                                                        synthesis_vector = pred_vec
+                                                        self.mf372_synthesis_vector = pred_vec
+                                                        gradient_coupled_pred = pred_vec
+                                                        self.mf376_gradient_coupled_pred = pred_vec
+                                                        feedback_routed_pred = pred_vec
+                                                        self.mf377_feedback_routed_pred = pred_vec
+                                                        normalized_pred = pred_vec
+                                                        self.mf378_normalized_pred = pred_vec
+                                                        drift_suppressed_pred = pred_vec
+                                                        self.mf379_drift_suppressed_pred = pred_vec
+                                                        # Update confluence state with unified resonance-modulated version
+                                                        normalized_conf = conf_vec
+                                                        self.mf378_normalized_conf = conf_vec
+                                                        drift_suppressed_conf = conf_vec
+                                                        self.mf379_drift_suppressed_conf = conf_vec
+                                                        if hasattr(self, 'mf348_interacted_state'):
+                                                            self.mf348_interacted_state = conf_vec
+                                                        if hasattr(self, 'mf347_stabilized_state'):
+                                                            self.mf347_stabilized_state = conf_vec
+                                                        if hasattr(self, 'mf346_routed_state'):
+                                                            self.mf346_routed_state = conf_vec
+                                                    else:
+                                                        self.mf380_resonance_field = None
+                                                        self.mf380_unified_pred = None
+                                                        self.mf380_unified_conf = None
+                                                except Exception as upcrf_error:
+                                                    self.mf380_resonance_field = None
+                                                    self.mf380_unified_pred = None
+                                                    self.mf380_unified_conf = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf380_error": str(upcrf_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf380_resonance_field = None
+                                                self.mf380_unified_pred = None
+                                                self.mf380_unified_conf = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
