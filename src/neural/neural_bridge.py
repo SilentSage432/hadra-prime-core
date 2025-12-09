@@ -315,6 +315,14 @@ class NeuralBridge:
             self.pcrml = self.PredictiveConfluenceResonanceModulator(self.dim)
         except Exception:
             self.pcrml = None
+        try:
+            self.pc_gck = self.PredictiveConfluenceGradientCouplingKernel(self.dim)
+        except Exception:
+            self.pc_gck = None
+        try:
+            self.cgfr = self.ConfluenceGradientFeedbackRouter(self.dim)
+        except Exception:
+            self.cgfr = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -25969,6 +25977,166 @@ class NeuralBridge:
             # Normalization for stability
             return self.norm(fused)
 
+    class PredictiveConfluenceGradientCouplingKernel(nn.Module):
+        """
+        MF-376 — Predictive–Confluence Gradient Coupling Kernel (PC-GCK)
+
+        Couples gradient dynamics of predictive and confluence tensors,
+        aligning their directional tendencies without merging the tensors.
+        This regulates predictive drift and smooths confluence routing.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.pred_gate = None
+                self.conf_gate = None
+                self.mix_gate = None
+                self.scale = None
+                self.norm = None
+                return
+
+            self.pred_gate = nn.Linear(dim, dim)
+            self.conf_gate = nn.Linear(dim, dim)
+            self.mix_gate = nn.Linear(dim, dim)
+            self.scale = nn.Parameter(torch.tensor(0.015))
+            self.norm = nn.LayerNorm(dim)
+
+        def forward(self, pred_vec, conf_vec):
+            if (torch is None or
+                self.pred_gate is None or
+                self.conf_gate is None or
+                self.mix_gate is None or
+                self.scale is None or
+                self.norm is None):
+                return pred_vec
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            pred_vec = ensure_tensor(pred_vec)
+            conf_vec = ensure_tensor(conf_vec)
+
+            if pred_vec is None:
+                return pred_vec
+            if conf_vec is None:
+                return pred_vec
+
+            # Compute pseudo-gradients (difference-based approximation)
+            pred_grad = pred_vec - pred_vec.detach()
+            conf_grad = conf_vec - conf_vec.detach()
+
+            # Transform gradients
+            pg = self.pred_gate(pred_grad)
+            cg = self.conf_gate(conf_grad)
+
+            # Couple them
+            combined = pg + cg
+            mod = torch.tanh(self.mix_gate(combined))
+
+            # Small modulation injected back into predictive vector
+            adjusted = pred_vec + self.scale * mod
+
+            return self.norm(adjusted)
+
+    class ConfluenceGradientFeedbackRouter(nn.Module):
+        """
+        MF-377 — Confluence Gradient Feedback Router (CGFR)
+
+        Uses confluence-side gradient structure to dynamically regulate
+        how predictive information is routed through the multi-manifold stack.
+        Works at gradient-pattern level for smoother, more consistent routing.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.conf_gate = None
+                self.pred_gate = None
+                self.router_gate = None
+                self.scale = None
+                self.norm = None
+                return
+
+            self.conf_gate = nn.Linear(dim, dim)
+            self.pred_gate = nn.Linear(dim, dim)
+            self.router_gate = nn.Linear(dim, dim)
+            self.scale = nn.Parameter(torch.tensor(0.012))
+            self.norm = nn.LayerNorm(dim)
+
+        def forward(self, pred_vec, conf_vec):
+            if (torch is None or
+                self.conf_gate is None or
+                self.pred_gate is None or
+                self.router_gate is None or
+                self.scale is None or
+                self.norm is None):
+                return pred_vec
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            pred_vec = ensure_tensor(pred_vec)
+            conf_vec = ensure_tensor(conf_vec)
+
+            if pred_vec is None:
+                return pred_vec
+            if conf_vec is None:
+                return pred_vec
+
+            # Pseudo-gradients capture directional change tendencies
+            conf_grad = conf_vec - conf_vec.detach()
+
+            # Transform gradient signals
+            cg = torch.tanh(self.conf_gate(conf_grad))
+
+            # Predictive transform
+            pg = torch.relu(self.pred_gate(pred_vec))
+
+            # Combine them into routing modulation field
+            routing_mod = torch.sigmoid(self.router_gate(cg + pg))
+
+            # Apply modulation
+            adjusted = pred_vec * (1.0 + self.scale * routing_mod)
+
+            return self.norm(adjusted)
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -27223,6 +27391,106 @@ class NeuralBridge:
                                                             pass
                                             else:
                                                 self.mf375_resonant_state = None
+
+                                            # MF-376 — Predictive–Confluence Gradient Coupling Kernel (PC-GCK)
+                                            # Couple gradient dynamics of predictive and confluence tensors
+                                            gradient_coupled_pred = None
+                                            if (getattr(self, "pc_gck", None) is not None and
+                                                reinforced_vector is not None):
+                                                try:
+                                                    # Get confluence state (same as used in MF-375)
+                                                    confluence_state = None
+                                                    if hasattr(self, 'mf348_interacted_state') and self.mf348_interacted_state is not None:
+                                                        confluence_state = self.mf348_interacted_state
+                                                    elif hasattr(self, 'mf347_stabilized_state') and self.mf347_stabilized_state is not None:
+                                                        confluence_state = self.mf347_stabilized_state
+                                                    elif hasattr(self, 'mf346_routed_state') and self.mf346_routed_state is not None:
+                                                        confluence_state = self.mf346_routed_state
+                                                    elif 'stabilized_state' in locals():
+                                                        confluence_state = stabilized_state
+                                                    elif 'routed_state' in locals():
+                                                        confluence_state = routed_state
+
+                                                    # Apply gradient coupling if confluence state is available
+                                                    if confluence_state is not None:
+                                                        # Use reinforced_vector (or resonant_state if available) as predictive vector
+                                                        pred_vec = resonant_state if resonant_state is not None else reinforced_vector
+                                                        gradient_coupled_pred = self.pc_gck(pred_vec, confluence_state)
+                                                        if gradient_coupled_pred is not None:
+                                                            self.mf376_gradient_coupled_pred = gradient_coupled_pred
+                                                            # Update predictive vectors with gradient-coupled version
+                                                            if resonant_state is not None:
+                                                                resonant_state = gradient_coupled_pred
+                                                                self.mf375_resonant_state = gradient_coupled_pred
+                                                            reinforced_vector = gradient_coupled_pred
+                                                            self.mf374_reinforced_vector = gradient_coupled_pred
+                                                            stable_synthesis = gradient_coupled_pred
+                                                            self.mf373_stable_synthesis = gradient_coupled_pred
+                                                            synthesis_vector = gradient_coupled_pred
+                                                            self.mf372_synthesis_vector = gradient_coupled_pred
+                                                        else:
+                                                            self.mf376_gradient_coupled_pred = None
+                                                    else:
+                                                        self.mf376_gradient_coupled_pred = None
+                                                except Exception as pc_gck_error:
+                                                    self.mf376_gradient_coupled_pred = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf376_error": str(pc_gck_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf376_gradient_coupled_pred = None
+
+                                            # MF-377 — Confluence Gradient Feedback Router (CGFR)
+                                            # Use confluence gradient structure to dynamically regulate predictive routing
+                                            feedback_routed_pred = None
+                                            if (getattr(self, "cgfr", None) is not None and
+                                                gradient_coupled_pred is not None):
+                                                try:
+                                                    # Get confluence state (same as used in MF-375/MF-376)
+                                                    confluence_state = None
+                                                    if hasattr(self, 'mf348_interacted_state') and self.mf348_interacted_state is not None:
+                                                        confluence_state = self.mf348_interacted_state
+                                                    elif hasattr(self, 'mf347_stabilized_state') and self.mf347_stabilized_state is not None:
+                                                        confluence_state = self.mf347_stabilized_state
+                                                    elif hasattr(self, 'mf346_routed_state') and self.mf346_routed_state is not None:
+                                                        confluence_state = self.mf346_routed_state
+                                                    elif 'stabilized_state' in locals():
+                                                        confluence_state = stabilized_state
+                                                    elif 'routed_state' in locals():
+                                                        confluence_state = routed_state
+
+                                                    # Apply feedback routing if confluence state is available
+                                                    if confluence_state is not None:
+                                                        feedback_routed_pred = self.cgfr(gradient_coupled_pred, confluence_state)
+                                                        if feedback_routed_pred is not None:
+                                                            self.mf377_feedback_routed_pred = feedback_routed_pred
+                                                            # Update predictive vectors with feedback-routed version
+                                                            if resonant_state is not None:
+                                                                resonant_state = feedback_routed_pred
+                                                                self.mf375_resonant_state = feedback_routed_pred
+                                                            reinforced_vector = feedback_routed_pred
+                                                            self.mf374_reinforced_vector = feedback_routed_pred
+                                                            stable_synthesis = feedback_routed_pred
+                                                            self.mf373_stable_synthesis = feedback_routed_pred
+                                                            synthesis_vector = feedback_routed_pred
+                                                            self.mf372_synthesis_vector = feedback_routed_pred
+                                                            gradient_coupled_pred = feedback_routed_pred
+                                                            self.mf376_gradient_coupled_pred = feedback_routed_pred
+                                                        else:
+                                                            self.mf377_feedback_routed_pred = None
+                                                    else:
+                                                        self.mf377_feedback_routed_pred = None
+                                                except Exception as cgfr_error:
+                                                    self.mf377_feedback_routed_pred = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf377_error": str(cgfr_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf377_feedback_routed_pred = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
