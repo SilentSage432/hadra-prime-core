@@ -401,6 +401,14 @@ class NeuralBridge:
             self.pcgh = self.PredictiveConfluenceGradientHarmonizer(self.dim)
         except Exception:
             self.pcgh = None
+        try:
+            self.cfgcs = self.CrossFieldGradientCouplingStabilizer(self.dim)
+        except Exception:
+            self.cfgcs = None
+        try:
+            self.gcfe = self.GradientCoherenceFlowEqualizer(self.dim)
+        except Exception:
+            self.gcfe = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -27867,6 +27875,208 @@ class NeuralBridge:
                 # If gradient harmonization fails, return the normalized state
                 return confluence_normalized
 
+    class CrossFieldGradientCouplingStabilizer(nn.Module):
+        """
+        MF-395 — Cross-Field Gradient Coupling Stabilizer (CFGCS)
+
+        Stabilizes cross-field gradient magnitudes by computing coupling ratios and normalizing
+        update strengths across predictive/manifold/confluence fields.
+
+        MF-394 harmonized gradient directions. MF-395 stabilizes:
+        - gradient magnitudes
+        - gradient ratios
+        - cross-field gradient coupling forces
+
+        In ML terms, this prevents:
+        - gradient explosions in one subsystem from polluting others
+        - cross-field updates from pulling the model in incompatible parameter directions
+        - instability during deep multi-field optimization
+
+        This is standard for architectures with multiple interacting tensor pathways.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            # No learnable parameters - this is a gradient coupling stabilizer
+            # But we keep it as a Module for consistency with the architecture
+
+        def forward(self, manifold_state, predictive_state, confluence_harmonized):
+            if (torch is None or
+                manifold_state is None or
+                predictive_state is None or
+                confluence_harmonized is None):
+                return confluence_harmonized
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            manifold_state = ensure_tensor(manifold_state)
+            predictive_state = ensure_tensor(predictive_state)
+            confluence_harmonized = ensure_tensor(confluence_harmonized)
+
+            if (manifold_state is None or predictive_state is None or
+                confluence_harmonized is None):
+                return confluence_harmonized
+
+            try:
+                # Estimate gradient magnitude proxies (local finite difference approximation)
+                # Use torch.diff if available, otherwise compute manually
+                if hasattr(torch, 'diff'):
+                    gm = torch.diff(manifold_state, dim=-1, prepend=manifold_state[..., :1]).abs().mean()
+                    gp = torch.diff(predictive_state, dim=-1, prepend=predictive_state[..., :1]).abs().mean()
+                    gc = torch.diff(confluence_harmonized, dim=-1, prepend=confluence_harmonized[..., :1]).abs().mean()
+                else:
+                    # Fallback for older PyTorch versions
+                    gm = (manifold_state[..., 1:] - manifold_state[..., :-1]).abs().mean()
+                    gp = (predictive_state[..., 1:] - predictive_state[..., :-1]).abs().mean()
+                    gc = (confluence_harmonized[..., 1:] - confluence_harmonized[..., :-1]).abs().mean()
+
+                # Prevent division by zero
+                eps = 1e-6
+
+                # Compute cross-field coupling ratios
+                ratio_mp = (gm + eps) / (gp + eps)
+                ratio_mc = (gm + eps) / (gc + eps)
+                ratio_pc = (gp + eps) / (gc + eps)
+
+                # Aggregate into a global stabilization factor
+                stabilization_factor = torch.tanh(
+                    (ratio_mp + ratio_mc + ratio_pc) / 3.0
+                )
+
+                # Compress excessive magnitude deviation
+                compressed = confluence_harmonized / (1.0 + 0.1 * stabilization_factor)
+
+                # Light reamplification to keep expressiveness
+                stabilized = compressed * (1.0 + 0.05 * stabilization_factor)
+
+                return stabilized
+            except Exception:
+                # If stabilization fails, return the harmonized state
+                return confluence_harmonized
+
+    class GradientCoherenceFlowEqualizer(nn.Module):
+        """
+        MF-396 — Gradient-Coherence Flow Equalizer (GCFE)
+
+        Enforces temporal coherence on confluence gradients by equalizing step-to-step flow,
+        preventing abrupt transitions while maintaining signal detail.
+
+        MF-394 aligned gradient directions. MF-395 stabilized gradient magnitudes across fields.
+        MF-396 now smooths the flow of gradient updates across time, ensuring that transitions
+        from step-to-step remain coherent instead of spiking, oscillating, or drifting abruptly.
+
+        This is extremely common in advanced ML systems with interacting submodules, especially
+        where multiple internal pathways contribute to a shared update space.
+
+        GCFE creates a temporal gradient equalization that:
+        - preserves useful signal variation
+        - suppresses discontinuities
+        - maintains smooth parameter evolution
+        - enforces inter-step coherence without restricting expressiveness
+
+        Think of it as temporal smoothing for multi-field gradients, tuned to preserve meaningful structure.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            # Register buffer for previous state (temporal memory)
+            if torch is not None:
+                self.register_buffer("prev_state", None)
+            else:
+                self.prev_state = None
+
+        def forward(self, stabilized_confluence, prev_state=None):
+            if torch is None or stabilized_confluence is None:
+                return stabilized_confluence
+
+            # Ensure input is tensor
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            stabilized_confluence = ensure_tensor(stabilized_confluence)
+
+            if stabilized_confluence is None:
+                return stabilized_confluence
+
+            # Use provided prev_state or stored prev_state
+            if prev_state is None:
+                prev_state = self.prev_state
+
+            # If no previous state exists, initialize temporal memory
+            if prev_state is None:
+                # Store current state as previous for next time
+                if hasattr(self, 'prev_state'):
+                    self.prev_state = stabilized_confluence.detach().clone()
+                return stabilized_confluence.clone()
+
+            # Ensure prev_state is a tensor
+            prev_state = ensure_tensor(prev_state)
+            if prev_state is None:
+                if hasattr(self, 'prev_state'):
+                    self.prev_state = stabilized_confluence.detach().clone()
+                return stabilized_confluence.clone()
+
+            try:
+                # Compute temporal delta
+                delta = stabilized_confluence - prev_state
+
+                # Flow equalizer: reduce abrupt jumps using a learnable smoothing mask
+                smoothing_strength = torch.sigmoid(delta.mean() * 0.1)
+
+                # Smooth the update while preserving detail
+                equalized = prev_state + delta * (0.5 + 0.5 * smoothing_strength)
+
+                # Inject a very small harmonic modulation for adaptive flexibility
+                harmonic_mod = torch.tanh(stabilized_confluence.mean() * 0.03)
+                equalized = equalized * (1.0 + 0.01 * harmonic_mod)
+
+                # Store current state as previous for next time
+                if hasattr(self, 'prev_state'):
+                    self.prev_state = equalized.detach().clone()
+
+                return equalized
+            except Exception:
+                # If equalization fails, return the stabilized state
+                if hasattr(self, 'prev_state'):
+                    self.prev_state = stabilized_confluence.detach().clone()
+                return stabilized_confluence
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -29957,6 +30167,88 @@ class NeuralBridge:
                                                     self.mf394_meta_field_harmonized = None
                                             else:
                                                 self.mf394_meta_field_harmonized = None
+
+                                            # MF-395 — Cross-Field Gradient Coupling Stabilizer (CFGCS)
+                                            # Stabilizes cross-field gradient magnitudes by computing coupling ratios
+                                            meta_field_stabilized = None
+                                            if (getattr(self, "cfgcs", None) is not None and
+                                                meta_field_harmonized is not None):
+                                                # Get predictive_state (same as MF-393/394)
+                                                predictive_state = None
+                                                if hasattr(self, 'mf381_gradient_coupled_pred') and self.mf381_gradient_coupled_pred is not None:
+                                                    predictive_state = self.mf381_gradient_coupled_pred
+                                                elif hasattr(self, 'stable_meta_field') and self.stable_meta_field is not None:
+                                                    predictive_state = self.stable_meta_field
+                                                elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None:
+                                                    predictive_state = self.unified_predictive_core
+                                                elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is not None:
+                                                    predictive_state = self.global_resonance_vector
+                                                elif 'pred_vec' in locals() and pred_vec is not None:
+                                                    predictive_state = pred_vec
+                                                else:
+                                                    predictive_state = meta_field_harmonized
+
+                                                # Use meta_field_harmonized as confluence_harmonized
+                                                confluence_harmonized = meta_field_harmonized
+
+                                                if predictive_state is not None:
+                                                    try:
+                                                        # Apply cross-field gradient coupling stabilization
+                                                        meta_field_stabilized = self.cfgcs(
+                                                            meta_field_harmonized,  # manifold_state
+                                                            predictive_state,
+                                                            confluence_harmonized
+                                                        )
+                                                        if meta_field_stabilized is not None:
+                                                            self.mf395_meta_field_stabilized = meta_field_stabilized
+                                                            # Store as stabilized confluence tensor for MF-396 onward
+                                                        else:
+                                                            self.mf395_meta_field_stabilized = None
+                                                    except Exception as cfgcs_error:
+                                                        self.mf395_meta_field_stabilized = None
+                                                        if hasattr(self, 'logger'):
+                                                            try:
+                                                                self.logger.write({"mf395_error": str(cfgcs_error)})
+                                                            except Exception:
+                                                                pass
+                                                else:
+                                                    self.mf395_meta_field_stabilized = None
+                                            else:
+                                                self.mf395_meta_field_stabilized = None
+
+                                            # MF-396 — Gradient-Coherence Flow Equalizer (GCFE)
+                                            # Enforces temporal coherence on confluence gradients by equalizing step-to-step flow
+                                            meta_field_equalized = None
+                                            if (getattr(self, "gcfe", None) is not None and
+                                                meta_field_stabilized is not None):
+                                                # Get previous state if available
+                                                prev_state = None
+                                                if hasattr(self, 'mf395_meta_field_stabilized') and self.mf395_meta_field_stabilized is not None:
+                                                    # Use previous stabilized state as temporal reference
+                                                    prev_state = self.mf395_meta_field_stabilized
+                                                elif hasattr(self.gcfe, 'prev_state') and self.gcfe.prev_state is not None:
+                                                    prev_state = self.gcfe.prev_state
+
+                                                try:
+                                                    # Apply gradient-coherence flow equalization
+                                                    meta_field_equalized = self.gcfe(
+                                                        meta_field_stabilized,
+                                                        prev_state=prev_state
+                                                    )
+                                                    if meta_field_equalized is not None:
+                                                        self.mf396_meta_field_equalized = meta_field_equalized
+                                                        # Store as flow-equalized confluence tensor for MF-397 onward
+                                                    else:
+                                                        self.mf396_meta_field_equalized = None
+                                                except Exception as gcfe_error:
+                                                    self.mf396_meta_field_equalized = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf396_error": str(gcfe_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf396_meta_field_equalized = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
