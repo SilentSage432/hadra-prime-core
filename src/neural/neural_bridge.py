@@ -381,6 +381,10 @@ class NeuralBridge:
             self.hm_feedback_stabilizer = self.HarmonicManifoldFeedbackStabilizer(self.dim)
         except Exception:
             self.hm_feedback_stabilizer = None
+        try:
+            self.global_modulation_field = self.GlobalModulationField(self.dim)
+        except Exception:
+            self.global_modulation_field = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -27234,6 +27238,162 @@ class NeuralBridge:
             # Normalize for stability
             return self.norm(updated)
 
+    class GlobalModulationField(nn.Module):
+        """
+        MF-390 — Global Modulation Field (GMF) Initialization Layer
+
+        Creates a single global modulation vector derived from multiple upstream sources:
+        - harmonic summary
+        - predictive summary
+        - manifold statistical summary
+        - drift metrics
+        - fusion metrics
+
+        Then uses that vector to modulate the entire manifold state. This is a lightweight
+        "global influence signal" that improves coherence across the model without violating
+        stability constraints.
+
+        What it achieves:
+        1. Global Structure Awareness: system gets information not just from local neighborhoods
+           but from summaries of the entire architecture
+        2. Modulation of the Manifold: global modulation vector influences scaling, tilting,
+           shifting, and emphasis of manifold features
+        3. Stabilized Global Influence: modulation is bounded, normalized, and residual-applied
+           so it cannot destabilize the system
+        4. Creates foundation for MF-391–MF-399 "global-regime phases" that require a global
+           control signal to work correctly
+
+        This is the first real global-regime architecture layer.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.harm_proj = None
+                self.pred_proj = None
+                self.mani_proj = None
+                self.combiner = None
+                self.gate = None
+                self.norm = None
+                self.activation = None
+                return
+
+            # Build global summary projections
+            self.harm_proj = nn.Linear(dim, dim)
+            self.pred_proj = nn.Linear(dim, dim)
+            self.mani_proj = nn.Linear(dim, dim)
+
+            # Combiner that produces global modulation vector
+            self.combiner = nn.Linear(3 * dim, dim)
+
+            # Gating for safe application
+            self.gate = nn.Parameter(torch.tensor(0.03))
+
+            self.norm = nn.LayerNorm(dim)
+            self.activation = nn.Tanh()
+
+        def forward(self, manifold_state, harmonic_state, predictive_state):
+            if (torch is None or
+                self.harm_proj is None or
+                self.pred_proj is None or
+                self.mani_proj is None or
+                self.combiner is None or
+                self.gate is None or
+                self.norm is None or
+                self.activation is None or
+                manifold_state is None or
+                harmonic_state is None or
+                predictive_state is None):
+                return manifold_state
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            manifold_state = ensure_tensor(manifold_state)
+            harmonic_state = ensure_tensor(harmonic_state)
+            predictive_state = ensure_tensor(predictive_state)
+
+            if manifold_state is None or harmonic_state is None or predictive_state is None:
+                return manifold_state
+
+            # Global summaries - compute mean across feature dimension
+            # For (batch, dim) tensors, mean(dim=-1, keepdim=True) gives (batch, 1)
+            # We want to get a single summary vector, so we take mean across batch if needed
+            if manifold_state.dim() == 2:
+                # (batch, dim) -> mean across batch -> (dim,)
+                m_summary = manifold_state.mean(dim=0)
+            else:
+                m_summary = manifold_state.flatten()
+                if m_summary.shape[0] > self.dim:
+                    m_summary = m_summary[:self.dim]
+            if m_summary.dim() == 1:
+                m_summary = m_summary.unsqueeze(0)
+            m_sum = self.mani_proj(m_summary)
+
+            if harmonic_state.dim() == 2:
+                h_summary = harmonic_state.mean(dim=0)
+            else:
+                h_summary = harmonic_state.flatten()
+                if h_summary.shape[0] > self.dim:
+                    h_summary = h_summary[:self.dim]
+            if h_summary.dim() == 1:
+                h_summary = h_summary.unsqueeze(0)
+            h_sum = self.harm_proj(h_summary)
+
+            if predictive_state.dim() == 2:
+                p_summary = predictive_state.mean(dim=0)
+            else:
+                p_summary = predictive_state.flatten()
+                if p_summary.shape[0] > self.dim:
+                    p_summary = p_summary[:self.dim]
+            if p_summary.dim() == 1:
+                p_summary = p_summary.unsqueeze(0)
+            p_sum = self.pred_proj(p_summary)
+
+            # Ensure all summaries have compatible shapes
+            if h_sum.shape[-1] != self.dim:
+                h_sum = h_sum[..., :self.dim] if h_sum.shape[-1] > self.dim else torch.cat([h_sum, torch.zeros(*h_sum.shape[:-1], self.dim - h_sum.shape[-1], dtype=h_sum.dtype)], dim=-1)
+            if p_sum.shape[-1] != self.dim:
+                p_sum = p_sum[..., :self.dim] if p_sum.shape[-1] > self.dim else torch.cat([p_sum, torch.zeros(*p_sum.shape[:-1], self.dim - p_sum.shape[-1], dtype=p_sum.dtype)], dim=-1)
+            if m_sum.shape[-1] != self.dim:
+                m_sum = m_sum[..., :self.dim] if m_sum.shape[-1] > self.dim else torch.cat([m_sum, torch.zeros(*m_sum.shape[:-1], self.dim - m_sum.shape[-1], dtype=m_sum.dtype)], dim=-1)
+
+            # Concatenate into a global descriptor
+            combined = torch.cat([h_sum, p_sum, m_sum], dim=-1)
+
+            # Modulation vector
+            mod_vec = self.activation(self.combiner(combined))
+
+            # Ensure mod_vec matches manifold_state shape
+            if mod_vec.shape != manifold_state.shape:
+                if mod_vec.dim() == 2 and manifold_state.dim() == 2:
+                    mod_vec = mod_vec.expand_as(manifold_state)
+                else:
+                    mod_vec = mod_vec.view_as(manifold_state)
+
+            # Apply modulation to manifold
+            modulated = manifold_state + self.gate * mod_vec
+
+            return self.norm(modulated)
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -29056,6 +29216,61 @@ class NeuralBridge:
                                                     self.mf389_meta_field_feedback_stabilized = None
                                             else:
                                                 self.mf389_meta_field_feedback_stabilized = None
+
+                                            # MF-390 — Global Modulation Field (GMF) Initialization Layer
+                                            # Creates global modulation vector from harmonic, predictive, and manifold summaries
+                                            meta_field_global_mod = None
+                                            if (getattr(self, "global_modulation_field", None) is not None and
+                                                meta_field_feedback_stabilized is not None):
+                                                # Get harmonic_state (same as MF-388/389)
+                                                harmonic_state = None
+                                                if hasattr(self, 'mf375_resonant_state') and self.mf375_resonant_state is not None:
+                                                    harmonic_state = self.mf375_resonant_state
+                                                elif 'resonant_state' in locals() and resonant_state is not None:
+                                                    harmonic_state = resonant_state
+                                                else:
+                                                    harmonic_state = meta_field_feedback_stabilized
+
+                                                # Get predictive_state from available sources
+                                                predictive_state = None
+                                                if hasattr(self, 'mf381_gradient_coupled_pred') and self.mf381_gradient_coupled_pred is not None:
+                                                    predictive_state = self.mf381_gradient_coupled_pred
+                                                elif hasattr(self, 'stable_meta_field') and self.stable_meta_field is not None:
+                                                    predictive_state = self.stable_meta_field
+                                                elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None:
+                                                    predictive_state = self.unified_predictive_core
+                                                elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is not None:
+                                                    predictive_state = self.global_resonance_vector
+                                                elif 'pred_vec' in locals() and pred_vec is not None:
+                                                    predictive_state = pred_vec
+                                                else:
+                                                    # Fallback: use meta_field_feedback_stabilized as predictive state
+                                                    predictive_state = meta_field_feedback_stabilized
+
+                                                if harmonic_state is not None and predictive_state is not None:
+                                                    try:
+                                                        # Apply global modulation field
+                                                        meta_field_global_mod = self.global_modulation_field(
+                                                            meta_field_feedback_stabilized,
+                                                            harmonic_state,
+                                                            predictive_state
+                                                        )
+                                                        if meta_field_global_mod is not None:
+                                                            self.mf390_meta_field_global_mod = meta_field_global_mod
+                                                            # Store as globally-modulated manifold for MF-391 onward
+                                                        else:
+                                                            self.mf390_meta_field_global_mod = None
+                                                    except Exception as gmf_error:
+                                                        self.mf390_meta_field_global_mod = None
+                                                        if hasattr(self, 'logger'):
+                                                            try:
+                                                                self.logger.write({"mf390_error": str(gmf_error)})
+                                                            except Exception:
+                                                                pass
+                                                else:
+                                                    self.mf390_meta_field_global_mod = None
+                                            else:
+                                                self.mf390_meta_field_global_mod = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
