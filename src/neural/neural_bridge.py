@@ -1794,6 +1794,8 @@ class NeuralBridge:
             self.predictive_harmonic_transition_344 = None
             self.harmonic_predictive_dual_state_merger_345 = None
             self.dual_state_confluence_router_346 = None
+            self.confluence_stabilization_kernel_347 = None
+            self.multi_route_confluence_interaction_layer_348 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -23762,6 +23764,12 @@ class NeuralBridge:
                 harmonic = torch.tanh(self.to_harmonic(state_flat))
                 predictive = torch.tanh(self.to_predictive(state_flat))
                 associative = torch.tanh(self.to_associative(state_flat))
+
+                # Cache routed streams for downstream interaction layers
+                self.last_temporal = temporal
+                self.last_harmonic = harmonic
+                self.last_predictive = predictive
+                self.last_associative = associative
                 
                 # Weighted confluence operation
                 routed = (
@@ -23785,6 +23793,269 @@ class NeuralBridge:
             except Exception:
                 # Fallback: return merged state as-is
                 return merged_state if isinstance(merged_state, torch.Tensor) else merged_state
+
+    class ConfluenceStabilizationKernel:
+        """
+        MF-347 — Confluence Stabilization Kernel
+        
+        Purpose (ML framing):
+        This module:
+        - Enforces post-routing stability after MF-346
+        - Normalizes multi-stream routed tensors into a stable confluence state
+        - Applies adaptive smoothing to reduce high-frequency routing oscillations
+        - Uses low-amplitude residual reinforcement to protect signal fidelity
+        - Prepares the architecture for multi-layer confluence stacking in MF-350+
+        
+        All purely mathematical:
+        - layer norms
+        - smoothing kernels
+        - soft adaptive filters
+        - residual clamps
+        """
+        
+        def __init__(self, dim):
+            try:
+                import torch
+                import torch.nn as nn
+                from .torch_utils import TORCH_AVAILABLE
+                
+                if not TORCH_AVAILABLE:
+                    self.dim = dim
+                    self.smoothing = None
+                    self.norm = None
+                    self.stability_gate = None
+                    self.residual_scale = None
+                    return
+                
+                self.dim = dim
+                
+                # Smoothing filter to dampen oscillations
+                self.smoothing = nn.Sequential(
+                    nn.Linear(dim, dim),
+                    nn.Tanh(),
+                    nn.Linear(dim, dim)
+                )
+                
+                # Confluence normalizer
+                self.norm = nn.LayerNorm(dim)
+                
+                # Stability gating
+                self.stability_gate = nn.Sequential(
+                    nn.Linear(dim, dim),
+                    nn.ReLU(),
+                    nn.Linear(dim, dim),
+                    nn.Sigmoid()
+                )
+                
+                # Residual stability reinforcement
+                self.residual_scale = nn.Parameter(torch.tensor(0.015))
+            except Exception:
+                self.dim = dim
+                self.smoothing = None
+                self.norm = None
+                self.stability_gate = None
+                self.residual_scale = None
+        
+        def forward(self, routed_state):
+            """
+            Stabilize routed state from MF-346.
+            
+            Args:
+                routed_state: routed tensor from MF-346
+            
+            Returns:
+                stabilized: stabilized and normalized confluence state
+            """
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if (self.smoothing is None or self.norm is None or 
+                    self.stability_gate is None or self.residual_scale is None):
+                    # Fallback: return routed state as-is
+                    return routed_state if isinstance(routed_state, torch.Tensor) else routed_state
+                
+                # Ensure input is a tensor
+                if not isinstance(routed_state, torch.Tensor):
+                    try:
+                        routed_state = torch.tensor(routed_state, dtype=torch.float32)
+                    except Exception:
+                        return routed_state
+                
+                # Flatten and normalize dimensions
+                state_flat = routed_state.flatten()
+                
+                # Pad or trim to match dim
+                if state_flat.shape[0] < self.dim:
+                    state_flat = torch.cat([state_flat, torch.zeros(self.dim - state_flat.shape[0], dtype=torch.float32)])
+                elif state_flat.shape[0] > self.dim:
+                    state_flat = state_flat[:self.dim]
+                
+                # Ensure batch dimension for nn.Linear
+                if state_flat.dim() == 1:
+                    state_flat = state_flat.unsqueeze(0)
+                
+                # Apply smoothing to reduce oscillatory artifacts
+                smooth = self.smoothing(state_flat)
+                
+                # Compute adaptive stability gate
+                gate = self.stability_gate(smooth)
+                
+                # Blend stabilized and raw components
+                stabilized = state_flat * (1 - gate) + smooth * gate
+                
+                # Add small residual to maintain confluence integrity
+                reinforced = stabilized * (1 - self.residual_scale) + state_flat * self.residual_scale
+                
+                # Normalize for consistent manifold integration
+                output = self.norm(reinforced)
+                
+                # Remove batch dimension if it was added
+                if output.dim() == 2 and output.shape[0] == 1:
+                    output = output.squeeze(0)
+                
+                return output
+            except Exception:
+                # Fallback: return routed state as-is
+                return routed_state if isinstance(routed_state, torch.Tensor) else routed_state
+
+    class MultiRouteConfluenceInteractionLayer:
+        """
+        MF-348 — Multi-Route Confluence Interaction Layer
+
+        Purpose (strict ML framing):
+        - Takes all routed manifold streams
+        - Computes pairwise + aggregate interactions
+        - Uses learned kernels to identify reinforcing vs. conflicting signals
+        - Produces a single integrated confluence tensor
+
+        Computational components:
+        - tensor mixing
+        - interaction kernels
+        - adaptive weighting
+        - learned aggregation
+        - stability normalization
+        """
+
+        def __init__(self, dim):
+            try:
+                import torch
+                import torch.nn as nn
+                from .torch_utils import TORCH_AVAILABLE
+
+                if not TORCH_AVAILABLE:
+                    self.dim = dim
+                    self.interaction_proj = None
+                    self.interaction_weights = None
+                    self.refine = None
+                    self.residual_scale = None
+                    self.norm = None
+                    return
+
+                self.dim = dim
+
+                # Interaction projections
+                self.interaction_proj = nn.Linear(dim * 4, dim)
+
+                # Pairwise attention-like weighting
+                self.interaction_weights = nn.Sequential(
+                    nn.Linear(dim * 4, dim),
+                    nn.ReLU(),
+                    nn.Linear(dim, 4),
+                    nn.Softmax(dim=-1)
+                )
+
+                # Output refinement block
+                self.refine = nn.Sequential(
+                    nn.Linear(dim, dim),
+                    nn.Tanh(),
+                    nn.Linear(dim, dim)
+                )
+
+                # Stability residual
+                self.residual_scale = nn.Parameter(torch.tensor(0.018))
+
+                # Output normalization
+                self.norm = nn.LayerNorm(dim)
+            except Exception:
+                self.dim = dim
+                self.interaction_proj = None
+                self.interaction_weights = None
+                self.refine = None
+                self.residual_scale = None
+                self.norm = None
+
+        def forward(self, temporal, harmonic, predictive, associative):
+            """
+            Compute controlled interactions across manifold streams.
+            """
+            try:
+                import torch
+
+                if (self.interaction_proj is None or self.interaction_weights is None or
+                    self.refine is None or self.residual_scale is None or self.norm is None):
+                    # Fallback: return averaged stream if possible
+                    streams = [s for s in [temporal, harmonic, predictive, associative] if isinstance(s, torch.Tensor)]
+                    if not streams:
+                        return temporal
+                    stacked = torch.stack([s.flatten() for s in streams], dim=0)
+                    mean_stream = torch.mean(stacked, dim=0)
+                    if mean_stream.dim() == 1:
+                        mean_stream = mean_stream.unsqueeze(0)
+                    return mean_stream
+
+                # Ensure tensors and align dims
+                def ensure_flat(x):
+                    if not isinstance(x, torch.Tensor):
+                        x = torch.tensor(x, dtype=torch.float32)
+                    flat = x.flatten()
+                    if flat.shape[0] < self.dim:
+                        flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                    elif flat.shape[0] > self.dim:
+                        flat = flat[:self.dim]
+                    if flat.dim() == 1:
+                        flat = flat.unsqueeze(0)
+                    return flat
+
+                temporal = ensure_flat(temporal)
+                harmonic = ensure_flat(harmonic)
+                predictive = ensure_flat(predictive)
+                associative = ensure_flat(associative)
+
+                # Concatenate all routed streams
+                concat = torch.cat([temporal, harmonic, predictive, associative], dim=-1)
+
+                # Compute interaction weights
+                w = self.interaction_weights(concat)
+
+                # Weighted interaction merge
+                merged = (
+                    temporal * w[..., 0:1] +
+                    harmonic * w[..., 1:2] +
+                    predictive * w[..., 2:3] +
+                    associative * w[..., 3:4]
+                )
+
+                # Pass merged through interaction projection
+                interacted = torch.tanh(self.interaction_proj(concat)) + merged
+
+                # Apply refinement
+                refined = self.refine(interacted)
+
+                # Residual stabilization with raw merged signal
+                stabilized = refined * (1 - self.residual_scale) + merged * self.residual_scale
+
+                # Normalize output
+                output = self.norm(stabilized)
+
+                # Remove batch dim if needed
+                if output.dim() == 2 and output.shape[0] == 1:
+                    output = output.squeeze(0)
+
+                return output
+            except Exception:
+                # Fallback: return temporal stream
+                return temporal
 
     def integrate_A301(self):
         """
@@ -24068,6 +24339,27 @@ class NeuralBridge:
                 # Check if dimension changed
                 if getattr(self.dual_state_confluence_router_346, "dim", dim) != dim:
                     self.dual_state_confluence_router_346 = self.DualStateConfluenceRouter(dim=dim)
+            
+            if self.confluence_stabilization_kernel_347 is None:
+                self.confluence_stabilization_kernel_347 = self.ConfluenceStabilizationKernel(dim=dim)
+            else:
+                # Check if dimension changed
+                if getattr(self.confluence_stabilization_kernel_347, "dim", dim) != dim:
+                    self.confluence_stabilization_kernel_347 = self.ConfluenceStabilizationKernel(dim=dim)
+
+            if self.multi_route_confluence_interaction_layer_348 is None:
+                self.multi_route_confluence_interaction_layer_348 = self.MultiRouteConfluenceInteractionLayer(dim=dim)
+            else:
+                # Check if dimension changed
+                if getattr(self.multi_route_confluence_interaction_layer_348, "dim", dim) != dim:
+                    self.multi_route_confluence_interaction_layer_348 = self.MultiRouteConfluenceInteractionLayer(dim=dim)
+
+            # Expose convenience alias and register phase
+            self.multi_route_confluence_interaction_layer = self.multi_route_confluence_interaction_layer_348
+            if not hasattr(self, "phase_registry"):
+                self.phase_registry = []
+            if "MF-348: Multi-Route Confluence Interaction Layer" not in self.phase_registry:
+                self.phase_registry.append("MF-348: Multi-Route Confluence Interaction Layer")
             
             if self.routing_kernel_330 is None:
                 self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336, drift_corrector=self.routing_drift_corrector_337, consistency_graph=self.routing_consistency_graph_338)
@@ -24599,9 +24891,95 @@ class NeuralBridge:
                                     # Store routed state for downstream use
                                     self.mf346_routed_state = routed_state
                                     self.mf346_router_applied = True
+                                    
+                                    # MF-347 — Confluence Stabilization Kernel
+                                    # Stabilize routed state to ensure consistency and coherence
+                                    if self.confluence_stabilization_kernel_347 is not None:
+                                        try:
+                                            stabilized_state = self.confluence_stabilization_kernel_347.forward(routed_state)
+                                            
+                                            # Update the routed state with stabilized result
+                                            self.mf346_routed_state = stabilized_state
+                                            
+                                            # Update primary predictive representation with stabilized result
+                                            if hasattr(self, 'stable_meta_field') and self.stable_meta_field is routed_state:
+                                                self.stable_meta_field = stabilized_state
+                                            elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is routed_state:
+                                                self.unified_predictive_core = stabilized_state
+                                            elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is routed_state:
+                                                self.global_resonance_vector = stabilized_state
+                                            
+                                            # Update merged state with stabilized result
+                                            self.mf345_merged_state = stabilized_state
+                                            
+                                            # Store stabilized state for downstream use
+                                            self.mf347_stabilized_state = stabilized_state
+                                            self.mf347_stabilization_applied = True
+                                        except Exception as stabilization_error:
+                                            # Continue if stabilization fails
+                                            self.mf347_stabilization_applied = False
+                                            self.mf348_interaction_applied = False
+                                            if hasattr(self, 'logger'):
+                                                try:
+                                                    self.logger.write({"mf347_error": str(stabilization_error)})
+                                                except Exception:
+                                                    pass
+                                    else:
+                                        self.mf347_stabilization_applied = False
+                                        self.mf348_interaction_applied = False
+
+                                    # MF-348 — Multi-Route Confluence Interaction Layer
+                                    # Enable cross-route interaction across manifold streams
+                                    if self.multi_route_confluence_interaction_layer_348 is not None:
+                                        try:
+                                            # Retrieve routed streams from router cache or fall back
+                                            temporal_stream = getattr(self.dual_state_confluence_router_346, "last_temporal", None) if hasattr(self, "dual_state_confluence_router_346") else None
+                                            harmonic_stream = getattr(self.dual_state_confluence_router_346, "last_harmonic", None) if hasattr(self, "dual_state_confluence_router_346") else None
+                                            predictive_stream = getattr(self.dual_state_confluence_router_346, "last_predictive", None) if hasattr(self, "dual_state_confluence_router_346") else None
+                                            associative_stream = getattr(self.dual_state_confluence_router_346, "last_associative", None) if hasattr(self, "dual_state_confluence_router_346") else None
+
+                                            # Fallback stream if any pathway missing
+                                            fallback_stream = stabilized_state if 'stabilized_state' in locals() else routed_state
+                                            temporal_stream = temporal_stream if temporal_stream is not None else fallback_stream
+                                            harmonic_stream = harmonic_stream if harmonic_stream is not None else fallback_stream
+                                            predictive_stream = predictive_stream if predictive_stream is not None else fallback_stream
+                                            associative_stream = associative_stream if associative_stream is not None else fallback_stream
+
+                                            interacted_state = self.multi_route_confluence_interaction_layer_348.forward(
+                                                temporal_stream,
+                                                harmonic_stream,
+                                                predictive_stream,
+                                                associative_stream
+                                            )
+
+                                            # Update primary predictive representation with interacted result
+                                            if hasattr(self, 'stable_meta_field') and self.stable_meta_field is stabilized_state:
+                                                self.stable_meta_field = interacted_state
+                                            elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is stabilized_state:
+                                                self.unified_predictive_core = interacted_state
+                                            elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is stabilized_state:
+                                                self.global_resonance_vector = interacted_state
+
+                                            # Update stored states
+                                            self.mf345_merged_state = interacted_state
+                                            self.mf346_routed_state = interacted_state
+                                            self.mf347_stabilized_state = stabilized_state if 'stabilized_state' in locals() else routed_state
+                                            self.mf348_interacted_state = interacted_state
+                                            self.mf348_interaction_applied = True
+                                        except Exception as interaction_error:
+                                            self.mf348_interaction_applied = False
+                                            if hasattr(self, 'logger'):
+                                                try:
+                                                    self.logger.write({"mf348_error": str(interaction_error)})
+                                                except Exception:
+                                                    pass
+                                    else:
+                                        self.mf348_interaction_applied = False
                                 except Exception as router_error:
                                     # Continue if router fails
                                     self.mf346_router_applied = False
+                                    self.mf347_stabilization_applied = False
+                                    self.mf348_interaction_applied = False
                                     if hasattr(self, 'logger'):
                                         try:
                                             self.logger.write({"mf346_error": str(router_error)})
@@ -24609,17 +24987,25 @@ class NeuralBridge:
                                             pass
                             else:
                                 self.mf346_router_applied = False
+                                self.mf347_stabilization_applied = False
+                                self.mf348_interaction_applied = False
                         except Exception as merger_error:
                             # Continue if merger fails
                             self.mf345_merger_applied = False
                             self.mf346_router_applied = False
+                            self.mf347_stabilization_applied = False
+                            self.mf348_interaction_applied = False
                     else:
                         self.mf345_merger_applied = False
                         self.mf346_router_applied = False
+                        self.mf347_stabilization_applied = False
+                        self.mf348_interaction_applied = False
                 except Exception as e:
                     # Silently continue if MF-345 fails
                     self.mf345_merger_applied = False
                     self.mf346_router_applied = False
+                    self.mf347_stabilization_applied = False
+                    self.mf348_interaction_applied = False
                     if hasattr(self, 'logger'):
                         try:
                             self.logger.write({"mf345_error": str(e)})
