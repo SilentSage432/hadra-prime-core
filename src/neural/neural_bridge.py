@@ -295,6 +295,10 @@ class NeuralBridge:
             self.pcrbk = self.PredictiveConfluenceResidualBinding(self.dim)
         except Exception:
             self.pcrbk = None
+        try:
+            self.ccrik = self.CrossConfluenceResidualInteractionKernel(self.dim)
+        except Exception:
+            self.ccrik = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -25513,6 +25517,83 @@ class NeuralBridge:
 
             return self.binding_norm(bound)
 
+    class CrossConfluenceResidualInteractionKernel(nn.Module):
+        """
+        MF-371 — Cross-Confluence Residual Interaction Kernel (CCR-IK)
+
+        Enables multi-route interaction handling across all active confluence channels.
+        Prevents any one route from overpowering others by establishing a soft,
+        learnable equalizer between all concurrent confluence flows.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.interaction_gate = None
+                self.norm = None
+                self.strength = None
+                return
+
+            self.interaction_gate = nn.Linear(dim, dim)
+            self.norm = nn.LayerNorm(dim)
+            self.strength = nn.Parameter(torch.tensor(0.025))
+
+        def forward(self, route_list):
+            if (torch is None or
+                self.interaction_gate is None or
+                self.norm is None or
+                self.strength is None):
+                # Fallback: return first route if available
+                if route_list and len(route_list) > 0:
+                    return route_list[0]
+                return None
+
+            # Handle single route case
+            if len(route_list) == 1:
+                return route_list[0]  # nothing to combine
+
+            # Ensure all routes are tensors
+            tensor_routes = []
+            for r in route_list:
+                if r is None:
+                    continue
+                if not isinstance(r, torch.Tensor):
+                    try:
+                        r = torch.tensor(r, dtype=torch.float32)
+                    except Exception:
+                        continue
+                # Ensure correct dimension
+                if r.dim() == 1:
+                    r = r.unsqueeze(0)
+                # Flatten and pad/truncate to dim
+                flat = r.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                tensor_routes.append(flat)
+
+            if not tensor_routes:
+                return None
+
+            if len(tensor_routes) == 1:
+                return tensor_routes[0]
+
+            # Use first route as base
+            base = tensor_routes[0]
+            accum = base.clone()
+
+            # Compute residual interactions with remaining routes
+            for r in tensor_routes[1:]:
+                delta = r - base
+                transformed = self.interaction_gate(delta)
+                accum += self.strength * transformed
+
+            return self.norm(accum)
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -26551,8 +26632,9 @@ class NeuralBridge:
                                         self.mf347_stabilization_applied = False
                                         self.mf348_interaction_applied = False
 
-                                    # MF-348 — Multi-Route Confluence Interaction Layer
-                                    # Enable cross-route interaction across manifold streams
+                                    # MF-371 — Cross-Confluence Residual Interaction Kernel (CCR-IK)
+                                    # Process multi-route residual interactions before MF-348
+                                    confluence_routes = []
                                     if self.multi_route_confluence_interaction_layer_348 is not None:
                                         try:
                                             # Retrieve routed streams from router cache or fall back
@@ -26567,6 +26649,54 @@ class NeuralBridge:
                                             harmonic_stream = harmonic_stream if harmonic_stream is not None else fallback_stream
                                             predictive_stream = predictive_stream if predictive_stream is not None else fallback_stream
                                             associative_stream = associative_stream if associative_stream is not None else fallback_stream
+
+                                            # Collect routes for MF-371 processing
+                                            confluence_routes = [
+                                                r for r in [temporal_stream, harmonic_stream, predictive_stream, associative_stream]
+                                                if r is not None
+                                            ]
+
+                                            # Apply MF-371 cross-confluence residual interaction if available
+                                            if (getattr(self, "ccrik", None) is not None and len(confluence_routes) > 1):
+                                                try:
+                                                    processed_routes = self.ccrik(confluence_routes)
+                                                    if processed_routes is not None:
+                                                        # Update routes with processed result (distribute to all routes for consistency)
+                                                        if len(confluence_routes) > 0:
+                                                            # Use processed result as base for further processing
+                                                            base_route = processed_routes
+                                                            # Update individual routes proportionally
+                                                            for i in range(len(confluence_routes)):
+                                                                if confluence_routes[i] is not None:
+                                                                    confluence_routes[i] = base_route
+                                                        self.mf371_processed_routes = processed_routes
+                                                    else:
+                                                        self.mf371_processed_routes = None
+                                                except Exception as ccrik_error:
+                                                    self.mf371_processed_routes = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf371_error": str(ccrik_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf371_processed_routes = None
+
+                                            # MF-348 — Multi-Route Confluence Interaction Layer
+                                            # Enable cross-route interaction across manifold streams
+                                            # Use processed routes from MF-371 if available, otherwise use original routes
+                                            if len(confluence_routes) >= 4:
+                                                temporal_stream = confluence_routes[0]
+                                                harmonic_stream = confluence_routes[1] if len(confluence_routes) > 1 else confluence_routes[0]
+                                                predictive_stream = confluence_routes[2] if len(confluence_routes) > 2 else confluence_routes[0]
+                                                associative_stream = confluence_routes[3] if len(confluence_routes) > 3 else confluence_routes[0]
+                                            elif len(confluence_routes) > 0:
+                                                # Reuse first route for missing streams
+                                                base_route = confluence_routes[0]
+                                                temporal_stream = base_route
+                                                harmonic_stream = base_route
+                                                predictive_stream = base_route
+                                                associative_stream = base_route
 
                                             interacted_state = self.multi_route_confluence_interaction_layer_348.forward(
                                                 temporal_stream,
