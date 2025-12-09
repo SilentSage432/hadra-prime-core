@@ -373,6 +373,10 @@ class NeuralBridge:
                 self.iterative_confluence_refinement = None
         except Exception:
             self.iterative_confluence_refinement = None
+        try:
+            self.cross_level_harmonic_coupling = self.CrossLevelHarmonicCouplingLayer(self.dim)
+        except Exception:
+            self.cross_level_harmonic_coupling = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -27032,6 +27036,100 @@ class NeuralBridge:
 
             return self.norm(state)
 
+    class CrossLevelHarmonicCouplingLayer(nn.Module):
+        """
+        MF-388 — Cross-Level Harmonic Coupling Layer (CLHCL)
+
+        Establishes harmonic feedback bridges between:
+        - the predictive–harmonic layers
+        - the meta-field manifold
+        - the cross-neighborhood dynamics
+
+        This allows earlier harmonic signals to modulate and condition the manifold state.
+        Think of it as a learned harmonic filter that injects structured corrections into the manifold.
+
+        What it achieves:
+        1. Cross-Level Feature Conditioning: signals from harmonic layers provide frequency-domain cues,
+           stability cues, and curvature-shaping influence to ensure the manifold evolves along stable trajectories
+        2. Harmonic Modulation of the Manifold: the meta-field becomes sensitive to structured harmonic
+           transformations, improving predictive consistency across time
+        3. Multi-Level Coupling: ties together harmonic layers (frequency-pattern features), predictive layers
+           (temporal structure), and meta-field (high-level spatial manifold)
+        4. Stability First: all cross-level signals pass through normalization, gain control, and residual gating
+           to ensure the manifold cannot destabilize
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.harmonic_proj = None
+                self.manifold_proj = None
+                self.gate = None
+                self.norm = None
+                self.activation = None
+                return
+
+            # Projections for harmonic → manifold mapping
+            self.harmonic_proj = nn.Linear(dim, dim)
+            self.manifold_proj = nn.Linear(dim, dim)
+
+            # Gating for controlled injection
+            self.gate = nn.Parameter(torch.tensor(0.1))
+
+            # Stabilization modules
+            self.norm = nn.LayerNorm(dim)
+            self.activation = nn.Tanh()
+
+        def forward(self, manifold_state, harmonic_state):
+            if (torch is None or
+                self.harmonic_proj is None or
+                self.manifold_proj is None or
+                self.gate is None or
+                self.norm is None or
+                self.activation is None or
+                manifold_state is None or
+                harmonic_state is None):
+                return manifold_state
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            manifold_state = ensure_tensor(manifold_state)
+            harmonic_state = ensure_tensor(harmonic_state)
+
+            if manifold_state is None or harmonic_state is None:
+                return manifold_state
+
+            # Project harmonic signals into manifold space
+            h_proj = self.harmonic_proj(harmonic_state)
+
+            # Project manifold state into a compatible interaction space
+            m_proj = self.manifold_proj(manifold_state)
+
+            # Interaction
+            combined = m_proj + self.gate * self.activation(h_proj)
+
+            # Normalize for stability
+            return self.norm(combined)
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -28776,6 +28874,45 @@ class NeuralBridge:
                                                             pass
                                             else:
                                                 self.mf387_meta_field_refined = None
+
+                                            # MF-388 — Cross-Level Harmonic Coupling Layer (CLHCL)
+                                            # Establishes harmonic feedback bridges between predictive-harmonic layers and meta-field manifold
+                                            meta_field_harmonic_coupled = None
+                                            if (getattr(self, "cross_level_harmonic_coupling", None) is not None and
+                                                meta_field_refined is not None):
+                                                # Use resonant_state as harmonic_state if available, otherwise use meta_field_refined as fallback
+                                                harmonic_state = None
+                                                if hasattr(self, 'mf375_resonant_state') and self.mf375_resonant_state is not None:
+                                                    harmonic_state = self.mf375_resonant_state
+                                                elif 'resonant_state' in locals() and resonant_state is not None:
+                                                    harmonic_state = resonant_state
+                                                else:
+                                                    # Fallback: use meta_field_refined as harmonic state (self-coupling)
+                                                    harmonic_state = meta_field_refined
+
+                                                if harmonic_state is not None:
+                                                    try:
+                                                        # Apply cross-level harmonic coupling
+                                                        meta_field_harmonic_coupled = self.cross_level_harmonic_coupling(
+                                                            meta_field_refined,
+                                                            harmonic_state
+                                                        )
+                                                        if meta_field_harmonic_coupled is not None:
+                                                            self.mf388_meta_field_harmonic_coupled = meta_field_harmonic_coupled
+                                                            # Store as harmonic-coupled manifold for MF-389 onward
+                                                        else:
+                                                            self.mf388_meta_field_harmonic_coupled = None
+                                                    except Exception as clhcl_error:
+                                                        self.mf388_meta_field_harmonic_coupled = None
+                                                        if hasattr(self, 'logger'):
+                                                            try:
+                                                                self.logger.write({"mf388_error": str(clhcl_error)})
+                                                            except Exception:
+                                                                pass
+                                                else:
+                                                    self.mf388_meta_field_harmonic_coupled = None
+                                            else:
+                                                self.mf388_meta_field_harmonic_coupled = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
