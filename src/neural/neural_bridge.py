@@ -494,6 +494,14 @@ class NeuralBridge:
             )
         except Exception:
             self.mf409_msmsl = None
+        # MF-410 — Phase-Space Transformation Kernel Layer (PSTK)
+        try:
+            self.mf410_pstk = self.PhaseSpaceTransformationKernelLayer(
+                substrate_dim=self.dim,
+                phase_dim=4
+            )
+        except Exception:
+            self.mf410_pstk = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -29792,6 +29800,157 @@ class NeuralBridge:
                     return F.normalize(CA_out, dim=-1)
                 except Exception:
                     return CA_out
+
+    class PhaseSpaceTransformationKernelLayer(nn.Module):
+        """
+        MF-410 — Phase-Space Transformation Kernel Layer (PSTK)
+
+        Takes the multi-scale modulation output from MF-409 (MS_out) and transforms it into a
+        phase-space encoded representation.
+
+        This is purely mathematical: no semantics, no cognition, no symbolic meaning, only tensor
+        transformations across phase domains.
+
+        MF-410 introduces a Phase-Space Transformation Kernel (PSTK), which decomposes and
+        recomposes the signal across three coupled manifolds:
+        1. Amplitude manifold
+        2. Frequency manifold
+        3. Orientation manifold
+
+        These are not conceptual or semantic spaces — they are tensor-indexed subspaces used to
+        structure modulation dynamics.
+
+        Core Computational Functions:
+        1. Phase Decomposition: splits the modulation vector into amplitude, frequency, and
+           orientation components using learned projection matrices.
+        2. Phase Interaction Tensor: a rank-4 tensor maps interactions among the three subspaces,
+           producing cross-phase interaction vectors.
+        3. Phase-Space Kernel Fusion: modulates the amplitude vector by the cross-phase interactions
+           using learned scalars (λ and μ).
+        4. Phase-Stabilization Transform: applies a limiter to prevent oscillatory amplification
+           across frequency–orientation couplings, ensuring bounded output.
+        5. Final Phase-Space Projection: projects the stabilized phase vector into a
+           substrate-aligned output, producing the phase-space encoded modulation field for MF-411.
+
+        Outcome:
+        MF-410 successfully introduces amplitude/frequency/orientation space decomposition,
+        rank-4 phase interaction tensors, phase-space kernel fusion, phase-stabilized projection,
+        and fully normalized phase-encoded output (PS_out). This prepares the architecture for
+        MF-411, where we introduce Phase-Gradient Alignment Fields, enabling phase-transformed
+        signals to align with directional-gradient structures.
+        """
+
+        def __init__(self, substrate_dim, phase_dim=4):
+            super().__init__()
+            self.substrate_dim = substrate_dim
+            self.phase_dim = phase_dim
+
+            # Projection matrices into phase components
+            self.W_amp = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+            self.W_freq = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+            self.W_orient = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+            # Phase interaction tensor (rank-4)
+            # Shape: [phase_dim, phase_dim, phase_dim, substrate_dim]
+            self.T_phase = nn.Parameter(
+                torch.randn(phase_dim, phase_dim, phase_dim, substrate_dim) * 0.01
+            )
+
+            # Fusion scalars
+            self.lambda_scale = nn.Parameter(torch.tensor(0.6))
+            self.mu_scale = nn.Parameter(torch.tensor(0.4))
+
+            # Final alignment matrix
+            self.alignment_matrix = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def forward(self, MS_out):
+            """
+            MS_out: multi-scale modulation field from MF-409, shape [batch, dim]
+            """
+            if torch is None or MS_out is None:
+                return MS_out
+
+            # Ensure MS_out is a tensor
+            if not isinstance(MS_out, torch.Tensor):
+                try:
+                    MS_out = torch.tensor(MS_out, dtype=torch.float32)
+                except Exception:
+                    return MS_out
+
+            # Ensure proper shape
+            if MS_out.dim() == 1:
+                MS_out = MS_out.unsqueeze(0)
+            if MS_out.shape[-1] != self.substrate_dim:
+                # Resize if needed
+                if MS_out.shape[-1] < self.substrate_dim:
+                    padding = torch.zeros(MS_out.shape[:-1] + (self.substrate_dim - MS_out.shape[-1],), dtype=MS_out.dtype)
+                    MS_out = torch.cat([MS_out, padding], dim=-1)
+                else:
+                    MS_out = MS_out[..., :self.substrate_dim]
+
+            try:
+                import torch.nn.functional as F
+                # 1. Phase decomposition
+                A = torch.matmul(MS_out, self.W_amp)
+                Freq = torch.matmul(MS_out, self.W_freq)
+                Orient = torch.matmul(MS_out, self.W_orient)
+
+                # Ensure Freq and Orient have the right shape for indexing
+                # They should be [batch, substrate_dim], but we need to index by phase_dim
+                # If substrate_dim > phase_dim, we take first phase_dim elements
+                # If substrate_dim < phase_dim, we pad
+                if Freq.shape[-1] < self.phase_dim:
+                    padding = torch.zeros(Freq.shape[:-1] + (self.phase_dim - Freq.shape[-1],), dtype=Freq.dtype)
+                    Freq = torch.cat([Freq, padding], dim=-1)
+                    Orient = torch.cat([Orient, padding], dim=-1)
+                elif Freq.shape[-1] > self.phase_dim:
+                    Freq = Freq[..., :self.phase_dim]
+                    Orient = Orient[..., :self.phase_dim]
+
+                # 2. Phase interaction tensor
+                # P[i] = Σ_j Σ_k T_phase[i,j,k] * Freq[j] * Orient[k]
+                P_list = []
+                for i in range(self.phase_dim):
+                    interaction = torch.zeros_like(MS_out)
+                    for j in range(self.phase_dim):
+                        for k in range(self.phase_dim):
+                            # T_phase[i, j, k] is shape [substrate_dim]
+                            # Freq[:, j] is shape [batch]
+                            # Orient[:, k] is shape [batch]
+                            freq_j = Freq[:, j].unsqueeze(-1)  # [batch, 1]
+                            orient_k = Orient[:, k].unsqueeze(-1)  # [batch, 1]
+                            tensor_ijk = self.T_phase[i, j, k].unsqueeze(0)  # [1, substrate_dim]
+                            interaction += freq_j * orient_k * tensor_ijk  # [batch, substrate_dim]
+                    P_list.append(interaction)
+
+                P = torch.stack(P_list, dim=0).sum(dim=0)  # [batch, dim]
+
+                # 3. Phase-space kernel fusion
+                K = self.lambda_scale * A + self.mu_scale * P
+
+                # 4. Stabilization
+                K_reg = K / (1 + torch.abs(K))
+
+                # 5. Final phase-space projection
+                PS_out = torch.matmul(K_reg, self.alignment_matrix)
+                PS_out = F.normalize(PS_out, dim=-1)
+
+                return PS_out
+            except Exception:
+                # If transformation fails, return normalized input
+                try:
+                    import torch.nn.functional as F
+                    return F.normalize(MS_out, dim=-1)
+                except Exception:
+                    return MS_out
 
     def integrate_A301(self):
         """
