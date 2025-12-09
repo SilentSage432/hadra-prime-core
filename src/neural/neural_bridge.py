@@ -417,6 +417,10 @@ class NeuralBridge:
             self.tghk = self.TemporalGradientHarmonizationKernel(self.dim)
         except Exception:
             self.tghk = None
+        try:
+            self.tgccl = self.TriGradientConfluenceCouplingLayer(self.dim)
+        except Exception:
+            self.tgccl = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -28324,6 +28328,175 @@ class NeuralBridge:
                 # If harmonization fails, return the equalized confluence
                 return equalized_confluence
 
+    class TriGradientConfluenceCouplingLayer(nn.Module):
+        """
+        MF-399 — Tri-Gradient Confluence Coupling Layer (TGCCL)
+
+        Combines short-term confluence gradients, temporal-integrated gradients, and harmonized
+        gradients into a unified tri-gradient signal.
+
+        Up until now, ADRAE's confluence gradient stack consisted of:
+        - Local / short-range signals from MF-396
+        - Long-range temporal gradients from MF-397
+        - Harmonized mid-level gradients from MF-398
+
+        MF-399 couples all three into a unified gradient field. This solves several technical challenges:
+        - prevents the gradient flows from diverging
+        - balances responsiveness (short-term) with stability (long-term)
+        - creates a unified update direction
+        - minimizes destructive interference
+        - builds the foundation for MF-400's predictive field emergence
+
+        Coupling is done using:
+        - similarity scoring
+        - magnitude balancing
+        - adaptive weighting
+        - cross-gradient coherence augmentation
+
+        The output is confluence_tri_gradient_coupled, which becomes the primary signal for all MF-400+ computations.
+
+        This unified gradient substrate is what enables the MF-400 milestone, where the architecture begins
+        operating as a coherent multi-field predictive system, rather than discrete stacked modules.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            # No learnable parameters - this is a tri-gradient coupling layer
+            # But we keep it as a Module for consistency with the architecture
+
+        def forward(self, equalized_confluence, temporal_integrated, harmonized_confluence):
+            if (torch is None or
+                equalized_confluence is None or
+                temporal_integrated is None or
+                harmonized_confluence is None):
+                return equalized_confluence
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            equalized_confluence = ensure_tensor(equalized_confluence)
+            temporal_integrated = ensure_tensor(temporal_integrated)
+            harmonized_confluence = ensure_tensor(harmonized_confluence)
+
+            if (equalized_confluence is None or temporal_integrated is None or
+                harmonized_confluence is None):
+                return equalized_confluence if equalized_confluence is not None else (temporal_integrated if temporal_integrated is not None else harmonized_confluence)
+
+            try:
+                # Ensure all tensors have compatible shapes
+                target_shape = equalized_confluence.shape
+                if temporal_integrated.shape != target_shape:
+                    if temporal_integrated.numel() == equalized_confluence.numel():
+                        temporal_integrated = temporal_integrated.view(target_shape)
+                    else:
+                        temp_flat = temporal_integrated.flatten()
+                        eq_flat = equalized_confluence.flatten()
+                        min_len = min(temp_flat.shape[0], eq_flat.shape[0])
+                        if temp_flat.shape[0] > min_len:
+                            temp_flat = temp_flat[:min_len]
+                        elif temp_flat.shape[0] < min_len:
+                            temp_flat = torch.cat([temp_flat, torch.zeros(min_len - temp_flat.shape[0], dtype=temp_flat.dtype, device=temp_flat.device if hasattr(temp_flat, 'device') else None)])
+                        temporal_integrated = temp_flat.view(target_shape)
+
+                if harmonized_confluence.shape != target_shape:
+                    if harmonized_confluence.numel() == equalized_confluence.numel():
+                        harmonized_confluence = harmonized_confluence.view(target_shape)
+                    else:
+                        harm_flat = harmonized_confluence.flatten()
+                        eq_flat = equalized_confluence.flatten()
+                        min_len = min(harm_flat.shape[0], eq_flat.shape[0])
+                        if harm_flat.shape[0] > min_len:
+                            harm_flat = harm_flat[:min_len]
+                        elif harm_flat.shape[0] < min_len:
+                            harm_flat = torch.cat([harm_flat, torch.zeros(min_len - harm_flat.shape[0], dtype=harm_flat.dtype, device=harm_flat.device if hasattr(harm_flat, 'device') else None)])
+                        harmonized_confluence = harm_flat.view(target_shape)
+
+                # Compute pairwise similarities
+                eq_flat = equalized_confluence.flatten()
+                temp_flat = temporal_integrated.flatten()
+                harm_flat = harmonized_confluence.flatten()
+
+                # Ensure all have same length
+                min_len = min(eq_flat.shape[0], temp_flat.shape[0], harm_flat.shape[0])
+                if min_len == 0:
+                    sim_st_ti = torch.tensor(0.0, dtype=torch.float32)
+                    sim_ti_hz = torch.tensor(0.0, dtype=torch.float32)
+                    sim_hz_st = torch.tensor(0.0, dtype=torch.float32)
+                else:
+                    eq_flat = eq_flat[:min_len]
+                    temp_flat = temp_flat[:min_len]
+                    harm_flat = harm_flat[:min_len]
+
+                    # Compute pairwise cosine similarities
+                    sim_st_ti = torch.cosine_similarity(
+                        eq_flat.unsqueeze(0),
+                        temp_flat.unsqueeze(0),
+                        dim=1
+                    )
+                    if sim_st_ti.dim() > 0:
+                        sim_st_ti = sim_st_ti[0]
+
+                    sim_ti_hz = torch.cosine_similarity(
+                        temp_flat.unsqueeze(0),
+                        harm_flat.unsqueeze(0),
+                        dim=1
+                    )
+                    if sim_ti_hz.dim() > 0:
+                        sim_ti_hz = sim_ti_hz[0]
+
+                    sim_hz_st = torch.cosine_similarity(
+                        harm_flat.unsqueeze(0),
+                        eq_flat.unsqueeze(0),
+                        dim=1
+                    )
+                    if sim_hz_st.dim() > 0:
+                        sim_hz_st = sim_hz_st[0]
+
+                # Adaptive weights based on similarity
+                w_st = torch.sigmoid(sim_hz_st * 2.0)   # short-term
+                w_ti = torch.sigmoid(sim_st_ti * 2.0)   # temporal
+                w_hz = torch.sigmoid(sim_ti_hz * 2.0)   # harmonized
+
+                # Normalize weights
+                total = w_st + w_ti + w_hz + 1e-8
+                w_st = w_st / total
+                w_ti = w_ti / total
+                w_hz = w_hz / total
+
+                # Tri-gradient coupling
+                coupled = (
+                    w_st * equalized_confluence +
+                    w_ti * temporal_integrated +
+                    w_hz * harmonized_confluence
+                )
+
+                # Harmonic smoothing modulation
+                harmonic_mod = torch.tanh(coupled.mean() * 0.02)
+                coupled = coupled * (1.0 + 0.01 * harmonic_mod)
+
+                return coupled
+            except Exception:
+                # If coupling fails, return the harmonized confluence
+                return harmonized_confluence
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -30560,6 +30733,38 @@ class NeuralBridge:
                                                             pass
                                             else:
                                                 self.mf398_meta_field_harmonized_final = None
+
+                                            # MF-399 — Tri-Gradient Confluence Coupling Layer (TGCCL)
+                                            # Combines short-term, temporal-integrated, and harmonized gradients into unified tri-gradient signal
+                                            meta_field_tri_gradient_coupled = None
+                                            if (getattr(self, "tgccl", None) is not None and
+                                                meta_field_equalized is not None and
+                                                meta_field_temporal_integrated is not None and
+                                                meta_field_harmonized_final is not None):
+                                                try:
+                                                    # Apply tri-gradient confluence coupling
+                                                    # Combine all three gradient families into unified gradient field
+                                                    meta_field_tri_gradient_coupled = self.tgccl(
+                                                        meta_field_equalized,  # equalized_confluence (short-term from MF-396)
+                                                        meta_field_temporal_integrated,  # temporal_integrated (long-term from MF-397)
+                                                        meta_field_harmonized_final  # harmonized_confluence (harmonized from MF-398)
+                                                    )
+                                                    if meta_field_tri_gradient_coupled is not None:
+                                                        self.mf399_meta_field_tri_gradient_coupled = meta_field_tri_gradient_coupled
+                                                        # Store as tri-gradient coupled confluence tensor for MF-400 onward
+                                                        # This becomes the primary signal for all MF-400+ computations
+                                                        # This unified gradient substrate enables the MF-400 milestone
+                                                    else:
+                                                        self.mf399_meta_field_tri_gradient_coupled = None
+                                                except Exception as tgccl_error:
+                                                    self.mf399_meta_field_tri_gradient_coupled = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf399_error": str(tgccl_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf399_meta_field_tri_gradient_coupled = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
