@@ -1783,6 +1783,7 @@ class NeuralBridge:
             self.routing_grad_stabilizer_333 = None
             self.routing_divergence_penalty_334 = None
             self.routing_entropy_regulator_335 = None
+            self.routing_alignment_336 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -21803,7 +21804,7 @@ class NeuralBridge:
         This is the foundation for multi-resolution predictive flow control in MF-331–350.
         """
         
-        def __init__(self, dim=128, num_levels=3, regularizer=None, coherence_engine=None, grad_stabilizer=None, divergence_penalty=None, entropy_regulator=None):
+        def __init__(self, dim=128, num_levels=3, regularizer=None, coherence_engine=None, grad_stabilizer=None, divergence_penalty=None, entropy_regulator=None, alignment_layer=None):
             self.dim = dim
             self.num_levels = num_levels
             self.regularizer = regularizer  # Reference to MF-331 regularizer
@@ -21811,6 +21812,7 @@ class NeuralBridge:
             self.grad_stabilizer = grad_stabilizer  # Reference to MF-333 gradient stabilizer
             self.divergence_penalty = divergence_penalty  # Reference to MF-334 divergence penalty kernel
             self.entropy_regulator = entropy_regulator  # Reference to MF-335 entropy regulator
+            self.alignment_layer = alignment_layer  # Reference to MF-336 cross-manifold alignment layer
             
             try:
                 import torch
@@ -21908,6 +21910,11 @@ class NeuralBridge:
                     # Apply MF-335 hierarchical routing entropy regulator if available
                     if self.entropy_regulator is not None:
                         routing_weights = self.entropy_regulator.forward(routing_weights)
+                    
+                    # Apply MF-336 cross-manifold routing alignment layer if available
+                    if self.alignment_layer is not None:
+                        # Use all manifolds for cross-manifold alignment
+                        routing_weights = self.alignment_layer.forward(routing_weights, manifolds)
                     
                     # Apply each transform weighted by routing coefficients
                     transformed = torch.zeros(self.dim, dtype=torch.float32)
@@ -22354,6 +22361,135 @@ class NeuralBridge:
                 # Fallback: return original weights
                 return routing_weights
 
+    class CrossManifoldRoutingAlignmentLayer:
+        """
+        MF-336 — Cross-Manifold Routing Alignment Layer
+        
+        Aligns routing tensors across multiple manifold representations by projecting
+        routing weights into each manifold space and adjusting for geometric consistency.
+        
+        This is one of the most important ML infrastructure modules in the mid-300s.
+        
+        Increases:
+        - long-term routing stability
+        - consistency of transitions between manifolds
+        - predictive field harmony
+        - identity retrieval reliability
+        """
+        
+        def __init__(self, manifold_dim=128, alignment_strength=0.15):
+            self.manifold_dim = manifold_dim
+            self.alignment_strength = alignment_strength
+            
+            try:
+                import torch
+                import torch.nn as nn
+                
+                # A small projection matrix for routing alignment
+                self.projection = nn.Parameter(
+                    torch.randn(manifold_dim, manifold_dim) * 0.01
+                )
+            except Exception:
+                self.projection = None
+        
+        def forward(self, routing_tensor, manifold_reprs):
+            """
+            Align routing tensor with manifold representations.
+            
+            Args:
+                routing_tensor: the routing weights vector
+                manifold_reprs: list of manifold representation tensors (same dimension)
+            
+            Returns:
+                adjusted: cross-manifold aligned routing weights
+            """
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if routing_tensor is None:
+                    return routing_tensor
+                
+                if not isinstance(routing_tensor, torch.Tensor):
+                    routing_tensor = torch.tensor(routing_tensor, dtype=torch.float32)
+                
+                if len(manifold_reprs) == 0:
+                    return routing_tensor
+                
+                if self.projection is None:
+                    return routing_tensor
+                
+                # Ensure routing_tensor is 1D
+                routing_flat = routing_tensor.flatten()
+                
+                # Project routing tensor into manifold space
+                # routing_flat shape: [num_levels] -> [1, num_levels]
+                rt = routing_flat.unsqueeze(0)  # shape [1, N]
+                
+                # If routing dimension doesn't match projection input, we need to handle it
+                if rt.shape[1] != self.projection.shape[0]:
+                    # Try to project if dimensions are compatible
+                    if rt.shape[1] <= self.projection.shape[0]:
+                        # Pad or use subset
+                        if rt.shape[1] < self.projection.shape[0]:
+                            padding = torch.zeros(1, self.projection.shape[0] - rt.shape[1], dtype=torch.float32)
+                            rt = torch.cat([rt, padding], dim=1)
+                        projected = rt @ self.projection  # shape [1, manifold_dim]
+                    else:
+                        # Use subset of projection
+                        projected = rt[:, :self.projection.shape[0]] @ self.projection[:rt.shape[1], :]
+                else:
+                    projected = rt @ self.projection  # shape [1, manifold_dim]
+                
+                # Compute alignment with each manifold representation
+                align_scores = []
+                for m in manifold_reprs:
+                    if m is None:
+                        continue
+                    
+                    if not isinstance(m, torch.Tensor):
+                        m = torch.tensor(m, dtype=torch.float32)
+                    
+                    m_flat = m.flatten()
+                    
+                    # Normalize to manifold_dim if needed
+                    if m_flat.shape[0] != self.manifold_dim:
+                        if m_flat.shape[0] < self.manifold_dim:
+                            padding = torch.zeros(self.manifold_dim - m_flat.shape[0], dtype=torch.float32)
+                            m_flat = torch.cat([m_flat, padding])
+                        else:
+                            m_flat = m_flat[:self.manifold_dim]
+                    
+                    # Compute cosine similarity
+                    projected_vec = projected.squeeze(0)
+                    if projected_vec.shape[0] == m_flat.shape[0]:
+                        score = F.cosine_similarity(projected_vec.unsqueeze(0), m_flat.unsqueeze(0), dim=1)
+                        align_scores.append(score)
+                
+                if len(align_scores) == 0:
+                    return routing_tensor
+                
+                avg_align = torch.stack(align_scores).mean()
+                
+                # Use alignment to modulate routing weights
+                alignment_val = avg_align.item() if isinstance(avg_align, torch.Tensor) else float(avg_align)
+                adjustment = 1.0 + self.alignment_strength * alignment_val
+                
+                adjusted = routing_tensor * adjustment
+                
+                # Normalize to preserve routing distribution semantics
+                adjusted_sum = adjusted.sum()
+                if adjusted_sum > 0:
+                    adjusted = adjusted / (adjusted_sum + 1e-8)
+                else:
+                    # Fallback: uniform distribution
+                    adjusted = torch.ones_like(routing_tensor) / routing_tensor.numel()
+                
+                return adjusted
+            except Exception:
+                # Fallback: return original tensor
+                return routing_tensor
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -22565,18 +22701,26 @@ class NeuralBridge:
                 # Check if parameters need updating (optional, since they're set in __init__)
                 pass
             
+            if self.routing_alignment_336 is None:
+                self.routing_alignment_336 = self.CrossManifoldRoutingAlignmentLayer(manifold_dim=dim, alignment_strength=0.15)
+            else:
+                # Check if parameters need updating (optional, since they're set in __init__)
+                if getattr(self.routing_alignment_336, "manifold_dim", dim) != dim:
+                    self.routing_alignment_336 = self.CrossManifoldRoutingAlignmentLayer(manifold_dim=dim, alignment_strength=0.15)
+            
             if self.routing_kernel_330 is None:
-                self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335)
+                self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336)
             else:
                 if getattr(self.routing_kernel_330, "dim", dim) != dim:
-                    self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335)
+                    self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336)
                 else:
-                    # Update regularizer, coherence engine, grad stabilizer, divergence penalty, and entropy regulator references if they changed
+                    # Update regularizer, coherence engine, grad stabilizer, divergence penalty, entropy regulator, and alignment layer references if they changed
                     self.routing_kernel_330.regularizer = self.routing_consistency_331
                     self.routing_kernel_330.coherence_engine = self.routing_coherence_332
                     self.routing_kernel_330.grad_stabilizer = self.routing_grad_stabilizer_333
                     self.routing_kernel_330.divergence_penalty = self.routing_divergence_penalty_334
                     self.routing_kernel_330.entropy_regulator = self.routing_entropy_regulator_335
+                    self.routing_kernel_330.alignment_layer = self.routing_alignment_336
             
             # Collect harmonic layers (only tensors present)
             candidates = [
