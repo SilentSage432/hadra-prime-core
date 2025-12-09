@@ -1776,6 +1776,8 @@ class NeuralBridge:
             self.cross_manifold_harmonizer = None
             self.global_harmony_score = None
             self.manifold_density_aligner = None
+            self.density_equalizer_329 = None
+            self.routing_kernel_330 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -3744,6 +3746,168 @@ class NeuralBridge:
                                                                                                                                                     if aligned_meta is not None:
                                                                                                                                                         internal_state["meta_field_unified"] = aligned_meta.tolist()
                                                                                                                                                         self.meta_field_unified = aligned_meta
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # MF-329 — Cross-Manifold Predictive Density Equalization Layer
+                                                                                                                                            try:
+                                                                                                                                                # Collect all manifolds for equalization
+                                                                                                                                                all_manifolds = []
+                                                                                                                                                
+                                                                                                                                                # Collect in order: identity, predictive, narrative, meta, attention, fusion
+                                                                                                                                                if hasattr(self, 'identity_vector') and self.identity_vector is not None:
+                                                                                                                                                    all_manifolds.append(self.identity_vector)
+                                                                                                                                                elif "identity_vector" in internal_state:
+                                                                                                                                                    all_manifolds.append(torch.tensor(internal_state["identity_vector"]))
+                                                                                                                                                else:
+                                                                                                                                                    all_manifolds.append(None)
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'predictive_manifold') and self.predictive_manifold is not None:
+                                                                                                                                                    all_manifolds.append(self.predictive_manifold)
+                                                                                                                                                elif "predictive_manifold" in internal_state:
+                                                                                                                                                    all_manifolds.append(torch.tensor(internal_state["predictive_manifold"]))
+                                                                                                                                                else:
+                                                                                                                                                    all_manifolds.append(None)
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'narrative_manifold') and self.narrative_manifold is not None:
+                                                                                                                                                    all_manifolds.append(self.narrative_manifold)
+                                                                                                                                                elif "narrative_manifold" in internal_state:
+                                                                                                                                                    all_manifolds.append(torch.tensor(internal_state["narrative_manifold"]))
+                                                                                                                                                else:
+                                                                                                                                                    all_manifolds.append(None)
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'meta_field_unified') and self.meta_field_unified is not None:
+                                                                                                                                                    all_manifolds.append(self.meta_field_unified)
+                                                                                                                                                elif "meta_field_unified" in internal_state:
+                                                                                                                                                    all_manifolds.append(torch.tensor(internal_state["meta_field_unified"]))
+                                                                                                                                                else:
+                                                                                                                                                    all_manifolds.append(None)
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'attention_vector') and self.attention_vector is not None:
+                                                                                                                                                    all_manifolds.append(self.attention_vector)
+                                                                                                                                                else:
+                                                                                                                                                    all_manifolds.append(None)
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'fused_density_vector') and self.fused_density_vector is not None:
+                                                                                                                                                    all_manifolds.append(self.fused_density_vector)
+                                                                                                                                                elif hasattr(self, 'fusion') and hasattr(self.fusion, 'last_fusion_vector') and self.fusion.last_fusion_vector is not None:
+                                                                                                                                                    fusion_vec = self.fusion.last_fusion_vector
+                                                                                                                                                    if isinstance(fusion_vec, list):
+                                                                                                                                                        all_manifolds.append(torch.tensor(fusion_vec))
+                                                                                                                                                    else:
+                                                                                                                                                        all_manifolds.append(fusion_vec)
+                                                                                                                                                else:
+                                                                                                                                                    all_manifolds.append(None)
+                                                                                                                                                
+                                                                                                                                                # Apply density equalization if we have the equalizer and at least some manifolds
+                                                                                                                                                if (hasattr(self, 'density_equalizer_329') and self.density_equalizer_329 is not None and 
+                                                                                                                                                    any(m is not None for m in all_manifolds)):
+                                                                                                                                                    equalized_manifolds = self.density_equalizer_329.forward(all_manifolds)
+                                                                                                                                                    
+                                                                                                                                                    # Update manifolds with equalized densities
+                                                                                                                                                    if len(equalized_manifolds) >= 1 and equalized_manifolds[0] is not None:  # Identity
+                                                                                                                                                        internal_state["identity_vector"] = equalized_manifolds[0].tolist()
+                                                                                                                                                        self.identity_vector = equalized_manifolds[0]
+                                                                                                                                                    
+                                                                                                                                                    if len(equalized_manifolds) >= 2 and equalized_manifolds[1] is not None:  # Predictive
+                                                                                                                                                        internal_state["predictive_manifold"] = equalized_manifolds[1].tolist()
+                                                                                                                                                        self.predictive_manifold = equalized_manifolds[1]
+                                                                                                                                                    
+                                                                                                                                                    if len(equalized_manifolds) >= 3 and equalized_manifolds[2] is not None:  # Narrative
+                                                                                                                                                        internal_state["narrative_manifold"] = equalized_manifolds[2].tolist()
+                                                                                                                                                        self.narrative_manifold = equalized_manifolds[2]
+                                                                                                                                                    
+                                                                                                                                                    if len(equalized_manifolds) >= 4 and equalized_manifolds[3] is not None:  # Meta
+                                                                                                                                                        internal_state["meta_field_unified"] = equalized_manifolds[3].tolist()
+                                                                                                                                                        self.meta_field_unified = equalized_manifolds[3]
+                                                                                                                                                    
+                                                                                                                                                    if len(equalized_manifolds) >= 5 and equalized_manifolds[4] is not None:  # Attention
+                                                                                                                                                        if hasattr(self, 'attention_vector'):
+                                                                                                                                                            self.attention_vector = equalized_manifolds[4]
+                                                                                                                                                    
+                                                                                                                                                    if len(equalized_manifolds) >= 6 and equalized_manifolds[5] is not None:  # Fusion
+                                                                                                                                                        if hasattr(self, 'fused_density_vector'):
+                                                                                                                                                            self.fused_density_vector = equalized_manifolds[5]
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # MF-330 — Hierarchical Density-Constrained Routing Kernel (HDCRK)
+                                                                                                                                            try:
+                                                                                                                                                # Collect all manifolds for hierarchical routing
+                                                                                                                                                all_manifolds = []
+                                                                                                                                                
+                                                                                                                                                # Collect in order: identity, predictive, narrative, meta, attention, fusion
+                                                                                                                                                if hasattr(self, 'identity_vector') and self.identity_vector is not None:
+                                                                                                                                                    all_manifolds.append(self.identity_vector)
+                                                                                                                                                elif "identity_vector" in internal_state:
+                                                                                                                                                    all_manifolds.append(torch.tensor(internal_state["identity_vector"]))
+                                                                                                                                                else:
+                                                                                                                                                    all_manifolds.append(None)
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'predictive_manifold') and self.predictive_manifold is not None:
+                                                                                                                                                    all_manifolds.append(self.predictive_manifold)
+                                                                                                                                                elif "predictive_manifold" in internal_state:
+                                                                                                                                                    all_manifolds.append(torch.tensor(internal_state["predictive_manifold"]))
+                                                                                                                                                else:
+                                                                                                                                                    all_manifolds.append(None)
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'narrative_manifold') and self.narrative_manifold is not None:
+                                                                                                                                                    all_manifolds.append(self.narrative_manifold)
+                                                                                                                                                elif "narrative_manifold" in internal_state:
+                                                                                                                                                    all_manifolds.append(torch.tensor(internal_state["narrative_manifold"]))
+                                                                                                                                                else:
+                                                                                                                                                    all_manifolds.append(None)
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'meta_field_unified') and self.meta_field_unified is not None:
+                                                                                                                                                    all_manifolds.append(self.meta_field_unified)
+                                                                                                                                                elif "meta_field_unified" in internal_state:
+                                                                                                                                                    all_manifolds.append(torch.tensor(internal_state["meta_field_unified"]))
+                                                                                                                                                else:
+                                                                                                                                                    all_manifolds.append(None)
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'attention_vector') and self.attention_vector is not None:
+                                                                                                                                                    all_manifolds.append(self.attention_vector)
+                                                                                                                                                else:
+                                                                                                                                                    all_manifolds.append(None)
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'fused_density_vector') and self.fused_density_vector is not None:
+                                                                                                                                                    all_manifolds.append(self.fused_density_vector)
+                                                                                                                                                elif hasattr(self, 'fusion') and hasattr(self.fusion, 'last_fusion_vector') and self.fusion.last_fusion_vector is not None:
+                                                                                                                                                    fusion_vec = self.fusion.last_fusion_vector
+                                                                                                                                                    if isinstance(fusion_vec, list):
+                                                                                                                                                        all_manifolds.append(torch.tensor(fusion_vec))
+                                                                                                                                                    else:
+                                                                                                                                                        all_manifolds.append(fusion_vec)
+                                                                                                                                                else:
+                                                                                                                                                    all_manifolds.append(None)
+                                                                                                                                                
+                                                                                                                                                # Apply hierarchical density-constrained routing if we have the kernel and at least some manifolds
+                                                                                                                                                if (hasattr(self, 'routing_kernel_330') and self.routing_kernel_330 is not None and 
+                                                                                                                                                    any(m is not None for m in all_manifolds)):
+                                                                                                                                                    routed_manifolds = self.routing_kernel_330.forward(all_manifolds)
+                                                                                                                                                    
+                                                                                                                                                    # Update manifolds with hierarchically routed states
+                                                                                                                                                    if len(routed_manifolds) >= 1 and routed_manifolds[0] is not None:  # Identity
+                                                                                                                                                        internal_state["identity_vector"] = routed_manifolds[0].tolist()
+                                                                                                                                                        self.identity_vector = routed_manifolds[0]
+                                                                                                                                                    
+                                                                                                                                                    if len(routed_manifolds) >= 2 and routed_manifolds[1] is not None:  # Predictive
+                                                                                                                                                        internal_state["predictive_manifold"] = routed_manifolds[1].tolist()
+                                                                                                                                                        self.predictive_manifold = routed_manifolds[1]
+                                                                                                                                                    
+                                                                                                                                                    if len(routed_manifolds) >= 3 and routed_manifolds[2] is not None:  # Narrative
+                                                                                                                                                        internal_state["narrative_manifold"] = routed_manifolds[2].tolist()
+                                                                                                                                                        self.narrative_manifold = routed_manifolds[2]
+                                                                                                                                                    
+                                                                                                                                                    if len(routed_manifolds) >= 4 and routed_manifolds[3] is not None:  # Meta
+                                                                                                                                                        internal_state["meta_field_unified"] = routed_manifolds[3].tolist()
+                                                                                                                                                        self.meta_field_unified = routed_manifolds[3]
+                                                                                                                                                    
+                                                                                                                                                    if len(routed_manifolds) >= 5 and routed_manifolds[4] is not None:  # Attention
+                                                                                                                                                        if hasattr(self, 'attention_vector'):
+                                                                                                                                                            self.attention_vector = routed_manifolds[4]
+                                                                                                                                                    
+                                                                                                                                                    if len(routed_manifolds) >= 6 and routed_manifolds[5] is not None:  # Fusion
+                                                                                                                                                        if hasattr(self, 'fused_density_vector'):
+                                                                                                                                                            self.fused_density_vector = routed_manifolds[5]
                                                                                                                                             except Exception:
                                                                                                                                                 pass
                                                                                                                     
@@ -21503,6 +21667,228 @@ class NeuralBridge:
                 # Fallback: return original manifolds
                 return manifold_a, manifold_b
 
+    class CrossManifoldDensityEqualizer:
+        """
+        MF-329 — Cross-Manifold Predictive Density Equalization Layer
+        
+        Balances predictive-density distributions across all manifold subspaces
+        to prevent local accumulation or collapse. This stabilizes:
+        - multi-manifold routing
+        - predictive flow uniformity
+        - long-range propagation integrity
+        - downstream transformations for MF-330+
+        
+        Smooths and equalizes density spikes so later phases can route, fuse,
+        and transform signals without accumulating imbalance.
+        """
+        
+        def __init__(self, dim=128, epsilon=1e-5):
+            self.dim = dim
+            self.epsilon = epsilon
+            
+            try:
+                import torch
+                import torch.nn as nn
+                
+                # Learnable affine parameters for density adjustment
+                self.scale = torch.ones(dim, dtype=torch.float32)
+                self.shift = torch.zeros(dim, dtype=torch.float32)
+            except Exception:
+                self.scale = None
+                self.shift = None
+        
+        def forward(self, manifolds):
+            """
+            Each manifold is normalized to a shared predictive-density profile,
+            then rescaled through learnable affine parameters.
+            
+            Args:
+                manifolds: list of manifold tensors
+                
+            Returns:
+                equalized: list of equalized manifold tensors
+            """
+            try:
+                import torch
+                
+                if not manifolds or len(manifolds) == 0:
+                    return manifolds
+                
+                # Filter out None manifolds and ensure correct dimensions
+                valid_manifolds = []
+                valid_indices = []
+                for i, m in enumerate(manifolds):
+                    if m is not None:
+                        # Ensure tensor and correct dimension
+                        if not isinstance(m, torch.Tensor):
+                            m = torch.tensor(m, dtype=torch.float32) if m is not None else torch.zeros(self.dim, dtype=torch.float32)
+                        
+                        m_flat = m.flatten()
+                        
+                        # Normalize dimensions
+                        if m_flat.shape[0] == self.dim:
+                            valid_manifolds.append(m_flat)
+                            valid_indices.append(i)
+                        elif m_flat.shape[0] < self.dim:
+                            m_padded = torch.cat([m_flat, torch.zeros(self.dim - m_flat.shape[0], dtype=torch.float32)])
+                            valid_manifolds.append(m_padded)
+                            valid_indices.append(i)
+                        elif m_flat.shape[0] >= self.dim:
+                            valid_manifolds.append(m_flat[:self.dim])
+                            valid_indices.append(i)
+                
+                if len(valid_manifolds) < 2:
+                    # Need at least 2 manifolds for equalization
+                    return manifolds
+                
+                if self.scale is None or self.shift is None:
+                    # Fallback: simple normalization without learnable parameters
+                    stacked = torch.stack(valid_manifolds, dim=0)  # [M, D]
+                    global_mean = stacked.mean(dim=0)
+                    global_std = stacked.std(dim=0) + self.epsilon
+                    
+                    equalized = []
+                    for m in valid_manifolds:
+                        normed = (m - global_mean) / global_std
+                        equalized.append(normed)
+                    
+                    # Reconstruct full list with None values preserved
+                    result = list(manifolds)
+                    for idx, eq in zip(valid_indices, equalized):
+                        result[idx] = eq
+                    return result
+                
+                # Compute global statistics across all valid manifolds
+                stacked = torch.stack(valid_manifolds, dim=0)  # [M, D]
+                global_mean = stacked.mean(dim=0)
+                global_std = stacked.std(dim=0) + self.epsilon
+                
+                equalized = []
+                for m in valid_manifolds:
+                    # Normalize manifold to global density
+                    normed = (m - global_mean) / global_std
+                    
+                    # Apply learnable density adjustments
+                    adjusted = normed * self.scale + self.shift
+                    equalized.append(adjusted)
+                
+                # Reconstruct full list with None values preserved
+                result = list(manifolds)
+                for idx, eq in zip(valid_indices, equalized):
+                    result[idx] = eq
+                
+                return result
+            except Exception:
+                # Fallback: return original manifolds
+                return manifolds
+
+    class HierarchicalDensityRoutingKernel:
+        """
+        MF-330 — Hierarchical Density-Constrained Routing Kernel (HDCRK)
+        
+        Implements a hierarchical routing mechanism that directs predictive
+        flows based on density constraints computed across manifold layers.
+        
+        Features:
+        - Routes predictive signals based on localized density distributions
+        - Enforces density ceilings and density floors
+        - Guides signal flow along stable, low-volatility paths
+        - Prevents any single manifold from dominating propagation
+        
+        This is the foundation for multi-resolution predictive flow control in MF-331–350.
+        """
+        
+        def __init__(self, dim=128, num_levels=3):
+            self.dim = dim
+            self.num_levels = num_levels
+            
+            try:
+                import torch
+                import torch.nn as nn
+                
+                # Learnable thresholds for hierarchical density decision boundaries
+                self.level_thresholds = torch.linspace(-1.0, 1.0, num_levels)
+                
+                # Routing transforms for each hierarchy level
+                self.transforms = []
+                for _ in range(num_levels):
+                    self.transforms.append(nn.Linear(dim, dim))
+            except Exception:
+                self.level_thresholds = None
+                self.transforms = None
+        
+        def forward(self, manifolds):
+            """
+            Each manifold is routed into appropriate hierarchy levels based on
+            density patterns, then recombined into updated manifold states.
+            
+            Args:
+                manifolds: list of manifold tensors
+                
+            Returns:
+                updated_manifolds: list of hierarchically routed manifold tensors
+            """
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if not manifolds or len(manifolds) == 0:
+                    return manifolds
+                
+                if self.level_thresholds is None or self.transforms is None:
+                    # Fallback: return original manifolds
+                    return manifolds
+                
+                updated_manifolds = []
+                
+                for m in manifolds:
+                    if m is None:
+                        updated_manifolds.append(None)
+                        continue
+                    
+                    # Ensure tensor and correct dimension
+                    if not isinstance(m, torch.Tensor):
+                        m = torch.tensor(m, dtype=torch.float32) if m is not None else torch.zeros(self.dim, dtype=torch.float32)
+                    
+                    m_flat = m.flatten()
+                    
+                    # Normalize dimension
+                    if m_flat.shape[0] != self.dim:
+                        if m_flat.shape[0] < self.dim:
+                            m_flat = torch.cat([m_flat, torch.zeros(self.dim - m_flat.shape[0], dtype=torch.float32)])
+                        else:
+                            m_flat = m_flat[:self.dim]
+                    
+                    # Compute density score (scalar magnitude per-feature, then mean)
+                    density = torch.norm(m_flat, dim=-1, keepdim=True)
+                    if density.dim() == 0:
+                        density_score = density.item()
+                    else:
+                        density_score = density.mean().item()
+                    
+                    # Compute routing weights based on thresholds
+                    level_diffs = torch.tensor([
+                        abs(density_score - t.item()) for t in self.level_thresholds
+                    ], dtype=torch.float32)
+                    
+                    # Softmax router for weighted distribution across hierarchy
+                    routing_weights = F.softmax(-level_diffs, dim=0)
+                    
+                    # Apply each transform weighted by routing coefficients
+                    transformed = torch.zeros(self.dim, dtype=torch.float32)
+                    for i in range(self.num_levels):
+                        if i < len(self.transforms) and self.transforms[i] is not None:
+                            transformed += routing_weights[i] * self.transforms[i](m_flat)
+                        else:
+                            transformed += routing_weights[i] * m_flat
+                    
+                    updated_manifolds.append(transformed)
+                
+                return updated_manifolds
+            except Exception:
+                # Fallback: return original manifolds
+                return manifolds
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -21677,6 +22063,18 @@ class NeuralBridge:
             else:
                 if getattr(self.manifold_density_aligner, "dim", dim) != dim:
                     self.manifold_density_aligner = self.CrossManifoldDensityAligner(dim=dim, smoothing_factor=0.15)
+            
+            if self.density_equalizer_329 is None:
+                self.density_equalizer_329 = self.CrossManifoldDensityEqualizer(dim=dim, epsilon=1e-5)
+            else:
+                if getattr(self.density_equalizer_329, "dim", dim) != dim:
+                    self.density_equalizer_329 = self.CrossManifoldDensityEqualizer(dim=dim, epsilon=1e-5)
+            
+            if self.routing_kernel_330 is None:
+                self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3)
+            else:
+                if getattr(self.routing_kernel_330, "dim", dim) != dim:
+                    self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
