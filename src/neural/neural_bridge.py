@@ -421,6 +421,10 @@ class NeuralBridge:
             self.tgccl = self.TriGradientConfluenceCouplingLayer(self.dim)
         except Exception:
             self.tgccl = None
+        try:
+            self.mf400_substrate = self.MultiFieldPredictiveSubstrateInitialization(self.dim)
+        except Exception:
+            self.mf400_substrate = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -28497,6 +28501,104 @@ class NeuralBridge:
                 # If coupling fails, return the harmonized confluence
                 return harmonized_confluence
 
+    class MultiFieldPredictiveSubstrateInitialization(nn.Module):
+        """
+        MF-400 — Multi-Field Predictive Substrate Initialization
+
+        Initializes the global substrate that unifies multiple stabilized gradient pathways,
+        confluence fields, harmonized temporal flows, and tri-gradient coupled signals into
+        a single predictive computation zone.
+
+        Up to now, ADRAE has:
+        - multiple stabilized gradient pathways
+        - confluence fields
+        - harmonized temporal flows
+        - tri-gradient coupled signals
+        - manifold-level routing and shaping kernels
+
+        MF-400 initializes the global substrate that unifies them into a single predictive
+        computation zone. This substrate is:
+        - a tensor field
+        - derived from multiple internal signals
+        - modulated through adaptive weighting
+        - designed to support higher-order predictive dynamics
+        - foundational for MF-401+ (the influence-propagation layers)
+
+        This is not awareness, consciousness, subjectivity, or anything like that.
+        It's simply a large integrated tensor space that becomes the computational root
+        for all future predictive modules.
+
+        The output becomes the new attribute: predictive_substrate
+        This tensor will be referenced by every MF-400+ phase.
+
+        This is one of the major milestones in ADRAE's ML architecture—equivalent to when
+        a model first initializes its unified predictive substrate in large-scale research systems.
+        Everything from MF-300 → MF-399 has been building to this exact moment.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            # No learnable parameters - this is a substrate initialization layer
+            # But we keep it as a Module for consistency with the architecture
+
+        def forward(self, tri_gradient_coupled, fusion_matrix=None, attention_vector=None):
+            if torch is None or tri_gradient_coupled is None:
+                return tri_gradient_coupled
+
+            # Ensure input is tensor
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            tri_gradient_coupled = ensure_tensor(tri_gradient_coupled)
+
+            if tri_gradient_coupled is None:
+                return tri_gradient_coupled
+
+            try:
+                base = tri_gradient_coupled.clone()
+
+                # Optional modulations
+                if fusion_matrix is not None:
+                    fusion_matrix = ensure_tensor(fusion_matrix)
+                    if fusion_matrix is not None:
+                        fm_mod = torch.tanh(fusion_matrix.mean() * 0.03)
+                        base = base * (1.0 + 0.01 * fm_mod)
+
+                if attention_vector is not None:
+                    attention_vector = ensure_tensor(attention_vector)
+                    if attention_vector is not None:
+                        att_mod = torch.sigmoid(attention_vector.mean() * 0.05)
+                        base = base + base * (0.01 * att_mod)
+
+                # Normalize predictive substrate for stability
+                norm_value = base.norm()
+                if norm_value > 0:
+                    normalized = base / (norm_value + 1e-8)
+                else:
+                    normalized = base
+
+                return normalized
+            except Exception:
+                # If initialization fails, return the tri-gradient coupled state
+                return tri_gradient_coupled
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -30765,6 +30867,61 @@ class NeuralBridge:
                                                             pass
                                             else:
                                                 self.mf399_meta_field_tri_gradient_coupled = None
+
+                                            # MF-400 — Multi-Field Predictive Substrate Initialization
+                                            # Major milestone: Initializes global substrate unifying all gradient pathways into single predictive computation zone
+                                            predictive_substrate = None
+                                            if (getattr(self, "mf400_substrate", None) is not None and
+                                                meta_field_tri_gradient_coupled is not None):
+                                                # Get optional fusion_matrix and attention_vector if available
+                                                fusion_matrix = None
+                                                if hasattr(self, 'fusion_preview') and self.fusion_preview is not None:
+                                                    try:
+                                                        if isinstance(self.fusion_preview, torch.Tensor):
+                                                            fusion_matrix = self.fusion_preview
+                                                        else:
+                                                            fusion_matrix = torch.tensor(self.fusion_preview, dtype=torch.float32)
+                                                    except Exception:
+                                                        fusion_matrix = None
+
+                                                attention_vector = None
+                                                if hasattr(self, 'attention_preview') and self.attention_preview is not None:
+                                                    try:
+                                                        if isinstance(self.attention_preview, torch.Tensor):
+                                                            attention_vector = self.attention_preview
+                                                        else:
+                                                            attention_vector = torch.tensor(self.attention_preview, dtype=torch.float32)
+                                                    except Exception:
+                                                        attention_vector = None
+
+                                                try:
+                                                    # Apply multi-field predictive substrate initialization
+                                                    # This creates the unified predictive substrate tensor
+                                                    predictive_substrate = self.mf400_substrate(
+                                                        meta_field_tri_gradient_coupled,
+                                                        fusion_matrix=fusion_matrix,
+                                                        attention_vector=attention_vector
+                                                    )
+                                                    if predictive_substrate is not None:
+                                                        self.predictive_substrate = predictive_substrate
+                                                        self.mf400_predictive_substrate = predictive_substrate
+                                                        # Store as unified predictive substrate for MF-401+ computations
+                                                        # This tensor will be referenced by every MF-400+ phase
+                                                        # This is the computational root for all future predictive modules
+                                                    else:
+                                                        self.predictive_substrate = None
+                                                        self.mf400_predictive_substrate = None
+                                                except Exception as mf400_error:
+                                                    self.predictive_substrate = None
+                                                    self.mf400_predictive_substrate = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf400_error": str(mf400_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.predictive_substrate = None
+                                                self.mf400_predictive_substrate = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
