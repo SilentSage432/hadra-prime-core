@@ -255,6 +255,10 @@ class NeuralBridge:
             self.pcel = self.PredictiveCascadeExpansionLayer(self.dim, branches=4)
         except Exception:
             self.pcel = None
+        try:
+            self.pcif = self.PredictiveCascadeInteractionField(self.dim)
+        except Exception:
+            self.pcif = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -24771,6 +24775,67 @@ class NeuralBridge:
 
             return stabilized
 
+    class PredictiveCascadeInteractionField(nn.Module):
+        """
+        MF-361 — Predictive Cascade Interaction Field (PCIF)
+
+        Establishes an interaction matrix between predictive cascade branches,
+        applies gating from confluence/harmonic/routing states,
+        and returns a stabilized interaction vector.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+
+            if torch is None or not hasattr(nn, "Linear"):
+                self.interaction = None
+                self.harmonic_gate = None
+                self.confluence_gate = None
+                self.routing_gate = None
+                self.merge = None
+                self.norm = None
+                return
+
+            # Interaction matrix
+            self.interaction = nn.Linear(dim, dim)
+
+            # Conditioning gates
+            self.harmonic_gate = nn.Linear(dim, dim)
+            self.confluence_gate = nn.Linear(dim, dim)
+            self.routing_gate = nn.Linear(dim, dim)
+
+            # Stabilization components
+            self.merge = nn.Linear(dim, dim)
+            self.norm = nn.LayerNorm(dim)
+
+        def forward(self, cascade_expansion, harmonic_state, confluence_state, routing_state):
+            if (torch is None or
+                self.interaction is None or
+                self.harmonic_gate is None or
+                self.confluence_gate is None or
+                self.routing_gate is None or
+                self.merge is None or
+                self.norm is None):
+                return cascade_expansion
+
+            # Initial interaction transform
+            interacted = torch.relu(self.interaction(cascade_expansion))
+
+            # Gating signals
+            h_gate = torch.sigmoid(self.harmonic_gate(harmonic_state))
+            c_gate = torch.sigmoid(self.confluence_gate(confluence_state))
+            r_gate = torch.sigmoid(self.routing_gate(routing_state))
+
+            # Apply conditioning
+            conditioned = interacted * h_gate * c_gate * r_gate
+
+            # Merge + stabilize output
+            merged = self.merge(conditioned)
+            stabilized = self.norm(torch.tanh(merged))
+
+            return stabilized
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -25818,6 +25883,28 @@ class NeuralBridge:
                                                                 if hasattr(self, 'logger'):
                                                                     try:
                                                                         self.logger.write({"mf360_error": str(pcel_error)})
+                                                                    except Exception:
+                                                                        pass
+
+                                                            # MF-361 — Predictive Cascade Interaction Field
+                                                            try:
+                                                                if getattr(self, "pcif", None) is not None and internal_states.get("cascade_expansion") is not None:
+                                                                    pcif_out = self.pcif(
+                                                                        internal_states["cascade_expansion"],
+                                                                        internal_states["harmonic_state"],
+                                                                        internal_states["confluence_state"],
+                                                                        internal_states["routing_state"]
+                                                                    )
+                                                                    internal_states["cascade_interaction"] = pcif_out
+                                                                    primary_state = primary_state + pcif_out * 0.025
+                                                                    self.mf361_cascade_interaction_output = pcif_out
+                                                                else:
+                                                                    self.mf361_cascade_interaction_output = None
+                                                            except Exception as pcif_error:
+                                                                self.mf361_cascade_interaction_output = None
+                                                                if hasattr(self, 'logger'):
+                                                                    try:
+                                                                        self.logger.write({"mf361_error": str(pcif_error)})
                                                                     except Exception:
                                                                         pass
 
