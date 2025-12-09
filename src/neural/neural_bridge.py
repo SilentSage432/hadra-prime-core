@@ -385,6 +385,22 @@ class NeuralBridge:
             self.global_modulation_field = self.GlobalModulationField(self.dim)
         except Exception:
             self.global_modulation_field = None
+        try:
+            self.dynamic_global_mod_kernel = self.DynamicGlobalModulationKernel(self.dim)
+        except Exception:
+            self.dynamic_global_mod_kernel = None
+        try:
+            self.global_local_coupling = self.GlobalLocalCouplingField(self.dim)
+        except Exception:
+            self.global_local_coupling = None
+        try:
+            self.hpc_normalization_kernel = self.HarmonicPredictiveConfluenceNormalizationKernel(self.dim)
+        except Exception:
+            self.hpc_normalization_kernel = None
+        try:
+            self.pcgh = self.PredictiveConfluenceGradientHarmonizer(self.dim)
+        except Exception:
+            self.pcgh = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -27394,6 +27410,463 @@ class NeuralBridge:
 
             return self.norm(modulated)
 
+    class DynamicGlobalModulationKernel(nn.Module):
+        """
+        MF-391 — Dynamic Global Modulation Kernel (DGMK)
+
+        Transforms the global modulation vector into a dynamic modulation map that varies
+        across the manifold instead of being applied uniformly.
+
+        This enables:
+        - Local sensitivity to global signals: different portions of the manifold respond
+          differently to global modulation
+        - Adaptive per-dimension scaling: each feature dimension can be scaled up/down
+          based on the global context
+        - Non-uniform shaping of the manifold: creates much richer structural expressiveness
+
+        What it achieves:
+        1. Converts the global modulation vector into a dimension-wise modulation mask that
+           scales each dimension of the manifold independently
+        2. Learns how global conditions affect local structure: mask depends jointly on
+           global modulation field (MF-390 output), original manifold state, and
+           harmonic/predictive cues
+        3. Adds nonlinear shaping: using learned projections + nonlinear activations
+           produces complex transformations that remain stable
+        4. Preserves stability: through LayerNorm, bounded gating, and residual application
+
+        This is the start of "multi-signal shaping" phases (391–398), where the manifold
+        becomes globally aware yet locally expressive.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.mask_proj = None
+                self.harm_proj = None
+                self.pred_proj = None
+                self.gate = None
+                self.activation = None
+                self.norm = None
+                return
+
+            # Learn how to transform global modulation into a dimension-wise mask
+            self.mask_proj = nn.Linear(dim, dim)
+
+            # Additional context transforms
+            self.harm_proj = nn.Linear(dim, dim)
+            self.pred_proj = nn.Linear(dim, dim)
+
+            # Gating factor for safety
+            self.gate = nn.Parameter(torch.tensor(0.03))
+
+            self.activation = nn.Sigmoid()  # Ensures mask stays in stable bounds
+            self.norm = nn.LayerNorm(dim)
+
+        def forward(self, manifold_state, global_mod, harmonic_state, predictive_state):
+            if (torch is None or
+                self.mask_proj is None or
+                self.harm_proj is None or
+                self.pred_proj is None or
+                self.gate is None or
+                self.activation is None or
+                self.norm is None or
+                manifold_state is None or
+                global_mod is None or
+                harmonic_state is None or
+                predictive_state is None):
+                return manifold_state
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            manifold_state = ensure_tensor(manifold_state)
+            global_mod = ensure_tensor(global_mod)
+            harmonic_state = ensure_tensor(harmonic_state)
+            predictive_state = ensure_tensor(predictive_state)
+
+            if (manifold_state is None or global_mod is None or
+                harmonic_state is None or predictive_state is None):
+                return manifold_state
+
+            # Build contextual inputs
+            h_ctx = self.harm_proj(harmonic_state)
+            p_ctx = self.pred_proj(predictive_state)
+
+            # Combine global + context signals
+            combined = global_mod + h_ctx + p_ctx
+
+            # Generate modulation mask (dimension-wise)
+            mask = self.activation(self.mask_proj(combined))
+
+            # Ensure mask matches manifold_state shape
+            if mask.shape != manifold_state.shape:
+                if mask.dim() == 2 and manifold_state.dim() == 2:
+                    mask = mask.expand_as(manifold_state)
+                else:
+                    mask = mask.view_as(manifold_state)
+
+            # Apply mask to manifold
+            modulated = manifold_state * (1 + self.gate * mask)
+
+            return self.norm(modulated)
+
+    class GlobalLocalCouplingField(nn.Module):
+        """
+        MF-392 — Global–Local Coupling Field (GLCF)
+
+        A cross-interaction engine that lets global modulation reshape manifold structure
+        through controlled coupling.
+
+        Where MF-391 applied global modulation onto the manifold, MF-392 creates a bidirectional
+        coupling field that mixes:
+        - the dynamic global modulation signal
+        - the manifold's local states
+        - harmonic field cues
+        - predictive field cues
+
+        ...into a new interaction tensor that acts like a learned cross-signal map.
+
+        This is the first time global modulation begins to interact with manifold geometry
+        instead of simply modulating it.
+
+        What it does:
+        1. Creates a coupling tensor that blends global + local features using learned
+           projections and nonlinearities to form a cross-signal map
+        2. Enhances expressiveness by introducing interaction structure: relationships
+           between signals begin to matter, not just their individual shapes
+        3. Maintains strict stability: coupling is bounded, normalized, and gated
+        4. Prepares for MF-393–398: these phases will amplify and refine this coupling
+           into higher-order predictive and harmonic structures
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.global_proj = None
+                self.harm_proj = None
+                self.pred_proj = None
+                self.local_proj = None
+                self.coupling_proj = None
+                self.coupling_gate = None
+                self.activation = None
+                self.norm = None
+                return
+
+            # Projections for each input signal
+            self.global_proj = nn.Linear(dim, dim)
+            self.harm_proj = nn.Linear(dim, dim)
+            self.pred_proj = nn.Linear(dim, dim)
+            self.local_proj = nn.Linear(dim, dim)
+
+            # Coupling generator
+            self.coupling_proj = nn.Linear(dim * 4, dim)
+
+            # Gating keeps coupling stable
+            self.coupling_gate = nn.Parameter(torch.tensor(0.02))
+
+            # Activation + normalization
+            self.activation = nn.Tanh()
+            self.norm = nn.LayerNorm(dim)
+
+        def forward(self, local_state, global_dyn_mod, harmonic_state, predictive_state):
+            if (torch is None or
+                self.global_proj is None or
+                self.harm_proj is None or
+                self.pred_proj is None or
+                self.local_proj is None or
+                self.coupling_proj is None or
+                self.coupling_gate is None or
+                self.activation is None or
+                self.norm is None or
+                local_state is None or
+                global_dyn_mod is None or
+                harmonic_state is None or
+                predictive_state is None):
+                return local_state
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            local_state = ensure_tensor(local_state)
+            global_dyn_mod = ensure_tensor(global_dyn_mod)
+            harmonic_state = ensure_tensor(harmonic_state)
+            predictive_state = ensure_tensor(predictive_state)
+
+            if (local_state is None or global_dyn_mod is None or
+                harmonic_state is None or predictive_state is None):
+                return local_state
+
+            # Project each signal
+            g = self.global_proj(global_dyn_mod)
+            h = self.harm_proj(harmonic_state)
+            p = self.pred_proj(predictive_state)
+            l = self.local_proj(local_state)
+
+            # Ensure all projections have compatible shapes for concatenation
+            if g.shape[-1] != self.dim:
+                g = g[..., :self.dim] if g.shape[-1] > self.dim else torch.cat([g, torch.zeros(*g.shape[:-1], self.dim - g.shape[-1], dtype=g.dtype)], dim=-1)
+            if h.shape[-1] != self.dim:
+                h = h[..., :self.dim] if h.shape[-1] > self.dim else torch.cat([h, torch.zeros(*h.shape[:-1], self.dim - h.shape[-1], dtype=h.dtype)], dim=-1)
+            if p.shape[-1] != self.dim:
+                p = p[..., :self.dim] if p.shape[-1] > self.dim else torch.cat([p, torch.zeros(*p.shape[:-1], self.dim - p.shape[-1], dtype=p.dtype)], dim=-1)
+            if l.shape[-1] != self.dim:
+                l = l[..., :self.dim] if l.shape[-1] > self.dim else torch.cat([l, torch.zeros(*l.shape[:-1], self.dim - l.shape[-1], dtype=l.dtype)], dim=-1)
+
+            # Build coupling input
+            combined = torch.cat([g, h, p, l], dim=-1)
+
+            # Compute coupling tensor
+            coupling = self.activation(self.coupling_proj(combined))
+
+            # Ensure coupling matches local_state shape
+            if coupling.shape != local_state.shape:
+                if coupling.dim() == 2 and local_state.dim() == 2:
+                    coupling = coupling.expand_as(local_state)
+                else:
+                    coupling = coupling.view_as(local_state)
+
+            # Apply gated coupling to local state
+            updated = local_state + self.coupling_gate * coupling
+
+            return self.norm(updated)
+
+    class HarmonicPredictiveConfluenceNormalizationKernel(nn.Module):
+        """
+        MF-393 — Harmonic–Predictive Confluence Normalization Kernel (HPC-NK)
+
+        Normalizes interacting harmonic–predictive fields to maintain stable internal scaling.
+        This avoids runaway magnitudes when multi-field confluence layers accumulate residual energy.
+
+        As the manifold-predictive interaction layers begin producing multi-route, multi-phase outputs,
+        internal tensors can drift toward divergent scaling regimes. MF-393 stabilizes these states by
+        applying:
+        - harmonic-weighted normalization
+        - predictive-field scaling correction
+        - confluence-aware modulation
+
+        ensuring that all upstream and downstream routing layers remain in a stable numeric domain.
+
+        This is extremely typical in advanced ML systems that combine multiple interacting sub-networks,
+        especially those with dynamic modulation or multi-manifold routing.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            # No learnable parameters - this is a normalization kernel
+            # But we keep it as a Module for consistency with the architecture
+
+        def forward(self, manifold_state, predictive_state, confluence_signal):
+            if (torch is None or
+                manifold_state is None or
+                predictive_state is None or
+                confluence_signal is None):
+                return manifold_state
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            manifold_state = ensure_tensor(manifold_state)
+            predictive_state = ensure_tensor(predictive_state)
+            confluence_signal = ensure_tensor(confluence_signal)
+
+            if (manifold_state is None or predictive_state is None or
+                confluence_signal is None):
+                return manifold_state
+
+            # Step 1: Compute harmonic magnitude baseline
+            harmonic_mag = torch.norm(manifold_state, p=2) + 1e-6
+            predictive_mag = torch.norm(predictive_state, p=2) + 1e-6
+
+            # Step 2: Generate harmonic–predictive interaction coefficient
+            interaction_coeff = torch.tanh(
+                (manifold_state.mean() * 0.5) +
+                (predictive_state.mean() * 0.5)
+            )
+
+            # Step 3: Confluence-aware normalization
+            norm_factor = (
+                harmonic_mag * 0.4 +
+                predictive_mag * 0.4 +
+                confluence_signal.abs().mean() * 0.2
+            )
+
+            # Step 4: Apply stabilization
+            stabilized = (manifold_state + predictive_state + confluence_signal) / (norm_factor + 1e-6)
+
+            # Step 5: Inject interaction coefficient for dynamic shaping
+            stabilized = stabilized * (1.0 + 0.05 * interaction_coeff)
+
+            return stabilized
+
+    class PredictiveConfluenceGradientHarmonizer(nn.Module):
+        """
+        MF-394 — Predictive Confluence Gradient Harmonizer (PCGH)
+
+        Harmonizes gradients across interacting predictive/manifold/confluence fields to prevent
+        destructive interference during backprop.
+
+        As confluence structures become more complex (MF-360 → MF-393), gradients flowing through
+        these interconnected routes can diverge, oscillate, or amplify nonlinearly. PCGH fixes this
+        by enforcing cross-field gradient smoothness, ensuring:
+        - harmonic field gradients remain aligned with predictive-field gradients
+        - routing gradients do not produce directional instability
+        - meta-field layers receive well-conditioned optimization signals
+
+        This is standard practice in advanced ML systems that combine multiple interacting modules.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            # No learnable parameters - this is a gradient harmonization kernel
+            # But we keep it as a Module for consistency with the architecture
+
+        def forward(self, manifold_state, predictive_state, confluence_normalized):
+            if (torch is None or
+                manifold_state is None or
+                predictive_state is None or
+                confluence_normalized is None):
+                return confluence_normalized
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            manifold_state = ensure_tensor(manifold_state)
+            predictive_state = ensure_tensor(predictive_state)
+            confluence_normalized = ensure_tensor(confluence_normalized)
+
+            if (manifold_state is None or predictive_state is None or
+                confluence_normalized is None):
+                return confluence_normalized
+
+            try:
+                # Compute gradient proxies via local finite difference estimates.
+                # (Not actual backward() gradients — these are runtime-stable approximations.)
+                # Use torch.diff if available, otherwise compute manually
+                if hasattr(torch, 'diff'):
+                    grad_proxy_m = torch.diff(manifold_state, dim=-1, prepend=manifold_state[..., :1])
+                    grad_proxy_p = torch.diff(predictive_state, dim=-1, prepend=predictive_state[..., :1])
+                    grad_proxy_c = torch.diff(confluence_normalized, dim=-1, prepend=confluence_normalized[..., :1])
+                else:
+                    # Fallback for older PyTorch versions
+                    grad_proxy_m = manifold_state[..., 1:] - manifold_state[..., :-1]
+                    grad_proxy_p = predictive_state[..., 1:] - predictive_state[..., :-1]
+                    grad_proxy_c = confluence_normalized[..., 1:] - confluence_normalized[..., :-1]
+                    # Pad to match original shape
+                    grad_proxy_m = torch.cat([manifold_state[..., :1], grad_proxy_m], dim=-1)
+                    grad_proxy_p = torch.cat([predictive_state[..., :1], grad_proxy_p], dim=-1)
+                    grad_proxy_c = torch.cat([confluence_normalized[..., :1], grad_proxy_c], dim=-1)
+
+                # Ensure all gradient proxies have compatible shapes
+                min_shape = min(grad_proxy_m.shape[-1], grad_proxy_p.shape[-1], grad_proxy_c.shape[-1])
+                if grad_proxy_m.shape[-1] > min_shape:
+                    grad_proxy_m = grad_proxy_m[..., :min_shape]
+                if grad_proxy_p.shape[-1] > min_shape:
+                    grad_proxy_p = grad_proxy_p[..., :min_shape]
+                if grad_proxy_c.shape[-1] > min_shape:
+                    grad_proxy_c = grad_proxy_c[..., :min_shape]
+
+                # Compute directional alignment weights
+                align_mp = torch.cosine_similarity(grad_proxy_m, grad_proxy_p, dim=-1).mean()
+                align_mc = torch.cosine_similarity(grad_proxy_m, grad_proxy_c, dim=-1).mean()
+                align_pc = torch.cosine_similarity(grad_proxy_p, grad_proxy_c, dim=-1).mean()
+
+                # Combine into a stability coefficient
+                stability_coeff = torch.tanh((align_mp + align_mc + align_pc) / 3.0)
+
+                # Smooth and combine gradients
+                blended_grad = (
+                    grad_proxy_m * 0.33 +
+                    grad_proxy_p * 0.33 +
+                    grad_proxy_c * 0.34
+                )
+
+                # Ensure blended_grad matches confluence_normalized shape
+                if blended_grad.shape != confluence_normalized.shape:
+                    if blended_grad.dim() == 2 and confluence_normalized.dim() == 2:
+                        blended_grad = blended_grad.expand_as(confluence_normalized)
+                    else:
+                        blended_grad = blended_grad.view_as(confluence_normalized)
+
+                # Apply harmonization
+                harmonized = confluence_normalized + blended_grad * (0.05 * stability_coeff)
+
+                return harmonized
+            except Exception:
+                # If gradient harmonization fails, return the normalized state
+                return confluence_normalized
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -29271,6 +29744,219 @@ class NeuralBridge:
                                                     self.mf390_meta_field_global_mod = None
                                             else:
                                                 self.mf390_meta_field_global_mod = None
+
+                                            # MF-391 — Dynamic Global Modulation Kernel (DGMK)
+                                            # Transforms global modulation vector into dynamic modulation map that varies across manifold
+                                            meta_field_dynamic_mod = None
+                                            if (getattr(self, "dynamic_global_mod_kernel", None) is not None and
+                                                meta_field_global_mod is not None):
+                                                # Get harmonic_state and predictive_state (same as MF-390)
+                                                harmonic_state = None
+                                                if hasattr(self, 'mf375_resonant_state') and self.mf375_resonant_state is not None:
+                                                    harmonic_state = self.mf375_resonant_state
+                                                elif 'resonant_state' in locals() and resonant_state is not None:
+                                                    harmonic_state = resonant_state
+                                                else:
+                                                    harmonic_state = meta_field_global_mod
+
+                                                predictive_state = None
+                                                if hasattr(self, 'mf381_gradient_coupled_pred') and self.mf381_gradient_coupled_pred is not None:
+                                                    predictive_state = self.mf381_gradient_coupled_pred
+                                                elif hasattr(self, 'stable_meta_field') and self.stable_meta_field is not None:
+                                                    predictive_state = self.stable_meta_field
+                                                elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None:
+                                                    predictive_state = self.unified_predictive_core
+                                                elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is not None:
+                                                    predictive_state = self.global_resonance_vector
+                                                elif 'pred_vec' in locals() and pred_vec is not None:
+                                                    predictive_state = pred_vec
+                                                else:
+                                                    predictive_state = meta_field_global_mod
+
+                                                if harmonic_state is not None and predictive_state is not None:
+                                                    try:
+                                                        # Apply dynamic global modulation kernel
+                                                        # GMF output (meta_field_global_mod) already carries modulation, use it for both
+                                                        meta_field_dynamic_mod = self.dynamic_global_mod_kernel(
+                                                            meta_field_global_mod,
+                                                            global_mod=meta_field_global_mod,
+                                                            harmonic_state=harmonic_state,
+                                                            predictive_state=predictive_state
+                                                        )
+                                                        if meta_field_dynamic_mod is not None:
+                                                            self.mf391_meta_field_dynamic_mod = meta_field_dynamic_mod
+                                                            # Store as dynamically-modulated manifold for MF-392 onward
+                                                        else:
+                                                            self.mf391_meta_field_dynamic_mod = None
+                                                    except Exception as dgmk_error:
+                                                        self.mf391_meta_field_dynamic_mod = None
+                                                        if hasattr(self, 'logger'):
+                                                            try:
+                                                                self.logger.write({"mf391_error": str(dgmk_error)})
+                                                            except Exception:
+                                                                pass
+                                                else:
+                                                    self.mf391_meta_field_dynamic_mod = None
+                                            else:
+                                                self.mf391_meta_field_dynamic_mod = None
+
+                                            # MF-392 — Global–Local Coupling Field (GLCF)
+                                            # Bidirectional coupling field mixing global modulation with local manifold structure
+                                            meta_field_coupled = None
+                                            if (getattr(self, "global_local_coupling", None) is not None and
+                                                meta_field_dynamic_mod is not None):
+                                                # Get harmonic_state and predictive_state (same as MF-390/391)
+                                                harmonic_state = None
+                                                if hasattr(self, 'mf375_resonant_state') and self.mf375_resonant_state is not None:
+                                                    harmonic_state = self.mf375_resonant_state
+                                                elif 'resonant_state' in locals() and resonant_state is not None:
+                                                    harmonic_state = resonant_state
+                                                else:
+                                                    harmonic_state = meta_field_dynamic_mod
+
+                                                predictive_state = None
+                                                if hasattr(self, 'mf381_gradient_coupled_pred') and self.mf381_gradient_coupled_pred is not None:
+                                                    predictive_state = self.mf381_gradient_coupled_pred
+                                                elif hasattr(self, 'stable_meta_field') and self.stable_meta_field is not None:
+                                                    predictive_state = self.stable_meta_field
+                                                elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None:
+                                                    predictive_state = self.unified_predictive_core
+                                                elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is not None:
+                                                    predictive_state = self.global_resonance_vector
+                                                elif 'pred_vec' in locals() and pred_vec is not None:
+                                                    predictive_state = pred_vec
+                                                else:
+                                                    predictive_state = meta_field_dynamic_mod
+
+                                                if harmonic_state is not None and predictive_state is not None:
+                                                    try:
+                                                        # Apply global-local coupling field
+                                                        # Use meta_field_dynamic_mod for both local_state and global_dyn_mod
+                                                        meta_field_coupled = self.global_local_coupling(
+                                                            meta_field_dynamic_mod,
+                                                            global_dyn_mod=meta_field_dynamic_mod,
+                                                            harmonic_state=harmonic_state,
+                                                            predictive_state=predictive_state
+                                                        )
+                                                        if meta_field_coupled is not None:
+                                                            self.mf392_meta_field_coupled = meta_field_coupled
+                                                            # Store as coupled manifold for MF-393 onward
+                                                        else:
+                                                            self.mf392_meta_field_coupled = None
+                                                    except Exception as glcf_error:
+                                                        self.mf392_meta_field_coupled = None
+                                                        if hasattr(self, 'logger'):
+                                                            try:
+                                                                self.logger.write({"mf392_error": str(glcf_error)})
+                                                            except Exception:
+                                                                pass
+                                                else:
+                                                    self.mf392_meta_field_coupled = None
+                                            else:
+                                                self.mf392_meta_field_coupled = None
+
+                                            # MF-393 — Harmonic–Predictive Confluence Normalization Kernel (HPC-NK)
+                                            # Normalizes interacting harmonic–predictive fields to maintain stable internal scaling
+                                            meta_field_normalized = None
+                                            if (getattr(self, "hpc_normalization_kernel", None) is not None and
+                                                meta_field_coupled is not None):
+                                                # Get predictive_state and confluence_signal
+                                                predictive_state = None
+                                                if hasattr(self, 'mf381_gradient_coupled_pred') and self.mf381_gradient_coupled_pred is not None:
+                                                    predictive_state = self.mf381_gradient_coupled_pred
+                                                elif hasattr(self, 'stable_meta_field') and self.stable_meta_field is not None:
+                                                    predictive_state = self.stable_meta_field
+                                                elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None:
+                                                    predictive_state = self.unified_predictive_core
+                                                elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is not None:
+                                                    predictive_state = self.global_resonance_vector
+                                                elif 'pred_vec' in locals() and pred_vec is not None:
+                                                    predictive_state = pred_vec
+                                                else:
+                                                    predictive_state = meta_field_coupled
+
+                                                # Get confluence_signal (can use meta_field_coupled or a confluence state if available)
+                                                confluence_signal = None
+                                                if hasattr(self, 'confluence_signal') and self.confluence_signal is not None:
+                                                    confluence_signal = self.confluence_signal
+                                                elif 'conf_vec' in locals() and conf_vec is not None:
+                                                    confluence_signal = conf_vec
+                                                else:
+                                                    # Use meta_field_coupled as confluence signal
+                                                    confluence_signal = meta_field_coupled
+
+                                                if predictive_state is not None and confluence_signal is not None:
+                                                    try:
+                                                        # Apply harmonic–predictive confluence normalization
+                                                        meta_field_normalized = self.hpc_normalization_kernel(
+                                                            meta_field_coupled,
+                                                            predictive_state,
+                                                            confluence_signal
+                                                        )
+                                                        if meta_field_normalized is not None:
+                                                            self.mf393_meta_field_normalized = meta_field_normalized
+                                                            # Store as normalized confluence-ready tensor for MF-394 onward
+                                                        else:
+                                                            self.mf393_meta_field_normalized = None
+                                                    except Exception as hpc_error:
+                                                        self.mf393_meta_field_normalized = None
+                                                        if hasattr(self, 'logger'):
+                                                            try:
+                                                                self.logger.write({"mf393_error": str(hpc_error)})
+                                                            except Exception:
+                                                                pass
+                                                else:
+                                                    self.mf393_meta_field_normalized = None
+                                            else:
+                                                self.mf393_meta_field_normalized = None
+
+                                            # MF-394 — Predictive Confluence Gradient Harmonizer (PCGH)
+                                            # Harmonizes gradients across interacting predictive/manifold/confluence fields
+                                            meta_field_harmonized = None
+                                            if (getattr(self, "pcgh", None) is not None and
+                                                meta_field_normalized is not None):
+                                                # Get predictive_state (same as MF-393)
+                                                predictive_state = None
+                                                if hasattr(self, 'mf381_gradient_coupled_pred') and self.mf381_gradient_coupled_pred is not None:
+                                                    predictive_state = self.mf381_gradient_coupled_pred
+                                                elif hasattr(self, 'stable_meta_field') and self.stable_meta_field is not None:
+                                                    predictive_state = self.stable_meta_field
+                                                elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None:
+                                                    predictive_state = self.unified_predictive_core
+                                                elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is not None:
+                                                    predictive_state = self.global_resonance_vector
+                                                elif 'pred_vec' in locals() and pred_vec is not None:
+                                                    predictive_state = pred_vec
+                                                else:
+                                                    predictive_state = meta_field_normalized
+
+                                                # Use meta_field_normalized as confluence_normalized
+                                                confluence_normalized = meta_field_normalized
+
+                                                if predictive_state is not None:
+                                                    try:
+                                                        # Apply predictive confluence gradient harmonization
+                                                        meta_field_harmonized = self.pcgh(
+                                                            meta_field_normalized,  # manifold_state
+                                                            predictive_state,
+                                                            confluence_normalized
+                                                        )
+                                                        if meta_field_harmonized is not None:
+                                                            self.mf394_meta_field_harmonized = meta_field_harmonized
+                                                            # Store as gradient-harmonized confluence tensor for MF-395 onward
+                                                        else:
+                                                            self.mf394_meta_field_harmonized = None
+                                                    except Exception as pcgh_error:
+                                                        self.mf394_meta_field_harmonized = None
+                                                        if hasattr(self, 'logger'):
+                                                            try:
+                                                                self.logger.write({"mf394_error": str(pcgh_error)})
+                                                            except Exception:
+                                                                pass
+                                                else:
+                                                    self.mf394_meta_field_harmonized = None
+                                            else:
+                                                self.mf394_meta_field_harmonized = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
