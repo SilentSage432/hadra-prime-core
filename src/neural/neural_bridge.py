@@ -299,6 +299,22 @@ class NeuralBridge:
             self.ccrik = self.CrossConfluenceResidualInteractionKernel(self.dim)
         except Exception:
             self.ccrik = None
+        try:
+            self.mrpcs = self.MultiRoutePredictiveConfluenceSynthesizer(self.dim)
+        except Exception:
+            self.mrpcs = None
+        try:
+            self.pcssk = self.PredictiveConfluenceSynthesisStabilizer(self.dim)
+        except Exception:
+            self.pcssk = None
+        try:
+            self.mr_prk = self.MultiRoutePredictiveReinforcementKernel(self.dim)
+        except Exception:
+            self.mr_prk = None
+        try:
+            self.pcrml = self.PredictiveConfluenceResonanceModulator(self.dim)
+        except Exception:
+            self.pcrml = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -25594,6 +25610,365 @@ class NeuralBridge:
 
             return self.norm(accum)
 
+    class MultiRoutePredictiveConfluenceSynthesizer(nn.Module):
+        """
+        MF-372 — Multi-Route Predictive Confluence Synthesizer (MR-PCS)
+
+        Synthesizes multiple route embeddings (predictive, confluence, harmonic, etc.)
+        into a single stabilized synthesis vector using learnable route weighting.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.route_gate = None
+                self.merge = None
+                self.norm = None
+                return
+
+            self.route_gate = nn.Linear(dim, 1)  # learns importance of each route
+            self.merge = nn.Linear(dim, dim)  # final synthesis transform
+            self.norm = nn.LayerNorm(dim)
+
+        def forward(self, route_list):
+            if (torch is None or
+                self.route_gate is None or
+                self.merge is None or
+                self.norm is None):
+                # Fallback: return first route if available
+                if route_list and len(route_list) > 0:
+                    return route_list[0]
+                return None
+
+            # Handle single route case
+            if len(route_list) == 1:
+                return self.norm(route_list[0])
+
+            # Ensure all routes are tensors and properly shaped
+            tensor_routes = []
+            for r in route_list:
+                if r is None:
+                    continue
+                if not isinstance(r, torch.Tensor):
+                    try:
+                        r = torch.tensor(r, dtype=torch.float32)
+                    except Exception:
+                        continue
+                # Ensure correct dimension
+                if r.dim() == 1:
+                    r = r.unsqueeze(0)
+                # Flatten and pad/truncate to dim
+                flat = r.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                tensor_routes.append(flat.squeeze(0))  # Ensure 1D for stacking
+
+            if not tensor_routes:
+                return None
+
+            if len(tensor_routes) == 1:
+                return self.norm(tensor_routes[0])
+
+            # Stack: shape [num_routes, dim]
+            stacked = torch.stack(tensor_routes, dim=0)
+
+            # Compute route importances
+            raw_weights = self.route_gate(stacked)  # shape [num_routes, 1]
+            weights = torch.softmax(raw_weights.squeeze(-1), dim=0)
+
+            # Weighted sum of routes
+            combined = torch.sum(weights.unsqueeze(-1) * stacked, dim=0)
+
+            # Final synthesis transform + normalization
+            return self.norm(self.merge(combined))
+
+    class PredictiveConfluenceSynthesisStabilizer(nn.Module):
+        """
+        MF-373 — Predictive-Confluence Synthesis Stabilization Kernel (PCSSK)
+
+        Stabilizes the synthesis vector from MF-372 by applying:
+        - Local stability normalization
+        - Predictive-confluence residual correction
+        - Adaptive harmonic smoothing
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.residual_gate = None
+                self.harmonic_smoother = None
+                self.final_norm = None
+                return
+
+            self.residual_gate = nn.Linear(dim, dim)
+            self.harmonic_smoother = nn.Sequential(
+                nn.LayerNorm(dim),
+                nn.Linear(dim, dim),
+                nn.GELU(),
+                nn.Linear(dim, dim),
+            )
+            self.final_norm = nn.LayerNorm(dim)
+
+        def forward(self, synthesized_vector, predictive_ref=None):
+            if (torch is None or
+                self.residual_gate is None or
+                self.harmonic_smoother is None or
+                self.final_norm is None):
+                return synthesized_vector
+
+            # Ensure input is a tensor
+            if not isinstance(synthesized_vector, torch.Tensor):
+                try:
+                    synthesized_vector = torch.tensor(synthesized_vector, dtype=torch.float32)
+                except Exception:
+                    return synthesized_vector
+
+            # Ensure correct shape
+            if synthesized_vector.dim() == 1:
+                synthesized_vector = synthesized_vector.unsqueeze(0)
+            flat = synthesized_vector.flatten()
+            if flat.shape[0] < self.dim:
+                flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+            elif flat.shape[0] > self.dim:
+                flat = flat[:self.dim]
+            if flat.dim() == 1:
+                flat = flat.unsqueeze(0)
+            synthesized_vector = flat
+
+            # Base normalization
+            base = self.final_norm(synthesized_vector)
+
+            # Optional predictive reference (if present)
+            if predictive_ref is not None:
+                # Ensure predictive_ref is a tensor
+                if not isinstance(predictive_ref, torch.Tensor):
+                    try:
+                        predictive_ref = torch.tensor(predictive_ref, dtype=torch.float32)
+                    except Exception:
+                        predictive_ref = None
+
+                if predictive_ref is not None:
+                    # Ensure predictive_ref has correct shape
+                    if predictive_ref.dim() == 1:
+                        predictive_ref = predictive_ref.unsqueeze(0)
+                    pred_flat = predictive_ref.flatten()
+                    if pred_flat.shape[0] < self.dim:
+                        pred_flat = torch.cat([pred_flat, torch.zeros(self.dim - pred_flat.shape[0], dtype=torch.float32)])
+                    elif pred_flat.shape[0] > self.dim:
+                        pred_flat = pred_flat[:self.dim]
+                    if pred_flat.dim() == 1:
+                        pred_flat = pred_flat.unsqueeze(0)
+                    predictive_ref = pred_flat
+
+                    # Learn residual relation between synthesis and predictive domain
+                    residual = self.residual_gate(synthesized_vector - predictive_ref)
+                    stabilized = base + 0.25 * residual  # controlled contribution
+                else:
+                    stabilized = base
+            else:
+                stabilized = base
+
+            # Harmonic smoothing applied last
+            return self.final_norm(self.harmonic_smoother(stabilized))
+
+    class MultiRoutePredictiveReinforcementKernel(nn.Module):
+        """
+        MF-374 — Multi-Route Predictive Reinforcement Kernel (MR-PRK)
+
+        Reinforces the stabilized synthesis vector by aligning it with:
+        - Historical route patterns
+        - Predictive manifold tendencies
+        - Confluence graph consistency
+        - Drift-corrected anchors
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.hist_proj = None
+                self.predictive_proj = None
+                self.confluence_gate = None
+                self.out_norm = None
+                return
+
+            self.hist_proj = nn.Linear(dim, dim)
+            self.predictive_proj = nn.Linear(dim, dim)
+            self.confluence_gate = nn.Linear(dim, dim)
+            self.out_norm = nn.LayerNorm(dim)
+
+        def forward(self, stabilized_vector, hist_ref=None, pred_ref=None, confluence_w=None):
+            if (torch is None or
+                self.hist_proj is None or
+                self.predictive_proj is None or
+                self.confluence_gate is None or
+                self.out_norm is None):
+                return stabilized_vector
+
+            # Ensure input is a tensor
+            if not isinstance(stabilized_vector, torch.Tensor):
+                try:
+                    stabilized_vector = torch.tensor(stabilized_vector, dtype=torch.float32)
+                except Exception:
+                    return stabilized_vector
+
+            # Ensure correct shape
+            if stabilized_vector.dim() == 1:
+                stabilized_vector = stabilized_vector.unsqueeze(0)
+            flat = stabilized_vector.flatten()
+            if flat.shape[0] < self.dim:
+                flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+            elif flat.shape[0] > self.dim:
+                flat = flat[:self.dim]
+            if flat.dim() == 1:
+                flat = flat.unsqueeze(0)
+            base = flat
+
+            # Helper to normalize reference tensors
+            def ensure_ref(ref):
+                if ref is None:
+                    return None
+                if not isinstance(ref, torch.Tensor):
+                    try:
+                        ref = torch.tensor(ref, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if ref.dim() == 1:
+                    ref = ref.unsqueeze(0)
+                ref_flat = ref.flatten()
+                if ref_flat.shape[0] < self.dim:
+                    ref_flat = torch.cat([ref_flat, torch.zeros(self.dim - ref_flat.shape[0], dtype=torch.float32)])
+                elif ref_flat.shape[0] > self.dim:
+                    ref_flat = ref_flat[:self.dim]
+                if ref_flat.dim() == 1:
+                    ref_flat = ref_flat.unsqueeze(0)
+                return ref_flat
+
+            # Historical reinforcement
+            if hist_ref is not None:
+                hist_ref = ensure_ref(hist_ref)
+                if hist_ref is not None:
+                    hist_term = self.hist_proj(base * hist_ref)
+                else:
+                    hist_term = 0
+            else:
+                hist_term = 0
+
+            # Predictive alignment
+            if pred_ref is not None:
+                pred_ref = ensure_ref(pred_ref)
+                if pred_ref is not None:
+                    pred_term = self.predictive_proj(base * pred_ref)
+                else:
+                    pred_term = 0
+            else:
+                pred_term = 0
+
+            # Confluence-weighted term
+            if confluence_w is not None:
+                confluence_w = ensure_ref(confluence_w)
+                if confluence_w is not None:
+                    con_term = self.confluence_gate(base * confluence_w)
+                else:
+                    con_term = 0
+            else:
+                con_term = 0
+
+            # Combine all influences
+            reinforced = base + 0.15 * (hist_term + pred_term + con_term)
+
+            # Normalize for stability
+            return self.out_norm(reinforced)
+
+    class PredictiveConfluenceResonanceModulator(nn.Module):
+        """
+        MF-375 — Predictive–Confluence Resonance Modulation Layer (PCRML)
+
+        Introduces controlled resonance modulation between:
+        - The predictive reinforcement vector (from MF-374)
+        - The confluence routing graph signals (from MF-369–MF-372)
+
+        Shapes signals so predictive and routing converge toward mutually consistent resonance.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.pred_gate = None
+                self.conf_gate = None
+                self.mod_kernel = None
+                self.norm = None
+                self.strength = None
+                return
+
+            self.pred_gate = nn.Linear(dim, dim)
+            self.conf_gate = nn.Linear(dim, dim)
+            self.mod_kernel = nn.Linear(dim, dim)
+            self.norm = nn.LayerNorm(dim)
+            self.strength = nn.Parameter(torch.tensor(0.12))
+
+        def forward(self, predictive_vec, confluence_vec):
+            if (torch is None or
+                self.pred_gate is None or
+                self.conf_gate is None or
+                self.mod_kernel is None or
+                self.norm is None or
+                self.strength is None):
+                # Fallback: return predictive vector if available
+                if predictive_vec is not None:
+                    return predictive_vec
+                return confluence_vec
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            predictive_vec = ensure_tensor(predictive_vec)
+            confluence_vec = ensure_tensor(confluence_vec)
+
+            if predictive_vec is None:
+                return confluence_vec
+            if confluence_vec is None:
+                return predictive_vec
+
+            # Extract gated predictive signal
+            p = torch.tanh(self.pred_gate(predictive_vec))
+
+            # Extract gated confluence resonance
+            c = torch.tanh(self.conf_gate(confluence_vec))
+
+            # Modulation: how p and c influence each other
+            mix = self.mod_kernel(p * c)
+
+            # Controlled residual merge
+            fused = predictive_vec + confluence_vec + self.strength * mix
+
+            # Normalization for stability
+            return self.norm(fused)
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -26681,6 +27056,173 @@ class NeuralBridge:
                                                             pass
                                             else:
                                                 self.mf371_processed_routes = None
+
+                                            # MF-372 — Multi-Route Predictive Confluence Synthesizer (MR-PCS)
+                                            # Synthesize all routes into a single stabilized vector
+                                            synthesis_vector = None
+                                            if (getattr(self, "mrpcs", None) is not None and len(confluence_routes) > 0):
+                                                try:
+                                                    synthesis_vector = self.mrpcs(confluence_routes)
+                                                    if synthesis_vector is not None:
+                                                        self.mf372_synthesis_vector = synthesis_vector
+                                                        # Optionally use synthesis vector to enhance routes
+                                                        # or use it directly in downstream processing
+                                                    else:
+                                                        self.mf372_synthesis_vector = None
+                                                except Exception as mrpcs_error:
+                                                    self.mf372_synthesis_vector = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf372_error": str(mrpcs_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf372_synthesis_vector = None
+
+                                            # MF-373 — Predictive-Confluence Synthesis Stabilization Kernel (PCSSK)
+                                            # Stabilize the synthesis vector before downstream processing
+                                            stable_synthesis = None
+                                            if (getattr(self, "pcssk", None) is not None and
+                                                synthesis_vector is not None):
+                                                try:
+                                                    # Get predictive reference (anchor) for residual correction
+                                                    predictive_anchor = None
+                                                    if hasattr(self, 'stable_meta_field') and self.stable_meta_field is not None:
+                                                        predictive_anchor = self.stable_meta_field
+                                                    elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None:
+                                                        predictive_anchor = self.unified_predictive_core
+                                                    elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is not None:
+                                                        predictive_anchor = self.global_resonance_vector
+                                                    elif 'stabilized_state' in locals():
+                                                        predictive_anchor = stabilized_state
+                                                    elif 'routed_state' in locals():
+                                                        predictive_anchor = routed_state
+
+                                                    # Apply stabilization
+                                                    stable_synthesis = self.pcssk(synthesis_vector, predictive_ref=predictive_anchor)
+                                                    if stable_synthesis is not None:
+                                                        self.mf373_stable_synthesis = stable_synthesis
+                                                        # Update synthesis vector with stabilized version
+                                                        synthesis_vector = stable_synthesis
+                                                        self.mf372_synthesis_vector = stable_synthesis
+                                                    else:
+                                                        self.mf373_stable_synthesis = None
+                                                except Exception as pcssk_error:
+                                                    self.mf373_stable_synthesis = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf373_error": str(pcssk_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf373_stable_synthesis = None
+
+                                            # MF-374 — Multi-Route Predictive Reinforcement Kernel (MR-PRK)
+                                            # Reinforce stabilized synthesis with historical, predictive, and confluence alignment
+                                            reinforced_vector = None
+                                            if (getattr(self, "mr_prk", None) is not None and
+                                                stable_synthesis is not None):
+                                                try:
+                                                    # Get historical anchor (from previous stable states or memory)
+                                                    historical_anchor = None
+                                                    if hasattr(self, 'mf373_stable_synthesis') and self.mf373_stable_synthesis is not None:
+                                                        # Use previous stabilized synthesis as historical reference
+                                                        historical_anchor = self.mf373_stable_synthesis
+                                                    elif hasattr(self, 'mf372_synthesis_vector') and self.mf372_synthesis_vector is not None:
+                                                        historical_anchor = self.mf372_synthesis_vector
+                                                    elif 'stabilized_state' in locals():
+                                                        historical_anchor = stabilized_state
+
+                                                    # Get predictive anchor (same as used in MF-373)
+                                                    predictive_anchor = None
+                                                    if hasattr(self, 'stable_meta_field') and self.stable_meta_field is not None:
+                                                        predictive_anchor = self.stable_meta_field
+                                                    elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None:
+                                                        predictive_anchor = self.unified_predictive_core
+                                                    elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is not None:
+                                                        predictive_anchor = self.global_resonance_vector
+
+                                                    # Get confluence weights (from confluence graph or routing state)
+                                                    confluence_weights = None
+                                                    if hasattr(self, 'mf348_interacted_state') and self.mf348_interacted_state is not None:
+                                                        confluence_weights = self.mf348_interacted_state
+                                                    elif hasattr(self, 'mf347_stabilized_state') and self.mf347_stabilized_state is not None:
+                                                        confluence_weights = self.mf347_stabilized_state
+                                                    elif hasattr(self, 'mf346_routed_state') and self.mf346_routed_state is not None:
+                                                        confluence_weights = self.mf346_routed_state
+                                                    elif 'stabilized_state' in locals():
+                                                        confluence_weights = stabilized_state
+
+                                                    # Apply reinforcement
+                                                    reinforced_vector = self.mr_prk(
+                                                        stable_synthesis,
+                                                        hist_ref=historical_anchor,
+                                                        pred_ref=predictive_anchor,
+                                                        confluence_w=confluence_weights
+                                                    )
+                                                    if reinforced_vector is not None:
+                                                        self.mf374_reinforced_vector = reinforced_vector
+                                                        # Update stable synthesis with reinforced version
+                                                        stable_synthesis = reinforced_vector
+                                                        self.mf373_stable_synthesis = reinforced_vector
+                                                        synthesis_vector = reinforced_vector
+                                                        self.mf372_synthesis_vector = reinforced_vector
+                                                    else:
+                                                        self.mf374_reinforced_vector = None
+                                                except Exception as mr_prk_error:
+                                                    self.mf374_reinforced_vector = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf374_error": str(mr_prk_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf374_reinforced_vector = None
+
+                                            # MF-375 — Predictive–Confluence Resonance Modulation Layer (PCRML)
+                                            # Modulate resonance between predictive reinforcement and confluence routing signals
+                                            resonant_state = None
+                                            if (getattr(self, "pcrml", None) is not None and
+                                                reinforced_vector is not None):
+                                                try:
+                                                    # Get confluence state (from confluence routing graph)
+                                                    confluence_state = None
+                                                    if hasattr(self, 'mf348_interacted_state') and self.mf348_interacted_state is not None:
+                                                        confluence_state = self.mf348_interacted_state
+                                                    elif hasattr(self, 'mf347_stabilized_state') and self.mf347_stabilized_state is not None:
+                                                        confluence_state = self.mf347_stabilized_state
+                                                    elif hasattr(self, 'mf346_routed_state') and self.mf346_routed_state is not None:
+                                                        confluence_state = self.mf346_routed_state
+                                                    elif 'stabilized_state' in locals():
+                                                        confluence_state = stabilized_state
+                                                    elif 'routed_state' in locals():
+                                                        confluence_state = routed_state
+
+                                                    # Apply resonance modulation if confluence state is available
+                                                    if confluence_state is not None:
+                                                        resonant_state = self.pcrml(reinforced_vector, confluence_state)
+                                                        if resonant_state is not None:
+                                                            self.mf375_resonant_state = resonant_state
+                                                            # Update reinforced vector with resonant version
+                                                            reinforced_vector = resonant_state
+                                                            self.mf374_reinforced_vector = resonant_state
+                                                            stable_synthesis = resonant_state
+                                                            self.mf373_stable_synthesis = resonant_state
+                                                            synthesis_vector = resonant_state
+                                                            self.mf372_synthesis_vector = resonant_state
+                                                        else:
+                                                            self.mf375_resonant_state = None
+                                                    else:
+                                                        self.mf375_resonant_state = None
+                                                except Exception as pcrml_error:
+                                                    self.mf375_resonant_state = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf375_error": str(pcrml_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf375_resonant_state = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
