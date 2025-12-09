@@ -456,6 +456,13 @@ class NeuralBridge:
             )
         except Exception:
             self.mf404_cbrsl = None
+        # MF-405 — Influence-Field Coherence Projection Layer (IF-CPL)
+        try:
+            self.mf405_ifcpl = self.InfluenceFieldCoherenceProjectionLayer(
+                substrate_dim=self.dim
+            )
+        except Exception:
+            self.mf405_ifcpl = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -29150,6 +29157,107 @@ class NeuralBridge:
                     if band_outputs and len(band_outputs) > 0:
                         return band_outputs[0]
                     return None
+
+    class InfluenceFieldCoherenceProjectionLayer(nn.Module):
+        """
+        MF-405 — Influence-Field Coherence Projection Layer (IF-CPL)
+
+        Takes the stabilized multi-band output from MF-404 and projects it into a
+        coherence-optimized influence field aligned with the MF-400 Unified Predictive Substrate (UPS).
+
+        MF-405 introduces mechanisms for:
+        - coherence scoring
+        - manifold-wise projection
+        - cross-gradient alignment
+        - drift-controlled unification
+
+        No cognitive framing is involved — only tensor-level coherence projection.
+
+        Core Computational Functions:
+        1. Coherence Scoring Vector: computes a coherence vector that measures internal alignment
+           across the stabilized influence components using a learned projection matrix.
+        2. Coherence-Weighted Field Projection: projects the stabilized influence field into a
+           coherence-weighted manifold, amplifying features aligned with coherence scores.
+        3. Manifold Alignment Transform: applies a manifold-aligning operator to enforce
+           compatibility with substrate curvature and field structure.
+        4. Drift-Regulated Projection: applies a drift-limiter to prevent drift during projection,
+           ensuring bounded activation, no runaway values, and uniform substrate behavior.
+        5. Coherence-Normalized Output: normalizes the final output for substrate integration,
+           producing the coherence-projected influence field used by MF-406 and beyond.
+
+        Outcome:
+        MF-405 provides coherence scoring, manifold alignment, drift-regulated projection, and
+        unified influence-field coherence output. This forms the first fully coherence-projected
+        influence representation in the Influence Field Series. MF-406 will build on this by
+        introducing Influence-Field Confluence Mapping, where multiple coherence-projected fields
+        are integrated across temporal and manifold dimensions.
+        """
+
+        def __init__(self, substrate_dim):
+            super().__init__()
+            self.substrate_dim = substrate_dim
+
+            # Coherence scoring matrix
+            self.coherence_matrix = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+            # Manifold alignment matrix
+            self.manifold_alignment = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def forward(self, S_norm):
+            """
+            S_norm: MF-404 stabilized influence field, shape [batch, dim]
+            """
+            if torch is None or S_norm is None:
+                return S_norm
+
+            # Ensure S_norm is a tensor
+            if not isinstance(S_norm, torch.Tensor):
+                try:
+                    S_norm = torch.tensor(S_norm, dtype=torch.float32)
+                except Exception:
+                    return S_norm
+
+            # Ensure proper shape
+            if S_norm.dim() == 1:
+                S_norm = S_norm.unsqueeze(0)
+            if S_norm.shape[-1] != self.substrate_dim:
+                # Resize if needed
+                if S_norm.shape[-1] < self.substrate_dim:
+                    padding = torch.zeros(S_norm.shape[:-1] + (self.substrate_dim - S_norm.shape[-1],), dtype=S_norm.dtype)
+                    S_norm = torch.cat([S_norm, padding], dim=-1)
+                else:
+                    S_norm = S_norm[..., :self.substrate_dim]
+
+            try:
+                import torch.nn.functional as F
+                # 1. Coherence scoring vector
+                c = torch.matmul(S_norm, self.coherence_matrix)
+                c = F.normalize(c, dim=-1)
+
+                # 2. Coherence-weighted projection
+                P = S_norm * (1 + c)
+
+                # 3. Manifold alignment transform
+                A = torch.matmul(P, self.manifold_alignment)
+
+                # 4. Drift-regulated projection
+                A_reg = A / (1 + torch.abs(A))
+
+                # 5. Coherence-normalized output
+                C_out = F.normalize(A_reg, dim=-1)
+
+                return C_out
+            except Exception:
+                # If projection fails, return normalized input
+                try:
+                    import torch.nn.functional as F
+                    return F.normalize(S_norm, dim=-1)
+                except Exception:
+                    return S_norm
 
     def integrate_A301(self):
         """
