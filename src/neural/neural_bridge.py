@@ -279,6 +279,10 @@ class NeuralBridge:
             self.cd_rsk = self.CoupledDriftRoutingStabilizationKernel(self.dim)
         except Exception:
             self.cd_rsk = None
+        try:
+            self.rpfh = self.RoutingPredictiveFeedbackHarmonizer(self.dim)
+        except Exception:
+            self.rpfh = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -25167,6 +25171,71 @@ class NeuralBridge:
 
             return output
 
+    class RoutingPredictiveFeedbackHarmonizer(nn.Module):
+        """
+        MF-367 — Routing-Predictive Feedback Harmonizer (RPFH)
+
+        Establishes a bidirectional harmonization loop between routing signals
+        and predictive signals. Produces a balanced feedback tensor used to
+        maintain global coherence across the predictive-routing architecture.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+
+            if torch is None or not hasattr(nn, "Linear"):
+                self.predictive_proj = None
+                self.routing_proj = None
+                self.feedback_weight = None
+                self.feedback_fusion = None
+                self.residual_fusion = None
+                self.norm = None
+                return
+
+            # Transforms for predictive and routing domains
+            self.predictive_proj = nn.Linear(dim, dim)
+            self.routing_proj = nn.Linear(dim, dim)
+
+            # Feedback weighting
+            self.feedback_weight = nn.Parameter(torch.randn(dim) * 0.01)
+
+            # Fusion transforms
+            self.feedback_fusion = nn.Linear(dim, dim)
+            self.residual_fusion = nn.Linear(dim, dim)
+
+            # Normalization
+            self.norm = nn.LayerNorm(dim)
+
+        def forward(self, predictive_signal, routing_signal):
+            if (torch is None or
+                self.predictive_proj is None or
+                self.routing_proj is None or
+                self.feedback_weight is None or
+                self.feedback_fusion is None or
+                self.residual_fusion is None or
+                self.norm is None):
+                return predictive_signal
+
+            # Transform into aligned spaces
+            p_proj = torch.relu(self.predictive_proj(predictive_signal))
+            r_proj = torch.relu(self.routing_proj(routing_signal))
+
+            # Compute feedback mask
+            f_mask = torch.sigmoid(self.feedback_weight)
+
+            # Weighted combination
+            combined = (p_proj * f_mask) + (r_proj * (1 - f_mask))
+
+            # Fusion and smoothing
+            fused = torch.relu(self.feedback_fusion(combined))
+            smoothed = 0.7 * fused + 0.3 * self.residual_fusion(fused)
+
+            # Normalize output
+            harmonized = self.norm(torch.tanh(smoothed))
+
+            return harmonized
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -26341,6 +26410,28 @@ class NeuralBridge:
                                                                 if hasattr(self, 'logger'):
                                                                     try:
                                                                         self.logger.write({"mf366_error": str(cd_rsk_error)})
+                                                                    except Exception:
+                                                                        pass
+
+                                                            # MF-367 — Routing-Predictive Feedback Harmonizer (RPFH)
+                                                            try:
+                                                                if (getattr(self, "rpfh", None) is not None and
+                                                                    internal_states.get("drift_routing_stabilized") is not None and
+                                                                    internal_states.get("routing_state") is not None):
+                                                                    rpfh_out = self.rpfh(
+                                                                        internal_states["drift_routing_stabilized"],
+                                                                        internal_states["routing_state"]
+                                                                    )
+                                                                    internal_states["routing_predictive_harmonized"] = rpfh_out
+                                                                    primary_state = primary_state + rpfh_out * 0.013
+                                                                    self.mf367_routing_predictive_harmonized = rpfh_out
+                                                                else:
+                                                                    self.mf367_routing_predictive_harmonized = None
+                                                            except Exception as rpfh_error:
+                                                                self.mf367_routing_predictive_harmonized = None
+                                                                if hasattr(self, 'logger'):
+                                                                    try:
+                                                                        self.logger.write({"mf367_error": str(rpfh_error)})
                                                                     except Exception:
                                                                         pass
 
