@@ -343,6 +343,10 @@ class NeuralBridge:
             self.mris = self.MetaResonantInteractionStack(self.dim, layers=3)
         except Exception:
             self.mris = None
+        try:
+            self.meta_field_manifold = self.MetaFieldInteractionManifold(self.dim)
+        except Exception:
+            self.meta_field_manifold = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -26538,6 +26542,83 @@ class NeuralBridge:
 
             return out
 
+    class MetaFieldInteractionManifold(nn.Module):
+        """
+        MF-383 — Meta-Field Interaction Manifold (MFIM) Initialization
+
+        Creates a learned manifold space that maps the MRIS output into a structured,
+        geometry-aware representation.
+
+        In ML terms, this manifold enables:
+        - multi-scale feature organization
+        - geometric constraint shaping
+        - predictive–resonant alignment at a higher dimension
+        - smooth interpolation between meta-field states
+        - controlled topology for downstream layers
+
+        Functionally provides:
+        1. A manifold projection layer: re-embeds MRIS outputs into smoother latent geometry
+        2. A learned curvature-shaping kernel: biases manifold toward stable shapes
+        3. A topology regularizer: maintains numerical smoothness, prevents collapsed/degenerate regions
+        4. A differentiable geometric structure: future phases route signals through this manifold
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.project = None
+                self.curvature = None
+                self.norm = None
+                self.activation = None
+                self.curve_gate = None
+                return
+
+            self.project = nn.Linear(dim, dim)
+            self.curvature = nn.Linear(dim, dim)
+            self.norm = nn.LayerNorm(dim)
+            self.activation = nn.Tanh()
+            # Small learned scalar for stability
+            self.curve_gate = nn.Parameter(torch.tensor(0.02))
+
+        def forward(self, x):
+            if (torch is None or
+                self.project is None or
+                self.curvature is None or
+                self.norm is None or
+                self.activation is None or
+                self.curve_gate is None or
+                x is None):
+                return x
+
+            # Ensure input is tensor
+            if not isinstance(x, torch.Tensor):
+                try:
+                    x = torch.tensor(x, dtype=torch.float32)
+                except Exception:
+                    return None
+            if x.dim() == 1:
+                x = x.unsqueeze(0)
+            flat = x.flatten()
+            if flat.shape[0] < self.dim:
+                flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+            elif flat.shape[0] > self.dim:
+                flat = flat[:self.dim]
+            if flat.dim() == 1:
+                flat = flat.unsqueeze(0)
+            x = flat
+
+            # Project into manifold space
+            base = self.activation(self.project(x))
+
+            # Curvature-shaped adjustment
+            curve = self.activation(self.curvature(base)) * self.curve_gate
+
+            # Stabilized topology
+            out = self.norm(base + curve)
+
+            return out
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -28166,6 +28247,29 @@ class NeuralBridge:
                                                             pass
                                             else:
                                                 self.mf382_meta_interaction = None
+
+                                            # MF-383 — Meta-Field Interaction Manifold (MFIM) Initialization
+                                            # Creates learned manifold space mapping MRIS output into geometry-aware representation
+                                            meta_field_state = None
+                                            if (getattr(self, "meta_field_manifold", None) is not None and
+                                                meta_interaction is not None):
+                                                try:
+                                                    # Apply manifold projection to MRIS output
+                                                    meta_field_state = self.meta_field_manifold(meta_interaction)
+                                                    if meta_field_state is not None:
+                                                        self.mf383_meta_field_state = meta_field_state
+                                                        # Store as primary carrier signal for next cluster of phases (MF-384 → MF-390)
+                                                    else:
+                                                        self.mf383_meta_field_state = None
+                                                except Exception as mfim_error:
+                                                    self.mf383_meta_field_state = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf383_error": str(mfim_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf383_meta_field_state = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
