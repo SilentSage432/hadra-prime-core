@@ -355,6 +355,10 @@ class NeuralBridge:
             self.local_meta_kernel = self.LocalMetaFieldNeighborhoodKernel(self.dim, groups=4)
         except Exception:
             self.local_meta_kernel = None
+        try:
+            self.cross_neighborhood_kernel = self.CrossNeighborhoodInteractionKernel(self.dim, groups=4)
+        except Exception:
+            self.cross_neighborhood_kernel = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -26813,6 +26817,124 @@ class NeuralBridge:
             recomposed = torch.cat(updated_chunks, dim=-1)
             return self.norm(recomposed)
 
+    class CrossNeighborhoodInteractionKernel(nn.Module):
+        """
+        MF-386 — Cross-Neighborhood Interaction Kernel (CNIK)
+
+        Adds a horizontal communication layer across the neighborhoods created in MF-385.
+        Enables cross-neighborhood communication so the manifold can coordinate its
+        transformations across the entire vector space.
+
+        This phase enables:
+        1. Feature mixing across neighborhoods
+        2. Long-range interaction effects
+        3. Cross-manifold harmonization
+        4. Global structural consistency improvements
+
+        Uses a lightweight cross-attention mechanism to allow each region to exchange
+        information with others. This is a core step toward higher-level manifold coherence.
+        """
+
+        def __init__(self, dim, groups=4):
+            super().__init__()
+            self.dim = dim
+            self.groups = groups
+            if torch is None or not hasattr(nn, "Linear"):
+                self.chunk_size = None
+                self.query_proj = None
+                self.key_proj = None
+                self.value_proj = None
+                self.output_proj = None
+                self.norm = None
+                self.softmax = None
+                return
+
+            if dim % groups != 0:
+                # Adjust groups to be compatible with dim
+                groups = 1
+                while dim % groups != 0 and groups < dim:
+                    groups += 1
+                self.groups = groups
+
+            self.chunk_size = dim // self.groups
+
+            # For cross-neighborhood communication, project each neighborhood to a shared space
+            self.query_proj = nn.Linear(self.chunk_size, self.chunk_size)
+            self.key_proj = nn.Linear(self.chunk_size, self.chunk_size)
+            self.value_proj = nn.Linear(self.chunk_size, self.chunk_size)
+
+            # Output transform after attention
+            self.output_proj = nn.Linear(self.chunk_size, self.chunk_size)
+
+            # Stabilization
+            self.norm = nn.LayerNorm(dim)
+            self.softmax = nn.Softmax(dim=-1)
+
+        def forward(self, x):
+            if (torch is None or
+                self.query_proj is None or
+                self.key_proj is None or
+                self.value_proj is None or
+                self.output_proj is None or
+                self.norm is None or
+                self.softmax is None or
+                x is None):
+                return x
+
+            # Ensure input is tensor
+            if not isinstance(x, torch.Tensor):
+                try:
+                    x = torch.tensor(x, dtype=torch.float32)
+                except Exception:
+                    return None
+            if x.dim() == 1:
+                x = x.unsqueeze(0)
+            flat = x.flatten()
+            if flat.shape[0] < self.dim:
+                flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+            elif flat.shape[0] > self.dim:
+                flat = flat[:self.dim]
+            if flat.dim() == 1:
+                flat = flat.unsqueeze(0)
+            x = flat
+
+            # Split into neighborhoods
+            chunks = x.split(self.chunk_size, dim=-1)
+            q = [self.query_proj(c) for c in chunks]
+            k = [self.key_proj(c) for c in chunks]
+            v = [self.value_proj(c) for c in chunks]
+
+            updated_chunks = []
+
+            # Compute cross-attention for each neighborhood
+            for qi in q:
+                # Stack keys and values across all neighborhoods
+                # Handle batch dimension properly
+                keys = torch.stack(k, dim=1)  # shape: (batch, groups, chunk_size)
+                values = torch.stack(v, dim=1)  # same shape
+
+                # Attention weights: dot(q, k)
+                # qi shape: (batch, chunk_size), keys shape: (batch, groups, chunk_size)
+                # Compute scores: (batch, chunk_size) @ (batch, chunk_size, groups) -> (batch, groups)
+                keys_transposed = keys.transpose(-1, -2)  # (batch, chunk_size, groups)
+                scores = torch.bmm(qi.unsqueeze(1), keys_transposed).squeeze(1)  # (batch, groups)
+                scores = scores / (self.chunk_size ** 0.5)
+                weights = self.softmax(scores)  # (batch, groups)
+
+                # Aggregate values: (batch, groups) @ (batch, groups, chunk_size) -> (batch, chunk_size)
+                weights_expanded = weights.unsqueeze(1)  # (batch, 1, groups)
+                attended = torch.bmm(weights_expanded, values).squeeze(1)  # (batch, chunk_size)
+
+                # Final transform
+                updated = self.output_proj(attended)
+                updated_chunks.append(updated)
+
+            # Concatenate all updated chunks
+            recomposed = torch.cat(updated_chunks, dim=-1)
+
+            # Residual + normalize
+            return self.norm(recomposed + x)
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -28511,6 +28633,29 @@ class NeuralBridge:
                                                             pass
                                             else:
                                                 self.mf385_meta_field_local = None
+
+                                            # MF-386 — Cross-Neighborhood Interaction Kernel (CNIK)
+                                            # Adds horizontal communication layer across neighborhoods for global coordination
+                                            meta_field_cross = None
+                                            if (getattr(self, "cross_neighborhood_kernel", None) is not None and
+                                                meta_field_local is not None):
+                                                try:
+                                                    # Apply cross-neighborhood attention-based communication
+                                                    meta_field_cross = self.cross_neighborhood_kernel(meta_field_local)
+                                                    if meta_field_cross is not None:
+                                                        self.mf386_meta_field_cross = meta_field_cross
+                                                        # Store as official manifold state for MF-387 onward
+                                                    else:
+                                                        self.mf386_meta_field_cross = None
+                                                except Exception as cnik_error:
+                                                    self.mf386_meta_field_cross = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf386_error": str(cnik_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf386_meta_field_cross = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
