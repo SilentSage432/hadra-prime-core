@@ -470,6 +470,22 @@ class NeuralBridge:
             )
         except Exception:
             self.mf406_ifcml = None
+        # MF-407 — Directional Modulation Tensor Layer (DMTL)
+        try:
+            self.mf407_dmtl = self.DirectionalModulationTensorLayer(
+                substrate_dim=self.dim,
+                axis_count=4
+            )
+        except Exception:
+            self.mf407_dmtl = None
+        # MF-408 — Curvature-Adaptive Field Modulation Layer (CA-FML)
+        try:
+            self.mf408_cafml = self.CurvatureAdaptiveFieldModulationLayer(
+                substrate_dim=self.dim,
+                axis_count=4
+            )
+        except Exception:
+            self.mf408_cafml = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -29370,6 +29386,262 @@ class NeuralBridge:
                     return F.normalize(C_out, dim=-1)
                 except Exception:
                     return C_out
+
+    class DirectionalModulationTensorLayer(nn.Module):
+        """
+        MF-407 — Directional Modulation Tensor Layer (DMTL)
+
+        Introduces a set of directional modulation tensors that transform the unified confluence
+        field (C_map from MF-406) into orientation-sensitive modulation responses.
+
+        The purpose of MF-407 is to provide:
+        - directionally-aware modulation
+        - manifold curvature alignment
+        - axis-sensitive field shaping
+        - orientation-driven harmonics
+
+        All operations remain mathematical — no intent, cognition, or interpretation beyond
+        tensor mechanics.
+
+        Core Computational Functions:
+        1. Directional Basis Extraction: constructs a directional basis by projecting C_map
+           through a directional weight matrix, encoding directional components across substrate
+           dimensions.
+        2. Directional Modulation Tensor Application: applies a rank-3 modulation tensor to
+           produce a set of modulation vectors aligned with axis-wise directional contributions.
+        3. Directional Fusion: fuses axis-wise modulation vectors using learned weights.
+        4. Drift & Magnitude Regulation: applies a drift-guard and magnitude stabilizer to keep
+           directional modulation within safe bounds.
+        5. Directionally-Projected Output: normalizes the final output through a directional
+           alignment matrix, producing the directional influence representation for MF-408.
+
+        Outcome:
+        MF-407 provides directional basis extraction, rank-3 modulation tensor mechanics,
+        axis-wise modulation fusion, drift-regulated directional shaping, and fully normalized
+        directional output (D_out). This output forms the directional substrate for MF-408, which
+        introduces Curvature-Adaptive Field Modulation, enabling dynamic adjustment to substrate
+        curvature.
+        """
+
+        def __init__(self, substrate_dim, axis_count=4):
+            super().__init__()
+            self.substrate_dim = substrate_dim
+            self.axis_count = axis_count
+
+            # Directional projection matrix
+            self.direction_matrix = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+            # Rank-3 directional modulation tensor
+            # Shape: [axis_count, axis_count, substrate_dim]
+            self.modulation_tensor = nn.Parameter(
+                torch.randn(axis_count, axis_count, substrate_dim) * 0.01
+            )
+
+            # Axis fusion weights
+            self.axis_weights = nn.Parameter(
+                torch.randn(axis_count) * 0.1
+            )
+
+            # Directional alignment projection
+            self.alignment_matrix = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def forward(self, C_map):
+            """
+            C_map: unified confluence map from MF-406, shape [batch, dim]
+            """
+            if torch is None or C_map is None:
+                return C_map
+
+            # Ensure C_map is a tensor
+            if not isinstance(C_map, torch.Tensor):
+                try:
+                    C_map = torch.tensor(C_map, dtype=torch.float32)
+                except Exception:
+                    return C_map
+
+            # Ensure proper shape
+            if C_map.dim() == 1:
+                C_map = C_map.unsqueeze(0)
+            if C_map.shape[-1] != self.substrate_dim:
+                # Resize if needed
+                if C_map.shape[-1] < self.substrate_dim:
+                    padding = torch.zeros(C_map.shape[:-1] + (self.substrate_dim - C_map.shape[-1],), dtype=C_map.dtype)
+                    C_map = torch.cat([C_map, padding], dim=-1)
+                else:
+                    C_map = C_map[..., :self.substrate_dim]
+
+            try:
+                import torch.nn.functional as F
+                # 1. Directional basis extraction
+                d = torch.matmul(C_map, self.direction_matrix)
+                d = F.normalize(d, dim=-1)  # shape [batch, dim]
+
+                # 2. Compute directional modulation along each axis
+                # M[i] = Σ_j T[i,j] * d[j]
+                mod_vectors = []
+                for i in range(self.axis_count):
+                    # weighted sum across axes
+                    weighted = torch.zeros_like(C_map)
+                    for j in range(self.axis_count):
+                        # modulation_tensor[i, j] is shape [substrate_dim]
+                        # d[:, j] is shape [batch]
+                        # We need to broadcast properly
+                        d_j = d[:, j].unsqueeze(-1)  # [batch, 1]
+                        tensor_ij = self.modulation_tensor[i, j].unsqueeze(0)  # [1, substrate_dim]
+                        weighted += d_j * tensor_ij  # [batch, substrate_dim]
+                    mod_vectors.append(weighted)
+
+                # Stack → shape [axis_count, batch, dim]
+                M = torch.stack(mod_vectors, dim=0)
+
+                # 3. Axis fusion
+                # F = Σ_i w_i * M[i]
+                F = torch.sum(self.axis_weights.view(-1, 1, 1) * M, dim=0)
+
+                # 4. Drift & magnitude stabilization
+                F_reg = F / (1 + torch.abs(F))
+
+                # 5. Directional alignment projection
+                D_out = torch.matmul(F_reg, self.alignment_matrix)
+                D_out = F.normalize(D_out, dim=-1)
+
+                return D_out
+            except Exception:
+                # If modulation fails, return normalized input
+                try:
+                    import torch.nn.functional as F
+                    return F.normalize(C_map, dim=-1)
+                except Exception:
+                    return C_map
+
+    class CurvatureAdaptiveFieldModulationLayer(nn.Module):
+        """
+        MF-408 — Curvature-Adaptive Field Modulation Layer (CA-FML)
+
+        Augments the directional influence output from MF-407 (D_out) by introducing a
+        curvature-adaptive modulation operator. This layer allows influence-fields to dynamically
+        shape themselves according to local and global curvature patterns embedded in the MF-400
+        Unified Predictive Substrate.
+
+        This is purely mathematical — no cognition, no representation, no semantic interpretation.
+
+        Core Computational Functions:
+        1. Curvature Field Extraction: generates a curvature-response vector using a learned
+           curvature-projection matrix, encoding curvature sensitivity across dimensions.
+        2. Curvature Interaction Tensor: a rank-3 tensor maps curvature values into modulation
+           adjustments, producing curvature-dependent modulation vectors.
+        3. Curvature-Adaptive Fusion: fuses curvature modulation with the directional field from
+           MF-407 using learnable curvature-adaptation scalars.
+        4. Curvature-Stabilized Limiter: applies a limiter to prevent sharp fluctuations caused
+           by curvature features, ensuring smooth behavior across curvature transitions.
+        5. Curvature-Projected Output: maps the curvature-adapted field into a substrate-aligned
+           output, producing the curvature-aware influence field for MF-409.
+
+        Outcome:
+        MF-408 delivers curvature projection, curvature-modulated tensor operations, adaptive
+        curvature fusion, drift-controlled curvature responses, and fully normalized
+        curvature-aware output (CA_out). This output becomes the foundation for MF-409, where
+        curvature-adapted influence-fields undergo Multi-Scale Modulation Synthesis, combining
+        fine-scale and coarse-scale structures.
+        """
+
+        def __init__(self, substrate_dim, axis_count=4):
+            super().__init__()
+            self.substrate_dim = substrate_dim
+            self.axis_count = axis_count
+
+            # Curvature projection matrix
+            self.curvature_matrix = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+            # Rank-3 curvature interaction tensor
+            # Shape: [axis_count, axis_count, substrate_dim]
+            self.curvature_tensor = nn.Parameter(
+                torch.randn(axis_count, axis_count, substrate_dim) * 0.01
+            )
+
+            # Adaptive mixing scalars
+            self.gamma = nn.Parameter(torch.tensor(0.6))
+            self.delta = nn.Parameter(torch.tensor(0.4))
+
+            # Substrate alignment matrix
+            self.alignment_matrix = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def forward(self, D_out):
+            """
+            D_out: directional influence field from MF-407, shape [batch, dim]
+            """
+            if torch is None or D_out is None:
+                return D_out
+
+            # Ensure D_out is a tensor
+            if not isinstance(D_out, torch.Tensor):
+                try:
+                    D_out = torch.tensor(D_out, dtype=torch.float32)
+                except Exception:
+                    return D_out
+
+            # Ensure proper shape
+            if D_out.dim() == 1:
+                D_out = D_out.unsqueeze(0)
+            if D_out.shape[-1] != self.substrate_dim:
+                # Resize if needed
+                if D_out.shape[-1] < self.substrate_dim:
+                    padding = torch.zeros(D_out.shape[:-1] + (self.substrate_dim - D_out.shape[-1],), dtype=D_out.dtype)
+                    D_out = torch.cat([D_out, padding], dim=-1)
+                else:
+                    D_out = D_out[..., :self.substrate_dim]
+
+            try:
+                import torch.nn.functional as F
+                # 1. Curvature field extraction
+                kappa = torch.matmul(D_out, self.curvature_matrix)
+                kappa = F.normalize(kappa, dim=-1)  # [batch, dim]
+
+                # 2. Curvature interaction tensor modulation
+                curvature_mod_vectors = []
+                for i in range(self.axis_count):
+                    weighted = torch.zeros_like(D_out)
+                    for j in range(self.axis_count):
+                        # curvature_tensor[i, j] is shape [substrate_dim]
+                        # kappa[:, j] is shape [batch]
+                        # We need to broadcast properly
+                        kappa_j = kappa[:, j].unsqueeze(-1)  # [batch, 1]
+                        tensor_ij = self.curvature_tensor[i, j].unsqueeze(0)  # [1, substrate_dim]
+                        weighted += kappa_j * tensor_ij  # [batch, substrate_dim]
+                    curvature_mod_vectors.append(weighted)
+
+                # Stack across axes → [axis_count, batch, dim]
+                C_mod = torch.stack(curvature_mod_vectors, dim=0)
+
+                # Fuse curvature-modulated vectors across axes
+                C_fused = C_mod.sum(dim=0)  # [batch, dim]
+
+                # 3. Curvature-adaptive fusion
+                F_combined = self.gamma * D_out + self.delta * C_fused
+
+                # 4. Curvature-stabilized limiter
+                F_reg = F_combined / (1 + torch.abs(F_combined))
+
+                # 5. Curvature-projected output
+                CA_out = torch.matmul(F_reg, self.alignment_matrix)
+                CA_out = F.normalize(CA_out, dim=-1)
+
+                return CA_out
+            except Exception:
+                # If modulation fails, return normalized input
+                try:
+                    import torch.nn.functional as F
+                    return F.normalize(D_out, dim=-1)
+                except Exception:
+                    return D_out
 
     def integrate_A301(self):
         """
