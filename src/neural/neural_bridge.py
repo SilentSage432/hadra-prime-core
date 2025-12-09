@@ -1780,6 +1780,7 @@ class NeuralBridge:
             self.routing_kernel_330 = None
             self.routing_consistency_331 = None
             self.routing_coherence_332 = None
+            self.routing_grad_stabilizer_333 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -21800,11 +21801,12 @@ class NeuralBridge:
         This is the foundation for multi-resolution predictive flow control in MF-331–350.
         """
         
-        def __init__(self, dim=128, num_levels=3, regularizer=None, coherence_engine=None):
+        def __init__(self, dim=128, num_levels=3, regularizer=None, coherence_engine=None, grad_stabilizer=None):
             self.dim = dim
             self.num_levels = num_levels
             self.regularizer = regularizer  # Reference to MF-331 regularizer
             self.coherence_engine = coherence_engine  # Reference to MF-332 coherence engine
+            self.grad_stabilizer = grad_stabilizer  # Reference to MF-333 gradient stabilizer
             
             try:
                 import torch
@@ -21885,6 +21887,10 @@ class NeuralBridge:
                     # Apply MF-332 multi-scale routing coherence engine if available
                     if self.coherence_engine is not None:
                         routing_weights = self.coherence_engine.forward(routing_weights)
+                    
+                    # Apply MF-333 predictive routing gradient stabilizer if available
+                    if self.grad_stabilizer is not None:
+                        routing_weights = self.grad_stabilizer.forward(routing_weights)
                     
                     # Apply each transform weighted by routing coefficients
                     transformed = torch.zeros(self.dim, dtype=torch.float32)
@@ -22064,6 +22070,89 @@ class NeuralBridge:
             except Exception:
                 # Fallback: return original weights
                 return routing_levels
+
+    class PredictiveRoutingGradientStabilizer:
+        """
+        MF-333 — Predictive Routing Gradient Stabilizer
+        
+        Applies gradient-domain smoothing to routing tensors to reduce volatility
+        in predictive routing transitions, improving downstream stability.
+        
+        This is not training-time gradient clipping — it is runtime gradient
+        stabilization inside the routing logic itself.
+        
+        Dampens effects by:
+        - smoothing gradient magnitude across updates
+        - applying controlled clipping within a safe envelope
+        - preserving direction while reducing turbulence
+        - ensuring stable, predictable routing dynamics
+        """
+        
+        def __init__(self, clip_value=0.35, smooth_factor=0.2):
+            self.clip_value = clip_value
+            self.smooth_factor = smooth_factor
+            
+            try:
+                import torch
+                
+                # Track previous stabilized gradient estimate
+                self.prev_grad_estimate = torch.zeros(1, dtype=torch.float32)
+            except Exception:
+                self.prev_grad_estimate = None
+        
+        def forward(self, routing_tensor):
+            """
+            Apply gradient-domain smoothing to routing tensor.
+            
+            Args:
+                routing_tensor: arbitrary routing output tensor
+            
+            Returns:
+                stabilized: tensor with stabilized gradients
+            """
+            try:
+                import torch
+                
+                if routing_tensor is None:
+                    return routing_tensor
+                
+                if not isinstance(routing_tensor, torch.Tensor):
+                    routing_tensor = torch.tensor(routing_tensor, dtype=torch.float32)
+                
+                if not torch.is_floating_point(routing_tensor):
+                    return routing_tensor
+                
+                if self.prev_grad_estimate is None:
+                    self.prev_grad_estimate = torch.zeros(1, dtype=torch.float32)
+                
+                # Compute gradient-like volatility estimate (L2 norm)
+                grad_est = routing_tensor.norm(p=2)
+                
+                # Ensure grad_est is a scalar tensor
+                if grad_est.dim() > 0:
+                    grad_est = grad_est.item()
+                    grad_est = torch.tensor(grad_est, dtype=torch.float32)
+                
+                # Smooth gradient estimate over time
+                smoothed_grad = (
+                    self.smooth_factor * grad_est +
+                    (1.0 - self.smooth_factor) * self.prev_grad_estimate
+                )
+                
+                # Update stored value (detach to avoid gradient flow)
+                self.prev_grad_estimate = smoothed_grad.detach().clone()
+                
+                # Compute clipping ratio
+                smoothed_val = smoothed_grad.item() if isinstance(smoothed_grad, torch.Tensor) else float(smoothed_grad)
+                clip_ratio = min(1.0, self.clip_value / (smoothed_val + 1e-8))
+                
+                # Apply smoothed clipping to entire routing tensor
+                stabilized = routing_tensor * clip_ratio
+                
+                return stabilized
+            except Exception:
+                # Fallback: return original tensor
+                return routing_tensor
 
     def integrate_A301(self):
         """
@@ -22258,15 +22347,22 @@ class NeuralBridge:
                 if getattr(self.routing_coherence_332, "num_scales", 3) != 3:
                     self.routing_coherence_332 = self.MultiScaleRoutingCoherenceEngine(num_scales=3, align_strength=0.25)
             
+            if self.routing_grad_stabilizer_333 is None:
+                self.routing_grad_stabilizer_333 = self.PredictiveRoutingGradientStabilizer(clip_value=0.35, smooth_factor=0.2)
+            else:
+                # Check if parameters need updating (optional, since they're set in __init__)
+                pass
+            
             if self.routing_kernel_330 is None:
-                self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332)
+                self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333)
             else:
                 if getattr(self.routing_kernel_330, "dim", dim) != dim:
-                    self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332)
+                    self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333)
                 else:
-                    # Update regularizer and coherence engine references if they changed
+                    # Update regularizer, coherence engine, and grad stabilizer references if they changed
                     self.routing_kernel_330.regularizer = self.routing_consistency_331
                     self.routing_kernel_330.coherence_engine = self.routing_coherence_332
+                    self.routing_kernel_330.grad_stabilizer = self.routing_grad_stabilizer_333
             
             # Collect harmonic layers (only tensors present)
             candidates = [
