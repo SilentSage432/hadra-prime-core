@@ -1793,6 +1793,7 @@ class NeuralBridge:
             self.harmonic_stability_gate_343 = None
             self.predictive_harmonic_transition_344 = None
             self.harmonic_predictive_dual_state_merger_345 = None
+            self.dual_state_confluence_router_346 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -23648,6 +23649,143 @@ class NeuralBridge:
                     return predictive_state
                 return harmonic_state if isinstance(harmonic_state, torch.Tensor) else predictive_state
 
+    class DualStateConfluenceRouter:
+        """
+        MF-346 — Dual-State Confluence Routing Layer
+        
+        Purpose (ML framing):
+        MF-346 constructs a confluence routing kernel that:
+        - Receives the merged dual-state tensor from MF-345
+        - Computes routing weights into downstream manifolds (temporal, harmonic, predictive, associative, identity-linked)
+        - Ensures consistent signal flow under dynamic conditions
+        - Uses stability-aware normalization to keep divergence extremely low
+        - Prepares the architecture for MF-350+ (multi-confluence mesh phases)
+        
+        Nothing here is symbolic — it's pure routing math:
+        matrix transforms, gating, density constraints, residual normalization.
+        """
+        
+        def __init__(self, dim):
+            try:
+                import torch
+                import torch.nn as nn
+                from .torch_utils import TORCH_AVAILABLE
+                
+                if not TORCH_AVAILABLE:
+                    self.dim = dim
+                    self.to_temporal = None
+                    self.to_harmonic = None
+                    self.to_predictive = None
+                    self.to_associative = None
+                    self.routing_gate = None
+                    self.norm = None
+                    self.residual_scale = None
+                    return
+                
+                self.dim = dim
+                
+                # Projection heads for different manifold paths
+                self.to_temporal = nn.Linear(dim, dim)
+                self.to_harmonic = nn.Linear(dim, dim)
+                self.to_predictive = nn.Linear(dim, dim)
+                self.to_associative = nn.Linear(dim, dim)
+                
+                # Routing weight generator
+                self.routing_gate = nn.Sequential(
+                    nn.Linear(dim, dim),
+                    nn.ReLU(),
+                    nn.Linear(dim, 4),
+                    nn.Softmax(dim=-1)
+                )
+                
+                # Stabilization / normalization
+                self.norm = nn.LayerNorm(dim)
+                
+                # Residual connector
+                self.residual_scale = nn.Parameter(torch.tensor(0.02))
+            except Exception:
+                self.dim = dim
+                self.to_temporal = None
+                self.to_harmonic = None
+                self.to_predictive = None
+                self.to_associative = None
+                self.routing_gate = None
+                self.norm = None
+                self.residual_scale = None
+        
+        def forward(self, merged_state):
+            """
+            Route merged dual-state tensor through manifold pathways.
+            
+            Args:
+                merged_state: merged dual-state tensor from MF-345
+            
+            Returns:
+                routed: routed and stabilized tensor
+            """
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if (self.to_temporal is None or self.to_harmonic is None or 
+                    self.to_predictive is None or self.to_associative is None or
+                    self.routing_gate is None or self.norm is None or 
+                    self.residual_scale is None):
+                    # Fallback: return merged state as-is
+                    return merged_state if isinstance(merged_state, torch.Tensor) else merged_state
+                
+                # Ensure input is a tensor
+                if not isinstance(merged_state, torch.Tensor):
+                    try:
+                        merged_state = torch.tensor(merged_state, dtype=torch.float32)
+                    except Exception:
+                        return merged_state
+                
+                # Flatten and normalize dimensions
+                state_flat = merged_state.flatten()
+                
+                # Pad or trim to match dim
+                if state_flat.shape[0] < self.dim:
+                    state_flat = torch.cat([state_flat, torch.zeros(self.dim - state_flat.shape[0], dtype=torch.float32)])
+                elif state_flat.shape[0] > self.dim:
+                    state_flat = state_flat[:self.dim]
+                
+                # Ensure batch dimension for nn.Linear
+                if state_flat.dim() == 1:
+                    state_flat = state_flat.unsqueeze(0)
+                
+                # Generate routing weights
+                weights = self.routing_gate(state_flat)
+                
+                # Compute routed streams
+                temporal = torch.tanh(self.to_temporal(state_flat))
+                harmonic = torch.tanh(self.to_harmonic(state_flat))
+                predictive = torch.tanh(self.to_predictive(state_flat))
+                associative = torch.tanh(self.to_associative(state_flat))
+                
+                # Weighted confluence operation
+                routed = (
+                    temporal * weights[..., 0:1] +
+                    harmonic * weights[..., 1:2] +
+                    predictive * weights[..., 2:3] +
+                    associative * weights[..., 3:4]
+                )
+                
+                # Residual stabilization
+                stabilized = routed * (1 - self.residual_scale) + state_flat * self.residual_scale
+                
+                # Normalized output
+                output = self.norm(stabilized)
+                
+                # Remove batch dimension if it was added
+                if output.dim() == 2 and output.shape[0] == 1:
+                    output = output.squeeze(0)
+                
+                return output
+            except Exception:
+                # Fallback: return merged state as-is
+                return merged_state if isinstance(merged_state, torch.Tensor) else merged_state
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -23923,6 +24061,13 @@ class NeuralBridge:
                 # Check if dimension changed
                 if getattr(self.harmonic_predictive_dual_state_merger_345, "dim", dim) != dim:
                     self.harmonic_predictive_dual_state_merger_345 = self.HarmonicPredictiveDualStateMerger(dim=dim)
+            
+            if self.dual_state_confluence_router_346 is None:
+                self.dual_state_confluence_router_346 = self.DualStateConfluenceRouter(dim=dim)
+            else:
+                # Check if dimension changed
+                if getattr(self.dual_state_confluence_router_346, "dim", dim) != dim:
+                    self.dual_state_confluence_router_346 = self.DualStateConfluenceRouter(dim=dim)
             
             if self.routing_kernel_330 is None:
                 self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336, drift_corrector=self.routing_drift_corrector_337, consistency_graph=self.routing_consistency_graph_338)
@@ -24433,14 +24578,48 @@ class NeuralBridge:
                             # Store merged state for downstream use
                             self.mf345_merged_state = merged_state
                             self.mf345_merger_applied = True
+                            
+                            # MF-346 — Dual-State Confluence Routing Layer
+                            # Route merged state through manifold pathways
+                            if self.dual_state_confluence_router_346 is not None:
+                                try:
+                                    routed_state = self.dual_state_confluence_router_346.forward(merged_state)
+                                    
+                                    # Update the merged state with routed result
+                                    self.mf345_merged_state = routed_state
+                                    
+                                    # Update primary predictive representation with routed result
+                                    if hasattr(self, 'stable_meta_field') and self.stable_meta_field is merged_state:
+                                        self.stable_meta_field = routed_state
+                                    elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is merged_state:
+                                        self.unified_predictive_core = routed_state
+                                    elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is merged_state:
+                                        self.global_resonance_vector = routed_state
+                                    
+                                    # Store routed state for downstream use
+                                    self.mf346_routed_state = routed_state
+                                    self.mf346_router_applied = True
+                                except Exception as router_error:
+                                    # Continue if router fails
+                                    self.mf346_router_applied = False
+                                    if hasattr(self, 'logger'):
+                                        try:
+                                            self.logger.write({"mf346_error": str(router_error)})
+                                        except Exception:
+                                            pass
+                            else:
+                                self.mf346_router_applied = False
                         except Exception as merger_error:
                             # Continue if merger fails
                             self.mf345_merger_applied = False
+                            self.mf346_router_applied = False
                     else:
                         self.mf345_merger_applied = False
+                        self.mf346_router_applied = False
                 except Exception as e:
                     # Silently continue if MF-345 fails
                     self.mf345_merger_applied = False
+                    self.mf346_router_applied = False
                     if hasattr(self, 'logger'):
                         try:
                             self.logger.write({"mf345_error": str(e)})
