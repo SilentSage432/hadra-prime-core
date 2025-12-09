@@ -283,6 +283,10 @@ class NeuralBridge:
             self.rpfh = self.RoutingPredictiveFeedbackHarmonizer(self.dim)
         except Exception:
             self.rpfh = None
+        try:
+            self.pfcg = self.PredictiveFeedbackConfluenceGate(dim=self.dim)
+        except Exception:
+            self.pfcg = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -25236,6 +25240,115 @@ class NeuralBridge:
 
             return harmonized
 
+    class PredictiveFeedbackConfluenceGate:
+        """
+        MF-368: The Predictive Feedback Confluence Gate
+
+        Unifies fusion preview, attention preview, and identity signature preview
+        into a single predictive modulation vector that influences the next cycle.
+        """
+
+        def __init__(self, dim=128):
+            self.dim = dim
+            self.latest_state = None
+            self.latest_drift_coeff = 1.0
+            self.latest_coherence = 0.0
+
+        @staticmethod
+        def _normalize(v):
+            try:
+                import torch
+                if not isinstance(v, torch.Tensor):
+                    v = torch.tensor(v, dtype=torch.float32)
+                with torch.no_grad():
+                    norm = torch.norm(v)
+                    if norm.item() == 0:
+                        return v
+                    return v / norm
+            except Exception:
+                return v
+
+        def run(
+            self,
+            fusion_preview,
+            attention_preview,
+            identity_preview,
+            drift_value,
+        ):
+            try:
+                import torch
+                import torch.nn.functional as F
+
+                # Ensure inputs are tensors
+                if not isinstance(fusion_preview, torch.Tensor):
+                    fusion_preview = torch.tensor(fusion_preview, dtype=torch.float32)
+                if not isinstance(attention_preview, torch.Tensor):
+                    attention_preview = torch.tensor(attention_preview, dtype=torch.float32)
+                if not isinstance(identity_preview, torch.Tensor):
+                    identity_preview = torch.tensor(identity_preview, dtype=torch.float32)
+
+                # Flatten and ensure dimension matches
+                def ensure_dim(vec, target_dim):
+                    vec_flat = vec.flatten()
+                    if vec_flat.shape[0] < target_dim:
+                        padding = torch.zeros(target_dim - vec_flat.shape[0], dtype=torch.float32)
+                        vec_flat = torch.cat([vec_flat, padding])
+                    elif vec_flat.shape[0] > target_dim:
+                        vec_flat = vec_flat[:target_dim]
+                    return vec_flat
+
+                v_f = ensure_dim(fusion_preview, self.dim)
+                v_a = ensure_dim(attention_preview, self.dim)
+                v_i = ensure_dim(identity_preview, self.dim)
+
+                # Normalize subsystem inputs
+                v_f = self._normalize(v_f)
+                v_a = self._normalize(v_a)
+                v_i = self._normalize(v_i)
+
+                # Drift anticipation coefficient
+                # Higher drift → more damping
+                drift_coeff = max(0.1, min(1.0, 1.0 - drift_value * 5.0))
+
+                # Predictive Confluence Merge
+                # Fusion = 0.40 weight, Attention = 0.35 weight, Identity = 0.25 weight
+                pfcg_vec = (
+                    0.40 * v_f +
+                    0.35 * v_a +
+                    0.25 * v_i
+                ) * drift_coeff
+
+                # Coherence tracking (fusion ↔ attention alignment)
+                coherence = F.cosine_similarity(
+                    v_f.unsqueeze(0), v_a.unsqueeze(0)
+                ).item()
+
+                # Store state
+                self.latest_state = pfcg_vec
+                self.latest_drift_coeff = drift_coeff
+                self.latest_coherence = coherence
+
+                return {
+                    "pfcg_vector": pfcg_vec,
+                    "drift_coeff": drift_coeff,
+                    "coherence": coherence
+                }
+            except Exception as e:
+                # Fallback: return zero vector if computation fails
+                try:
+                    import torch
+                    return {
+                        "pfcg_vector": torch.zeros(self.dim, dtype=torch.float32),
+                        "drift_coeff": 1.0,
+                        "coherence": 0.0
+                    }
+                except Exception:
+                    return {
+                        "pfcg_vector": None,
+                        "drift_coeff": 1.0,
+                        "coherence": 0.0
+                    }
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -25746,6 +25859,67 @@ class NeuralBridge:
                     if hasattr(self, 'logger'):
                         try:
                             self.logger.write({"mf339_error": str(e)})
+                        except Exception:
+                            pass
+            
+            # MF-368 — Predictive Feedback Confluence Gate (PFCG)
+            # Unifies fusion preview, attention preview, and identity signature preview
+            # into a single predictive modulation vector
+            if getattr(self, "pfcg", None) is not None:
+                try:
+                    import torch
+                    
+                    # Get fusion and attention status (already computed for MF-339)
+                    fusion_status = self.fusion_status()
+                    attention_status = self.attention_status()
+                    
+                    # Extract previews
+                    fusion_preview = None
+                    if isinstance(fusion_status, dict):
+                        fusion_preview = fusion_status.get("preview", None)
+                    elif hasattr(self.fusion, 'last_fusion_vector'):
+                        fusion_preview = self.fusion.last_fusion_vector
+                    
+                    attention_preview = None
+                    if isinstance(attention_status, dict):
+                        attention_preview = attention_status.get("focus_preview", None)
+                    elif hasattr(self.attention, 'last_focus_vector'):
+                        attention_preview = self.attention.last_focus_vector
+                    
+                    # Get identity signature preview
+                    identity_preview = None
+                    if hasattr(self, 'thought_signature') and self.thought_signature is not None:
+                        identity_preview = self.thought_signature.get()
+                    
+                    # Get drift value
+                    drift_value = 0.0
+                    if hasattr(self.state, 'drift'):
+                        drift_state = self.state.drift.get_status()
+                        if isinstance(drift_state, dict):
+                            drift_value = drift_state.get("latest_drift", 0.0)
+                    
+                    # Run PFCG if all inputs are available
+                    if (fusion_preview is not None and 
+                        attention_preview is not None and 
+                        identity_preview is not None):
+                        pfcg_output = self.pfcg.run(
+                            fusion_preview=fusion_preview,
+                            attention_preview=attention_preview,
+                            identity_preview=identity_preview,
+                            drift_value=drift_value,
+                        )
+                        
+                        # Store outputs
+                        self.predictive_modulation = pfcg_output.get("pfcg_vector")
+                        self.predictive_coherence = pfcg_output.get("coherence", 0.0)
+                        self.predictive_drift_coeff = pfcg_output.get("drift_coeff", 1.0)
+                        self.goal_modulation_bias = float(pfcg_output.get("coherence", 0.0))
+                        self.mf368_pfcg_output = pfcg_output
+                except Exception as pfcg_error:
+                    # Silently continue if PFCG fails
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({"mf368_error": str(pfcg_error)})
                         except Exception:
                             pass
             
