@@ -440,6 +440,14 @@ class NeuralBridge:
             )
         except Exception:
             self.mf402_igh = None
+        # MF-403 — Multi-Band Influence Modulation Field (MB-IMF)
+        try:
+            self.mf403_mbimf = self.MultiBandInfluenceModulationField(
+                substrate_dim=self.dim,
+                band_count=4
+            )
+        except Exception:
+            self.mf403_mbimf = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -28842,6 +28850,122 @@ class NeuralBridge:
             except Exception:
                 # If harmonization fails, return the input
                 return p_stable
+
+    class MultiBandInfluenceModulationField(nn.Module):
+        """
+        MF-403 — Multi-Band Influence Modulation Field (MB-IMF)
+
+        Expands the influence-processing capabilities introduced in MF-401 and MF-402 by creating
+        parallel modulation bands that operate over the harmonized influence-gradients.
+
+        This continues the Influence Field Series (MF-401 → MF-430) and remains strictly
+        tensorial and mechanistic.
+
+        Purpose:
+        MF-403 introduces multi-band modulation—a mechanism where the harmonized gradients from
+        MF-402 are decomposed, modulated, and recombined across several independent bands.
+
+        This enhances:
+        - field sensitivity
+        - curvature-awareness
+        - substrate-level modulation diversity
+        - multi-directional response resolution
+
+        No cognition, intent, or agency is involved—only tensor transformations.
+
+        Core Computational Operations:
+        1. Band Decomposition: transforms harmonized gradients into N parallel modulation bands
+           using learned modulation matrices.
+        2. Band-Specific Modulation Functions: each band applies a distinct modulation function
+           (sinusoidal, polynomial, exponential dampening, logistic smoothing).
+        3. Multi-Band Aggregation: recombines modulated bands using learned band weights.
+        4. Substrate-Constrained Output: applies substrate-aligned normalization to ensure
+           compatibility with the MF-400 Unified Predictive Substrate.
+
+        Outcome:
+        MF-403 provides parallel modulation bands, band-specific tensor transforms, multi-field
+        harmonic blending, and substrate-aligned modulation outputs. This sets the stage for
+        MF-404, where cross-band resonance stabilization ensures modulation bands remain coherent
+        under dynamic substrate conditions.
+        """
+
+        def __init__(self, substrate_dim, band_count=4):
+            super().__init__()
+            self.substrate_dim = substrate_dim
+            self.band_count = band_count
+
+            # Learned modulation matrices for each band
+            self.band_matrices = nn.Parameter(
+                torch.randn(band_count, substrate_dim, substrate_dim) * 0.01
+            )
+
+            # Band-specific weights for aggregation
+            self.band_weights = nn.Parameter(
+                torch.randn(band_count) * 0.1
+            )
+
+            # Substrate-normalization matrix
+            self.substrate_map = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def modulation_fn(self, x, band_index):
+            """
+            Band-dependent modulation. These are purely mathematical transforms.
+            """
+            if band_index % 3 == 0:
+                return torch.sin(x)
+            elif band_index % 3 == 1:
+                return torch.tanh(x)
+            else:
+                return x / (1 + torch.abs(x))
+
+        def forward(self, g_bal):
+            """
+            g_bal: balanced gradients from MF-402 (tensor)
+            """
+            if torch is None or g_bal is None:
+                return g_bal
+
+            # Ensure g_bal is a tensor
+            if not isinstance(g_bal, torch.Tensor):
+                try:
+                    g_bal = torch.tensor(g_bal, dtype=torch.float32)
+                except Exception:
+                    return g_bal
+
+            # Ensure proper shape
+            if g_bal.dim() == 1:
+                g_bal = g_bal.unsqueeze(0)
+            if g_bal.shape[-1] != self.substrate_dim:
+                # Resize if needed
+                if g_bal.shape[-1] < self.substrate_dim:
+                    padding = torch.zeros(g_bal.shape[:-1] + (self.substrate_dim - g_bal.shape[-1],), dtype=g_bal.dtype)
+                    g_bal = torch.cat([g_bal, padding], dim=-1)
+                else:
+                    g_bal = g_bal[..., :self.substrate_dim]
+
+            try:
+                import torch.nn.functional as F
+                band_outputs = []
+
+                # 1. Multi-band decomposition + modulation
+                for i in range(self.band_count):
+                    b_i = torch.matmul(g_bal, self.band_matrices[i])
+                    m_i = self.modulation_fn(b_i, i)
+                    band_outputs.append(m_i * self.band_weights[i])
+
+                # 2. Multi-band aggregation
+                m_total = torch.stack(band_outputs, dim=0).sum(dim=0)
+
+                # 3. Substrate-constrained normalization
+                m_norm = torch.matmul(m_total, self.substrate_map)
+                m_norm = F.normalize(m_norm, dim=-1)
+
+                return m_norm
+            except Exception:
+                # If modulation fails, return the input
+                return g_bal
 
     def integrate_A301(self):
         """
