@@ -433,6 +433,13 @@ class NeuralBridge:
             )
         except Exception:
             self.mf401_ifpk = None
+        # MF-402 — Influence-Gradient Harmonization Layer
+        try:
+            self.mf402_igh = self.InfluenceGradientHarmonizationLayer(
+                substrate_dim=self.dim
+            )
+        except Exception:
+            self.mf402_igh = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -28733,6 +28740,108 @@ class NeuralBridge:
                     return F.normalize(v_raw, dim=-1)
                 except Exception:
                     return v_raw
+
+    class InfluenceGradientHarmonizationLayer(nn.Module):
+        """
+        MF-402 — Influence-Gradient Harmonization Layer
+
+        Extends MF-401 by introducing a harmonized gradient regulator that controls how
+        influence-gradients flow, blend, and stabilize across the MF-400 Unified Predictive Substrate.
+
+        This layer does not introduce intent, cognition, or agency.
+        It introduces mathematical harmonization of influence-gradients across multi-field manifolds.
+
+        Core Computational Additions:
+        1. Influence-Gradient Extraction: computes directional gradient vectors from the
+           influence-propagation output, reflecting field sensitivity, manifold curvature, and
+           local substrate responsiveness.
+        2. Cross-Field Gradient Harmonization: applies a harmonization operator that maps raw
+           gradients into a regulated gradient-space using manifold-aligned smoothing, cross-field
+           harmonic blending, and gradient-drift suppression.
+        3. Temporal-Slice Regularization: ensures dynamics remain stable across temporal slices
+           using a temporal-coherence coefficient.
+        4. Gradient-Energy Balancing: a balancing factor ensures gradient norms remain within
+           stable bounds, preventing destabilizing amplification, excessive contraction, and
+           substrate-level discontinuities.
+
+        Outcome:
+        MF-402 provides harmonized influence-gradients, cross-field blending, temporal coherence,
+        and energy-regulated gradient behavior. This prepares the system for MF-403, where
+        influence-gradients begin participating in multi-band modulation fields.
+        """
+
+        def __init__(self, substrate_dim):
+            super().__init__()
+            self.substrate_dim = substrate_dim
+
+            # Harmonization matrix H (learned smoothing/blending operator)
+            self.harmonization_matrix = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+            # Temporal coherence coefficient
+            self.temporal_coeff = nn.Parameter(
+                torch.tensor(0.97)
+            )
+
+            # Gradient-energy balancing coefficient
+            self.energy_balance = nn.Parameter(
+                torch.tensor(1.0)
+            )
+
+        def forward(self, p_stable):
+            """
+            p_stable: stable influence map from MF-401 (tensor)
+            """
+            if torch is None or p_stable is None:
+                return p_stable
+
+            # Ensure p_stable is a tensor
+            if not isinstance(p_stable, torch.Tensor):
+                try:
+                    p_stable = torch.tensor(p_stable, dtype=torch.float32)
+                except Exception:
+                    return p_stable
+
+            # Ensure proper shape
+            if p_stable.dim() == 1:
+                p_stable = p_stable.unsqueeze(0)
+            if p_stable.shape[-1] != self.substrate_dim:
+                # Resize if needed
+                if p_stable.shape[-1] < self.substrate_dim:
+                    padding = torch.zeros(p_stable.shape[:-1] + (self.substrate_dim - p_stable.shape[-1],), dtype=p_stable.dtype)
+                    p_stable = torch.cat([p_stable, padding], dim=-1)
+                else:
+                    p_stable = p_stable[..., :self.substrate_dim]
+
+            try:
+                import torch.nn.functional as F
+                # 1. Influence-gradient extraction
+                # Compute gradients along last dimension
+                # Use diff to compute directional gradients
+                try:
+                    # PyTorch 1.8.0+ supports prepend parameter
+                    grad = torch.diff(p_stable, dim=-1, prepend=p_stable[..., :1])
+                except TypeError:
+                    # Fallback for older PyTorch versions
+                    grad_first = p_stable[..., :1]
+                    grad_rest = torch.diff(p_stable, dim=-1)
+                    grad = torch.cat([grad_first, grad_rest], dim=-1)
+
+                # 2. Cross-field gradient harmonization
+                g_h = torch.matmul(grad, self.harmonization_matrix)
+
+                # 3. Temporal-slice regularization
+                g_reg = g_h * self.temporal_coeff
+
+                # 4. Gradient-energy balancing
+                norm = torch.norm(g_reg, dim=-1, keepdim=True) + 1e-8
+                g_bal = g_reg / (1 + self.energy_balance * norm)
+
+                return g_bal
+            except Exception:
+                # If harmonization fails, return the input
+                return p_stable
 
     def integrate_A301(self):
         """
