@@ -1799,6 +1799,7 @@ class NeuralBridge:
             self.confluence_graph_stabilization_349 = None
             self.hierarchical_confluence_stack_350 = None
             self.hierarchical_layer_interaction_kernel_351 = None
+            self.hierarchical_confluence_refinement_layer_352 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -24356,6 +24357,117 @@ class NeuralBridge:
             except Exception:
                 return lower_layer_state
 
+    class HierarchicalConfluenceRefinementLayer:
+        """
+        MF-352 — Hierarchical Confluence Refinement Layer (HCRL)
+
+        Purpose:
+        - Layer-wise refinement using local context and interaction signals
+        - Local smoothing and dynamic gating informed by HLIK outputs
+        - Stability via residual reinforcement and normalization
+        """
+
+        def __init__(self, dim):
+            try:
+                import torch
+                import torch.nn as nn
+                from .torch_utils import TORCH_AVAILABLE
+
+                if not TORCH_AVAILABLE:
+                    self.dim = dim
+                    self.local_refine = None
+                    self.interaction_gate = None
+                    self.smoothing = None
+                    self.residual_scale = None
+                    self.norm = None
+                    return
+
+                self.dim = dim
+
+                # Local refinement transformation
+                self.local_refine = nn.Sequential(
+                    nn.Linear(dim, dim),
+                    nn.ReLU(),
+                    nn.Linear(dim, dim)
+                )
+
+                # Interaction-based gate (influenced by MF-351 outputs)
+                self.interaction_gate = nn.Sequential(
+                    nn.Linear(dim * 2, dim),
+                    nn.Tanh(),
+                    nn.Linear(dim, dim),
+                    nn.Sigmoid()
+                )
+
+                # Stability smoothing kernel
+                self.smoothing = nn.Sequential(
+                    nn.Linear(dim, dim),
+                    nn.Tanh(),
+                    nn.Linear(dim, dim)
+                )
+
+                # Residual scaling to preserve historical signal integrity
+                self.residual_scale = nn.Parameter(torch.tensor(0.014))
+
+                # Layer normalization for final stability
+                self.norm = nn.LayerNorm(dim)
+            except Exception:
+                self.dim = dim
+                self.local_refine = None
+                self.interaction_gate = None
+                self.smoothing = None
+                self.residual_scale = None
+                self.norm = None
+
+        def forward(self, layer_state, interaction_signal):
+            """
+            Refine layer state using local context and interaction signals.
+            """
+            try:
+                import torch
+
+                if (self.local_refine is None or self.interaction_gate is None or
+                    self.smoothing is None or self.residual_scale is None or self.norm is None):
+                    return layer_state
+
+                # Ensure tensors and shapes
+                def ensure_tensor(x):
+                    if not isinstance(x, torch.Tensor):
+                        x = torch.tensor(x, dtype=torch.float32)
+                    if x.dim() == 1:
+                        x = x.unsqueeze(0)
+                    return x
+
+                layer_state = ensure_tensor(layer_state)
+                interaction_signal = ensure_tensor(interaction_signal)
+
+                # Local refinement
+                refined_local = self.local_refine(layer_state)
+
+                # Combine local + interaction signals
+                gate_input = torch.cat([layer_state, interaction_signal], dim=-1)
+                gate = self.interaction_gate(gate_input)
+
+                # Apply gate to blend signals
+                blended = refined_local * gate + layer_state * (1 - gate)
+
+                # Stabilize using smoothing kernel
+                smoothed = self.smoothing(blended)
+
+                # Residual reinforcement
+                stabilized = smoothed * (1 - self.residual_scale) + layer_state * self.residual_scale
+
+                # Final normalization
+                output = self.norm(stabilized)
+
+                # Remove batch dim if added
+                if output.dim() == 2 and output.shape[0] == 1:
+                    output = output.squeeze(0)
+
+                return output
+            except Exception:
+                return layer_state
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -24674,6 +24786,13 @@ class NeuralBridge:
                 if getattr(self.hierarchical_layer_interaction_kernel_351, "dim", dim) != dim:
                     self.hierarchical_layer_interaction_kernel_351 = self.HierarchicalLayerInteractionKernel(dim=dim)
 
+            if self.hierarchical_confluence_refinement_layer_352 is None:
+                self.hierarchical_confluence_refinement_layer_352 = self.HierarchicalConfluenceRefinementLayer(dim=dim)
+            else:
+                # Check if dimension changed
+                if getattr(self.hierarchical_confluence_refinement_layer_352, "dim", dim) != dim:
+                    self.hierarchical_confluence_refinement_layer_352 = self.HierarchicalConfluenceRefinementLayer(dim=dim)
+
             # Expose convenience alias and register phase
             self.multi_route_confluence_interaction_layer = self.multi_route_confluence_interaction_layer_348
             if not hasattr(self, "phase_registry"):
@@ -24690,6 +24809,10 @@ class NeuralBridge:
             self.hierarchical_layer_interaction_kernel = self.hierarchical_layer_interaction_kernel_351
             if "MF-351: Hierarchical Layer Interaction Kernel (HLIK)" not in self.phase_registry:
                 self.phase_registry.append("MF-351: Hierarchical Layer Interaction Kernel (HLIK)")
+            # Alias and phase registration for MF-352
+            self.hierarchical_confluence_refinement_layer = self.hierarchical_confluence_refinement_layer_352
+            if "MF-352: Hierarchical Confluence Refinement Layer (HCRL)" not in self.phase_registry:
+                self.phase_registry.append("MF-352: Hierarchical Confluence Refinement Layer (HCRL)")
             
             if self.routing_kernel_330 is None:
                 self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336, drift_corrector=self.routing_drift_corrector_337, consistency_graph=self.routing_consistency_graph_338)
