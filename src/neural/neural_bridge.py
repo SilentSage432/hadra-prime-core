@@ -287,6 +287,14 @@ class NeuralBridge:
             self.pfcg = self.PredictiveFeedbackConfluenceGate(dim=self.dim)
         except Exception:
             self.pfcg = None
+        try:
+            self.apng = self.AdaptivePredictiveNarrativeGate(dim=self.dim)
+        except Exception:
+            self.apng = None
+        try:
+            self.pcrbk = self.PredictiveConfluenceResidualBinding(self.dim)
+        except Exception:
+            self.pcrbk = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -25349,6 +25357,162 @@ class NeuralBridge:
                         "coherence": 0.0
                     }
 
+    class AdaptivePredictiveNarrativeGate:
+        """
+        MF-369: Predictive narrative arc forecaster.
+
+        Generates a narrative gradient vector (NGV) by forecasting
+        2–3 cycles ahead based on existing modulation, identity,
+        and attentional directionality.
+        """
+
+        def __init__(self, dim=128):
+            self.dim = dim
+            try:
+                import torch
+                self.last_narrative_vector = torch.zeros(dim)
+            except Exception:
+                self.last_narrative_vector = None
+            self.last_alignment = 0.0
+            self.last_momentum = 0.0
+
+        @staticmethod
+        def _normalize(v):
+            try:
+                import torch
+                if not isinstance(v, torch.Tensor):
+                    v = torch.tensor(v, dtype=torch.float32)
+                with torch.no_grad():
+                    n = torch.norm(v)
+                    if n.item() == 0:
+                        return v
+                    return v / n
+            except Exception:
+                return v
+
+        def run(
+            self,
+            pfcg_vector,
+            identity_preview,
+            attention_preview,
+            fusion_coherence,
+            drift_coeff,
+        ):
+            try:
+                import torch
+                import torch.nn.functional as F
+
+                # Ensure inputs are tensors
+                if not isinstance(pfcg_vector, torch.Tensor):
+                    pfcg_vector = torch.tensor(pfcg_vector, dtype=torch.float32)
+                if not isinstance(identity_preview, torch.Tensor):
+                    identity_preview = torch.tensor(identity_preview, dtype=torch.float32)
+                if not isinstance(attention_preview, torch.Tensor):
+                    attention_preview = torch.tensor(attention_preview, dtype=torch.float32)
+
+                # Normalize all channels
+                v_p = self._normalize(pfcg_vector)
+                v_i = self._normalize(identity_preview)
+                v_a = self._normalize(attention_preview)
+
+                # Narrative Momentum Scalar
+                # High coherence → stronger forward push
+                momentum = float(
+                    0.6 * fusion_coherence +
+                    0.3 * drift_coeff +
+                    0.1 * torch.dot(v_p, v_i).item()
+                )
+
+                # Identity Curvature Scalar
+                identity_curvature = float(
+                    F.cosine_similarity(
+                        v_i.unsqueeze(0), v_a.unsqueeze(0)
+                    ).item()
+                )
+
+                # Narrative Gradient Vector (core of MF-369)
+                ngv = (
+                    0.50 * v_p +               # predictive base
+                    0.30 * v_i +               # identity arc anchor
+                    0.20 * v_a                 # attentional direction
+                ) * (0.75 + 0.25 * momentum)    # forward arc scaling
+                ngv = self._normalize(ngv)
+
+                # Narrative alignment metric
+                alignment = float(
+                    (torch.dot(ngv, v_i).item() +
+                     torch.dot(ngv, v_p).item()) / 2
+                )
+
+                # Store internal state
+                self.last_narrative_vector = ngv
+                self.last_alignment = alignment
+                self.last_momentum = momentum
+
+                return {
+                    "narrative_vector": ngv,
+                    "narrative_alignment": alignment,
+                    "momentum": momentum,
+                    "identity_curvature": identity_curvature,
+                }
+            except Exception as e:
+                # Fallback: return zero vector if computation fails
+                try:
+                    import torch
+                    return {
+                        "narrative_vector": torch.zeros(self.dim, dtype=torch.float32),
+                        "narrative_alignment": 0.0,
+                        "momentum": 0.0,
+                        "identity_curvature": 0.0,
+                    }
+                except Exception:
+                    return {
+                        "narrative_vector": None,
+                        "narrative_alignment": 0.0,
+                        "momentum": 0.0,
+                        "identity_curvature": 0.0,
+                    }
+
+    class PredictiveConfluenceResidualBinding(nn.Module):
+        """
+        MF-370 — Predictive–Confluence Residual Binding Kernel (PCRBK)
+
+        Strengthens coupling between predictive field outputs and
+        manifold-integrated confluence routes by applying residual binding.
+        Prevents drift between predictive pathways and multi-manifold routing stack.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.residual_gate = None
+                self.binding_norm = None
+                self.binding_strength = None
+                return
+
+            self.residual_gate = nn.Linear(dim, dim)
+            self.binding_norm = nn.LayerNorm(dim)
+            self.binding_strength = nn.Parameter(torch.tensor(0.03))
+
+        def forward(self, predictive_out, confluence_out):
+            if (torch is None or
+                self.residual_gate is None or
+                self.binding_norm is None or
+                self.binding_strength is None):
+                return predictive_out
+
+            # Create residual delta
+            delta = predictive_out - confluence_out
+
+            # Learnable transformation of delta
+            transformed = self.residual_gate(delta)
+
+            # Binding signal (soft fusion)
+            bound = confluence_out + self.binding_strength * transformed
+
+            return self.binding_norm(bound)
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -25915,6 +26079,48 @@ class NeuralBridge:
                         self.predictive_drift_coeff = pfcg_output.get("drift_coeff", 1.0)
                         self.goal_modulation_bias = float(pfcg_output.get("coherence", 0.0))
                         self.mf368_pfcg_output = pfcg_output
+                        
+                        # MF-369 — Adaptive Predictive Narrative Gate (APNG)
+                        # Generate narrative gradient vector from PFCG output
+                        if (hasattr(self, 'apng') and self.apng is not None and
+                            self.predictive_modulation is not None):
+                            try:
+                                # Get attention preview (same as used for PFCG)
+                                attention_preview = None
+                                if hasattr(self.state, 'attention') and self.state.attention is not None:
+                                    attention_state = self.state.attention.get_status()
+                                    if isinstance(attention_state, dict):
+                                        attention_preview = attention_state.get("focus_preview")
+                                
+                                # Get identity preview (same as used for PFCG)
+                                identity_preview = None
+                                if hasattr(self, 'thought_signature') and self.thought_signature is not None:
+                                    identity_preview = self.thought_signature.get()
+                                
+                                # Run APNG if all inputs are available
+                                if (attention_preview is not None and 
+                                    identity_preview is not None):
+                                    apng_out = self.apng.run(
+                                        pfcg_vector=self.predictive_modulation,
+                                        identity_preview=identity_preview,
+                                        attention_preview=attention_preview,
+                                        fusion_coherence=self.predictive_coherence,
+                                        drift_coeff=self.predictive_drift_coeff,
+                                    )
+                                    
+                                    # Store narrative outputs
+                                    self.narrative_bias = apng_out.get("narrative_vector")
+                                    self.narrative_alignment = apng_out.get("narrative_alignment", 0.0)
+                                    self.narrative_momentum = apng_out.get("momentum", 0.0)
+                                    self.identity_curvature = apng_out.get("identity_curvature", 0.0)
+                                    self.mf369_apng_output = apng_out
+                            except Exception as apng_error:
+                                # Silently continue if APNG fails
+                                if hasattr(self, 'logger'):
+                                    try:
+                                        self.logger.write({"mf369_error": str(apng_error)})
+                                    except Exception:
+                                        pass
                 except Exception as pfcg_error:
                     # Silently continue if PFCG fails
                     if hasattr(self, 'logger'):
@@ -26606,6 +26812,30 @@ class NeuralBridge:
                                                                 if hasattr(self, 'logger'):
                                                                     try:
                                                                         self.logger.write({"mf367_error": str(rpfh_error)})
+                                                                    except Exception:
+                                                                        pass
+
+                                                            # MF-370 — Predictive–Confluence Residual Binding Kernel (PCRBK)
+                                                            # Bind predictive output with confluence state to prevent drift
+                                                            try:
+                                                                if (getattr(self, "pcrbk", None) is not None and
+                                                                    internal_states.get("confluence_state") is not None):
+                                                                    # primary_state now contains all predictive transformations
+                                                                    # Bind it with confluence_state to retain structural similarity
+                                                                    bound_state = self.pcrbk(
+                                                                        primary_state,
+                                                                        internal_states["confluence_state"]
+                                                                    )
+                                                                    primary_state = bound_state
+                                                                    internal_states["predictive_confluence_bound"] = bound_state
+                                                                    self.mf370_predictive_confluence_bound = bound_state
+                                                                else:
+                                                                    self.mf370_predictive_confluence_bound = None
+                                                            except Exception as pcrbk_error:
+                                                                self.mf370_predictive_confluence_bound = None
+                                                                if hasattr(self, 'logger'):
+                                                                    try:
+                                                                        self.logger.write({"mf370_error": str(pcrbk_error)})
                                                                     except Exception:
                                                                         pass
 
