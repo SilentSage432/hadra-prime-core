@@ -534,6 +534,22 @@ class NeuralBridge:
             )
         except Exception:
             self.mf414_sirk = None
+        # MF-415 — Influence-Modulation Harmonic Layer (IMHL)
+        try:
+            self.mf415_imhl = self.InfluenceModulationHarmonicLayer(
+                substrate_dim=self.dim,
+                harm_dim=6
+            )
+        except Exception:
+            self.mf415_imhl = None
+        # MF-416 — Harmonic-Manifold Coupling Layer (HMCL)
+        try:
+            self.mf416_hmcl = self.HarmonicManifoldCouplingLayer(
+                substrate_dim=self.dim,
+                harm_dim=6
+            )
+        except Exception:
+            self.mf416_hmcl = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -30578,6 +30594,349 @@ class NeuralBridge:
                     return F.normalize(DS_out, dim=-1)
                 except Exception:
                     return DS_out
+
+    class InfluenceModulationHarmonicLayer(nn.Module):
+        """
+        MF-415 — Influence-Modulation Harmonic Layer (IMHL)
+
+        Begins the Harmonic Modulation Arc by decomposing stabilized influence tensors and
+        recombining them into modulation harmonics across the manifold. This layer takes the
+        stabilized influence reprojection output (SI_out) from MF-414 and constructs harmonic
+        modulation fields via influence-frequency decomposition, harmonic coupling tensor,
+        modulation amplitude regulator, harmonic recomposition, and substrate-aligned projection.
+
+        Core Computational Components:
+        1. Influence Harmonic Decomposition: computes pseudo-frequency components by taking
+           finite differences across multiple step sizes (1-step, 2-step, 4-step) and aggregating
+           them into a harmonic stack, simulating a multi-frequency harmonic representation.
+        2. Harmonic Coupling Tensor: uses a rank-3 tensor to couple harmonic components into
+           modulation signals across harmonic channels.
+        3. Influence-Harmonic Fusion: merges the original influence field, harmonic modulation,
+           and a learned harmonic bias vector via learned coefficients (α, β, γ).
+        4. Amplitude Limiting + Projection: applies a stabilizer and final projection to produce
+           the harmonic-modulation tensor for MF-416.
+
+        Outcome:
+        MF-415 outputs IM_out, which contains multi-frequency influence harmonics, harmonic
+        coupling interactions, stabilized modulation output, and substrate-aligned projection.
+        This establishes the harmonic modulation base for MF-416.
+        """
+
+        def __init__(self, substrate_dim, harm_dim=6):
+            super().__init__()
+            self.harm_dim = harm_dim
+
+            # Harmonic coupling tensor
+            # Shape: [harm_dim, harm_dim, substrate_dim]
+            self.T_harm = nn.Parameter(
+                torch.randn(harm_dim, harm_dim, substrate_dim) * 0.01
+            )
+
+            # Harmonic bias vector
+            self.b_harm = nn.Parameter(
+                torch.randn(substrate_dim) * 0.01
+            )
+
+            # Harmonic stack projection (3 harmonics -> harm_dim)
+            self.harm_proj = nn.Parameter(
+                torch.randn(harm_dim, 3, substrate_dim) * 0.01
+            )
+
+            # Fusion coefficients
+            self.alpha = nn.Parameter(torch.tensor(0.50))
+            self.beta = nn.Parameter(torch.tensor(0.35))
+            self.gamma = nn.Parameter(torch.tensor(0.15))
+
+            # Alignment projection
+            self.W_align = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def forward(self, SI_out):
+            """
+            SI_out: stabilized influence field from MF-414, shape [batch, dim]
+            """
+            if torch is None or SI_out is None:
+                return SI_out
+
+            # Ensure SI_out is a tensor
+            if not isinstance(SI_out, torch.Tensor):
+                try:
+                    SI_out = torch.tensor(SI_out, dtype=torch.float32)
+                except Exception:
+                    return SI_out
+
+            # Ensure proper shape
+            if SI_out.dim() == 1:
+                SI_out = SI_out.unsqueeze(0)
+
+            try:
+                import torch.nn.functional as F
+
+                batch, dim = SI_out.shape
+                substrate_dim = dim
+
+                # Ensure dimensions match
+                if dim != self.W_align.shape[0]:
+                    if dim < self.W_align.shape[0]:
+                        padding = torch.zeros(
+                            (batch, self.W_align.shape[0] - dim),
+                            dtype=SI_out.dtype,
+                            device=SI_out.device if hasattr(SI_out, 'device') else None
+                        )
+                        SI_out = torch.cat([SI_out, padding], dim=-1)
+                        dim = self.W_align.shape[0]
+                    else:
+                        SI_out = SI_out[..., :self.W_align.shape[0]]
+                        dim = self.W_align.shape[0]
+
+                # 1. Harmonic Decomposition
+                # 1-step
+                if dim > 1:
+                    H1_raw = SI_out[:, 1:] - SI_out[:, :-1]
+                    H1 = F.pad(H1_raw, (0, 1), mode="replicate")
+                else:
+                    H1 = torch.zeros_like(SI_out)
+
+                # 2-step
+                if dim > 2:
+                    H2_raw = SI_out[:, 2:] - SI_out[:, :-2]
+                    H2 = F.pad(H2_raw, (0, 2), mode="replicate")
+                else:
+                    H2 = torch.zeros_like(SI_out)
+
+                # 4-step
+                pad_amt = min(4, dim - 1) if dim > 1 else 1
+                if dim > pad_amt:
+                    H3_raw = SI_out[:, pad_amt:] - SI_out[:, :-pad_amt]
+                    H3 = F.pad(H3_raw, (0, pad_amt), mode="replicate")
+                else:
+                    H3 = torch.zeros_like(SI_out)
+
+                # Ensure all harmonics match dimension
+                if H1.shape[-1] != dim:
+                    if H1.shape[-1] < dim:
+                        padding = torch.zeros(
+                            H1.shape[:-1] + (dim - H1.shape[-1],),
+                            dtype=H1.dtype,
+                            device=H1.device if hasattr(H1, 'device') else None
+                        )
+                        H1 = torch.cat([H1, padding], dim=-1)
+                    else:
+                        H1 = H1[..., :dim]
+                if H2.shape[-1] != dim:
+                    if H2.shape[-1] < dim:
+                        padding = torch.zeros(
+                            H2.shape[:-1] + (dim - H2.shape[-1],),
+                            dtype=H2.dtype,
+                            device=H2.device if hasattr(H2, 'device') else None
+                        )
+                        H2 = torch.cat([H2, padding], dim=-1)
+                    else:
+                        H2 = H2[..., :dim]
+                if H3.shape[-1] != dim:
+                    if H3.shape[-1] < dim:
+                        padding = torch.zeros(
+                            H3.shape[:-1] + (dim - H3.shape[-1],),
+                            dtype=H3.dtype,
+                            device=H3.device if hasattr(H3, 'device') else None
+                        )
+                        H3 = torch.cat([H3, padding], dim=-1)
+                    else:
+                        H3 = H3[..., :dim]
+
+                # Stack into harmonic field stack: [batch, 3, dim]
+                H_stack = torch.stack([H1, H2, H3], dim=1)
+
+                # Project to harm_dim using learned projection
+                # H_stack: [batch, 3, dim]
+                # harm_proj: [harm_dim, 3, dim]
+                # Result: [batch, harm_dim, dim]
+                H_projected = torch.zeros(batch, self.harm_dim, dim, dtype=H_stack.dtype,
+                                         device=H_stack.device if hasattr(H_stack, 'device') else None)
+                for i in range(self.harm_dim):
+                    for j in range(3):
+                        H_projected[:, i] += self.harm_proj[i, j] * H_stack[:, j]
+
+                # 2. Harmonic Coupling Tensor
+                M_list = []
+                for i in range(self.harm_dim):
+                    interaction = torch.zeros_like(SI_out)
+                    for j in range(self.harm_dim):
+                        # T_harm[i, j] is shape [substrate_dim]
+                        # H_projected[:, j] is shape [batch, dim]
+                        tensor_ij = self.T_harm[i, j].unsqueeze(0)  # [1, substrate_dim]
+                        interaction += H_projected[:, j] * tensor_ij  # [batch, dim]
+                    M_list.append(interaction)
+
+                M = torch.stack(M_list, dim=0).sum(dim=0)  # [batch, dim]
+
+                # 3. Influence-Harmonic Fusion
+                b_harm_expanded = self.b_harm.unsqueeze(0).expand(batch, -1)  # [batch, dim]
+                F_combined = (
+                    self.alpha * SI_out
+                    + self.beta * M
+                    + self.gamma * b_harm_expanded
+                )
+
+                # 4. Limiting + Projection
+                F_reg = F_combined / (1 + torch.abs(F_combined))
+
+                IM_out = torch.matmul(F_reg, self.W_align)
+                IM_out = F.normalize(IM_out, dim=-1)
+
+                return IM_out
+            except Exception:
+                # If harmonic modulation fails, return normalized input
+                try:
+                    import torch.nn.functional as F
+                    return F.normalize(SI_out, dim=-1)
+                except Exception:
+                    return SI_out
+
+    class HarmonicManifoldCouplingLayer(nn.Module):
+        """
+        MF-416 — Harmonic-Manifold Coupling Layer (HMCL)
+
+        Begins the Harmonic-Manifold Coupling Arc by coupling the harmonic influence modulation
+        from MF-415 into the active manifold geometry of the unified substrate. This layer consumes
+        the harmonic modulation output (IM_out) and produces a manifold-aligned harmonic tensor,
+        enabling harmonic-to-manifold coupling, geometric modulation alignment, stabilized tensor
+        fusion, and manifold-aware projection.
+
+        Core Computational Components:
+        1. Manifold Basis Projection: uses a manifold basis matrix to project the harmonic-modulated
+           signal into manifold-coordinate representation, aligning the harmonic field with substrate
+           manifold geometry.
+        2. Harmonic-Manifold Interaction Tensor: uses a rank-3 coupling tensor to map harmonic
+           channels onto manifold directions, generating multi-directional harmonic-manifold
+           interactions.
+        3. Coupling Fusion Field: merges harmonic modulations, manifold basis projection, and
+           coupling tensor interactions via learned coefficients (α, β, γ).
+        4. Stabilization + Geometry Projection: applies a stabilizer and final geometric projection
+           to produce the manifold-coupled harmonic field for MF-417.
+
+        Outcome:
+        MF-416 outputs HM_out, which encodes harmonic decomposition, manifold geometric projection,
+        harmonic-manifold interaction tensor coupling, stabilized harmonic-manifold fusion, and
+        substrate-aligned projection. This completes the first coupling stage between harmonic
+        influence fields and manifold geometry, preparing the system for manifold propagation phases.
+        """
+
+        def __init__(self, substrate_dim, harm_dim=6):
+            super().__init__()
+            self.harm_dim = harm_dim
+
+            # Manifold basis projection matrix
+            self.W_man = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+            # Harmonic-manifold coupling tensor (rank-3)
+            # Shape: [harm_dim, harm_dim, substrate_dim]
+            self.T_cpl = nn.Parameter(
+                torch.randn(harm_dim, harm_dim, substrate_dim) * 0.01
+            )
+
+            # Fusion coefficients
+            self.alpha = nn.Parameter(torch.tensor(0.50))
+            self.beta = nn.Parameter(torch.tensor(0.30))
+            self.gamma = nn.Parameter(torch.tensor(0.20))
+
+            # Final alignment projection
+            self.W_align = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def forward(self, IM_out):
+            """
+            IM_out: harmonic-modulation tensor from MF-415, shape [batch, dim]
+            """
+            if torch is None or IM_out is None:
+                return IM_out
+
+            # Ensure IM_out is a tensor
+            if not isinstance(IM_out, torch.Tensor):
+                try:
+                    IM_out = torch.tensor(IM_out, dtype=torch.float32)
+                except Exception:
+                    return IM_out
+
+            # Ensure proper shape
+            if IM_out.dim() == 1:
+                IM_out = IM_out.unsqueeze(0)
+
+            try:
+                import torch.nn.functional as F
+
+                batch, dim = IM_out.shape
+                substrate_dim = dim
+
+                # Ensure dimensions match
+                if dim != self.W_align.shape[0]:
+                    if dim < self.W_align.shape[0]:
+                        padding = torch.zeros(
+                            (batch, self.W_align.shape[0] - dim),
+                            dtype=IM_out.dtype,
+                            device=IM_out.device if hasattr(IM_out, 'device') else None
+                        )
+                        IM_out = torch.cat([IM_out, padding], dim=-1)
+                        dim = self.W_align.shape[0]
+                    else:
+                        IM_out = IM_out[..., :self.W_align.shape[0]]
+                        dim = self.W_align.shape[0]
+
+                # 1. Manifold basis projection
+                M_base = torch.matmul(IM_out, self.W_man)
+                M_base = F.normalize(M_base, dim=-1)
+
+                # 2. Harmonic-manifold coupling tensor
+                # Project IM_out to harm_dim channels for coupling computation
+                IM_flat = IM_out
+                if IM_flat.shape[-1] < self.harm_dim:
+                    padding = torch.zeros(
+                        IM_flat.shape[:-1] + (self.harm_dim - IM_flat.shape[-1],),
+                        dtype=IM_flat.dtype,
+                        device=IM_flat.device if hasattr(IM_flat, 'device') else None
+                    )
+                    IM_flat = torch.cat([IM_flat, padding], dim=-1)
+                elif IM_flat.shape[-1] > self.harm_dim:
+                    IM_flat = IM_flat[..., :self.harm_dim]
+
+                C_list = []
+                for i in range(self.harm_dim):
+                    interaction = torch.zeros_like(IM_out)
+                    for j in range(self.harm_dim):
+                        # T_cpl[i, j] is shape [substrate_dim]
+                        # IM_flat[:, j] is shape [batch]
+                        im_j = IM_flat[:, j].unsqueeze(-1)  # [batch, 1]
+                        tensor_ij = self.T_cpl[i, j].unsqueeze(0)  # [1, substrate_dim]
+                        interaction += im_j * tensor_ij  # [batch, dim]
+                    C_list.append(interaction)
+
+                C = torch.stack(C_list, dim=0).sum(dim=0)  # [batch, dim]
+
+                # 3. Coupling fusion
+                F_combined = (
+                    self.alpha * IM_out
+                    + self.beta * M_base
+                    + self.gamma * C
+                )
+
+                # 4. Stabilized geometric projection
+                F_reg = F_combined / (1 + torch.abs(F_combined))
+
+                HM_out = torch.matmul(F_reg, self.W_align)
+                HM_out = F.normalize(HM_out, dim=-1)
+
+                return HM_out
+            except Exception:
+                # If coupling fails, return normalized input
+                try:
+                    import torch.nn.functional as F
+                    return F.normalize(IM_out, dim=-1)
+                except Exception:
+                    return IM_out
 
     def integrate_A301(self):
         """
