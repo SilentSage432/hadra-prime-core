@@ -1792,6 +1792,7 @@ class NeuralBridge:
             self.manifold_folding_layer_342 = None
             self.harmonic_stability_gate_343 = None
             self.predictive_harmonic_transition_344 = None
+            self.harmonic_predictive_dual_state_merger_345 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -23498,6 +23499,155 @@ class NeuralBridge:
                     return pred_x
                 return harm_x if isinstance(harm_x, torch.Tensor) else pred_x
 
+    class HarmonicPredictiveDualStateMerger:
+        """
+        MF-345 — Harmonic-Predictive Dual-State Merger
+        
+        Strict ML framing:
+        - Weighted mixing
+        - Nonlinear gating
+        - Adaptive normalization
+        - Stability-aware residual routing
+        
+        Combines:
+        - predictive-state tensors (temporal estimation signals)
+        - harmonic-state tensors (stability-oriented manifold signals)
+        
+        Into a unified representation suitable for downstream MF-350+ layers.
+        Strengthens signal interoperability between two previously semi-independent subspaces.
+        """
+        
+        def __init__(self, dim=128):
+            try:
+                import torch
+                import torch.nn as nn
+                from .torch_utils import TORCH_AVAILABLE
+                
+                if not TORCH_AVAILABLE:
+                    self.dim = dim
+                    self.pred_align = None
+                    self.harm_align = None
+                    self.gate = None
+                    self.residual_scale = None
+                    self.post_refine = None
+                    return
+                
+                self.dim = dim
+                
+                # Subspace alignment projections
+                self.pred_align = nn.Linear(dim, dim)
+                self.harm_align = nn.Linear(dim, dim)
+                
+                # Dual-state gating mechanism
+                self.gate = nn.Sequential(
+                    nn.Linear(dim * 2, dim),
+                    nn.ReLU(),
+                    nn.Linear(dim, dim),
+                    nn.Sigmoid()
+                )
+                
+                # Residual coupling for stability
+                self.residual_scale = nn.Parameter(torch.tensor(0.025))
+                
+                # Output refinement
+                self.post_refine = nn.Sequential(
+                    nn.Linear(dim, dim),
+                    nn.ReLU(),
+                    nn.Linear(dim, dim)
+                )
+            except Exception:
+                self.dim = dim
+                self.pred_align = None
+                self.harm_align = None
+                self.gate = None
+                self.residual_scale = None
+                self.post_refine = None
+        
+        def forward(self, predictive_state, harmonic_state):
+            """
+            Merge predictive and harmonic states into unified representation.
+            
+            Args:
+                predictive_state: predictive-state tensor (temporal estimation signals)
+                harmonic_state: harmonic-state tensor (stability-oriented manifold signals)
+            
+            Returns:
+                output: merged and refined unified representation
+            """
+            try:
+                import torch
+                import torch.nn.functional as F
+                
+                if (self.pred_align is None or self.harm_align is None or 
+                    self.gate is None or self.residual_scale is None or 
+                    self.post_refine is None):
+                    # Fallback: return predictive state
+                    if isinstance(predictive_state, torch.Tensor):
+                        return predictive_state
+                    return harmonic_state if isinstance(harmonic_state, torch.Tensor) else predictive_state
+                
+                # Ensure inputs are tensors
+                if not isinstance(predictive_state, torch.Tensor):
+                    try:
+                        predictive_state = torch.tensor(predictive_state, dtype=torch.float32)
+                    except Exception:
+                        return harmonic_state if isinstance(harmonic_state, torch.Tensor) else predictive_state
+                
+                if not isinstance(harmonic_state, torch.Tensor):
+                    try:
+                        harmonic_state = torch.tensor(harmonic_state, dtype=torch.float32)
+                    except Exception:
+                        return predictive_state
+                
+                # Flatten and normalize dimensions
+                pred_flat = predictive_state.flatten()
+                harm_flat = harmonic_state.flatten()
+                
+                # Pad or trim to match dim
+                if pred_flat.shape[0] < self.dim:
+                    pred_flat = torch.cat([pred_flat, torch.zeros(self.dim - pred_flat.shape[0], dtype=torch.float32)])
+                elif pred_flat.shape[0] > self.dim:
+                    pred_flat = pred_flat[:self.dim]
+                
+                if harm_flat.shape[0] < self.dim:
+                    harm_flat = torch.cat([harm_flat, torch.zeros(self.dim - harm_flat.shape[0], dtype=torch.float32)])
+                elif harm_flat.shape[0] > self.dim:
+                    harm_flat = harm_flat[:self.dim]
+                
+                # Ensure batch dimension for nn.Linear
+                if pred_flat.dim() == 1:
+                    pred_flat = pred_flat.unsqueeze(0)
+                if harm_flat.dim() == 1:
+                    harm_flat = harm_flat.unsqueeze(0)
+                
+                # Align states into a common representational manifold
+                p = torch.tanh(self.pred_align(pred_flat))
+                h = torch.tanh(self.harm_align(harm_flat))
+                
+                # Compute dual-state mixing gate
+                gate_input = torch.cat([p, h], dim=-1)
+                mix_gate = self.gate(gate_input)
+                
+                # Merge predictive and harmonic states
+                merged = p * (1 - mix_gate) + h * mix_gate
+                
+                # Stability-preserving residual
+                stabilized = merged * (1 - self.residual_scale) + pred_flat * self.residual_scale
+                
+                # Final refinement
+                output = self.post_refine(stabilized)
+                
+                # Remove batch dimension if it was added
+                if output.dim() == 2 and output.shape[0] == 1:
+                    output = output.squeeze(0)
+                
+                return output
+            except Exception:
+                # Fallback: return predictive state
+                if isinstance(predictive_state, torch.Tensor):
+                    return predictive_state
+                return harmonic_state if isinstance(harmonic_state, torch.Tensor) else predictive_state
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -23766,6 +23916,13 @@ class NeuralBridge:
                 # Check if dimension changed
                 if getattr(self.predictive_harmonic_transition_344, "dim", dim) != dim:
                     self.predictive_harmonic_transition_344 = self.PredictiveHarmonicTransitionKernel(dim=dim)
+            
+            if self.harmonic_predictive_dual_state_merger_345 is None:
+                self.harmonic_predictive_dual_state_merger_345 = self.HarmonicPredictiveDualStateMerger(dim=dim)
+            else:
+                # Check if dimension changed
+                if getattr(self.harmonic_predictive_dual_state_merger_345, "dim", dim) != dim:
+                    self.harmonic_predictive_dual_state_merger_345 = self.HarmonicPredictiveDualStateMerger(dim=dim)
             
             if self.routing_kernel_330 is None:
                 self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336, drift_corrector=self.routing_drift_corrector_337, consistency_graph=self.routing_consistency_graph_338)
@@ -24227,6 +24384,66 @@ class NeuralBridge:
                     if hasattr(self, 'logger'):
                         try:
                             self.logger.write({"mf344_error": str(e)})
+                        except Exception:
+                            pass
+            
+            # MF-345 — Harmonic-Predictive Dual-State Merger
+            # Merge predictive and harmonic states into unified representation
+            if self.harmonic_predictive_dual_state_merger_345 is not None:
+                try:
+                    import torch
+                    
+                    # Get predictive-state tensor (temporal estimation signals)
+                    predictive_state = None
+                    if hasattr(self, 'stable_meta_field') and self.stable_meta_field is not None:
+                        predictive_state = self.stable_meta_field
+                    elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None:
+                        predictive_state = self.unified_predictive_core
+                    elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is not None:
+                        predictive_state = self.global_resonance_vector
+                    
+                    # Get harmonic-state tensor (stability-oriented manifold signals)
+                    harmonic_state = None
+                    if hasattr(self, 'harmonic_predictive_lattice_resonance') and self.harmonic_predictive_lattice_resonance is not None:
+                        harmonic_state = self.harmonic_predictive_lattice_resonance
+                    elif hasattr(self, 'resonance_fused_field') and self.resonance_fused_field is not None:
+                        harmonic_state = self.resonance_fused_field
+                    elif hasattr(self, 'phi_predictive_field') and self.phi_predictive_field is not None:
+                        harmonic_state = self.phi_predictive_field
+                    elif hasattr(self, 'phi_stabilized_field') and self.phi_stabilized_field is not None:
+                        harmonic_state = self.phi_stabilized_field
+                    
+                    # Apply merger if both states are available
+                    if predictive_state is not None and harmonic_state is not None:
+                        try:
+                            # Apply dual-state merger
+                            merged_state = self.harmonic_predictive_dual_state_merger_345.forward(
+                                predictive_state=predictive_state,
+                                harmonic_state=harmonic_state
+                            )
+                            
+                            # Update the primary predictive representation with merged result
+                            if hasattr(self, 'stable_meta_field') and self.stable_meta_field is predictive_state:
+                                self.stable_meta_field = merged_state
+                            elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is predictive_state:
+                                self.unified_predictive_core = merged_state
+                            elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is predictive_state:
+                                self.global_resonance_vector = merged_state
+                            
+                            # Store merged state for downstream use
+                            self.mf345_merged_state = merged_state
+                            self.mf345_merger_applied = True
+                        except Exception as merger_error:
+                            # Continue if merger fails
+                            self.mf345_merger_applied = False
+                    else:
+                        self.mf345_merger_applied = False
+                except Exception as e:
+                    # Silently continue if MF-345 fails
+                    self.mf345_merger_applied = False
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({"mf345_error": str(e)})
                         except Exception:
                             pass
         except Exception as e:
