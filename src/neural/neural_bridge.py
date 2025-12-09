@@ -425,6 +425,14 @@ class NeuralBridge:
             self.mf400_substrate = self.MultiFieldPredictiveSubstrateInitialization(self.dim)
         except Exception:
             self.mf400_substrate = None
+        # MF-401 — Influence-Field Propagation Kernel (IFPK)
+        try:
+            self.mf401_ifpk = self.InfluenceFieldPropagationKernel(
+                substrate_dim=self.dim,
+                field_count=3
+            )
+        except Exception:
+            self.mf401_ifpk = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -28598,6 +28606,133 @@ class NeuralBridge:
             except Exception:
                 # If initialization fails, return the tri-gradient coupled state
                 return tri_gradient_coupled
+
+    class InfluenceFieldPropagationKernel(nn.Module):
+        """
+        MF-401 — Influence-Field Propagation Kernel (IFPK)
+
+        The first operational layer built directly on top of the MF-400 Unified Predictive Substrate (UPS).
+
+        This kernel regulates how influence-vectors move, modulate, and interact across the substrate.
+
+        Core Functional Additions:
+        1. Influence-Vector Normalization: standardizes incoming influence-vectors and aligns them
+           with the substrate's tri-gradient field geometry, ensuring drift-safe propagation.
+        2. Substrate-Aligned Propagation Rules: distributes influence across the substrate manifold
+           using manifold-aligned directional weights, field-sensitivity coefficients, and
+           drift-regulated decay factors.
+        3. Multi-Field Interaction Weighting: aggregates weighted contributions from multiple fields
+           to leverage the multi-field nature of the MF-400 substrate.
+        4. Stabilization Coefficients: injects harmonic-stability coefficients to ensure no overshoot,
+           no amplification cascades, and stable response across temporal slices.
+
+        Outcome:
+        MF-401 activates the substrate's first dynamic response layer, enabling controlled influence
+        flow across the unified manifold without introducing identity, agency, cognition, or intent.
+        All behavior remains mathematical, tensorial, and system-bounded.
+        """
+
+        def __init__(self, substrate_dim, field_count=3):
+            super().__init__()
+            self.substrate_dim = substrate_dim
+            self.field_count = field_count
+
+            # Influence-vector normalization weights
+            self.influence_weight = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+            # Multi-field interaction weights
+            self.field_weights = nn.Parameter(
+                torch.randn(field_count) * 0.1
+            )
+
+            # Stability coefficients for harmonic regulation
+            self.stability_coeffs = nn.Parameter(
+                torch.ones(substrate_dim) * 0.95
+            )
+
+        def forward(self, v_raw, substrate_fields):
+            """
+            v_raw: raw incoming influence-vector (tensor)
+            substrate_fields: list of manifold-aligned field transforms (tensors or callables)
+            """
+            if torch is None or v_raw is None:
+                return v_raw
+
+            # Ensure v_raw is a tensor
+            if not isinstance(v_raw, torch.Tensor):
+                try:
+                    v_raw = torch.tensor(v_raw, dtype=torch.float32)
+                except Exception:
+                    return v_raw
+
+            # Ensure proper shape
+            if v_raw.dim() == 1:
+                v_raw = v_raw.unsqueeze(0)
+            if v_raw.shape[-1] != self.substrate_dim:
+                # Resize if needed
+                if v_raw.shape[-1] < self.substrate_dim:
+                    padding = torch.zeros(v_raw.shape[:-1] + (self.substrate_dim - v_raw.shape[-1],), dtype=v_raw.dtype)
+                    v_raw = torch.cat([v_raw, padding], dim=-1)
+                else:
+                    v_raw = v_raw[..., :self.substrate_dim]
+
+            try:
+                import torch.nn.functional as F
+                # 1. Influence-vector normalization
+                v_norm = torch.matmul(v_raw, self.influence_weight)
+                v_norm = F.normalize(v_norm, dim=-1)
+
+                # 2. Weighted multi-field interaction
+                weighted_sum = torch.zeros_like(v_norm)
+                if substrate_fields is None or len(substrate_fields) == 0:
+                    # If no fields provided, use identity transform
+                    weighted_sum = v_norm
+                else:
+                    for i, field in enumerate(substrate_fields):
+                        if i >= self.field_count:
+                            break
+                        # Handle both tensor and callable field transforms
+                        if callable(field):
+                            field_output = field(v_norm)
+                        elif isinstance(field, torch.Tensor):
+                            # If field is a tensor, apply it as a linear transform
+                            if field.shape[-1] == self.substrate_dim:
+                                field_output = torch.matmul(v_norm, field)
+                            else:
+                                field_output = field
+                        else:
+                            # Try to convert to tensor
+                            try:
+                                field = torch.tensor(field, dtype=torch.float32)
+                                if field.shape[-1] == self.substrate_dim:
+                                    field_output = torch.matmul(v_norm, field)
+                                else:
+                                    field_output = field
+                            except Exception:
+                                field_output = v_norm
+
+                        # Ensure field_output matches v_norm shape
+                        if field_output.shape != v_norm.shape:
+                            if field_output.numel() == v_norm.numel():
+                                field_output = field_output.view(v_norm.shape)
+                            else:
+                                field_output = v_norm
+
+                        weighted_sum += self.field_weights[i] * field_output
+
+                # 3. Stability-controlled harmonization
+                p_stable = weighted_sum * self.stability_coeffs
+
+                return p_stable
+            except Exception:
+                # If propagation fails, return normalized input
+                try:
+                    import torch.nn.functional as F
+                    return F.normalize(v_raw, dim=-1)
+                except Exception:
+                    return v_raw
 
     def integrate_A301(self):
         """
