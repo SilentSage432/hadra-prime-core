@@ -1800,6 +1800,7 @@ class NeuralBridge:
             self.hierarchical_confluence_stack_350 = None
             self.hierarchical_layer_interaction_kernel_351 = None
             self.hierarchical_confluence_refinement_layer_352 = None
+            self.inter_layer_confluence_shaping_kernel_353 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -24468,6 +24469,121 @@ class NeuralBridge:
             except Exception:
                 return layer_state
 
+    class InterLayerConfluenceShapingKernel:
+        """
+        MF-353 — Inter-Layer Confluence Shaping Kernel (ILCSK)
+
+        Purpose:
+        - Shapes inter-layer confluence flows into coherent transformation patterns
+        - Governs amplitude/emphasis/direction across hierarchical depths
+        - Stabilizes shaping via gating, residuals, and normalization
+        """
+
+        def __init__(self, dim):
+            try:
+                import torch
+                import torch.nn as nn
+                from .torch_utils import TORCH_AVAILABLE
+
+                if not TORCH_AVAILABLE:
+                    self.dim = dim
+                    self.shape_lower = None
+                    self.shape_upper = None
+                    self.shape_gate = None
+                    self.confluence_mixer = None
+                    self.residual_scale = None
+                    self.norm = None
+                    return
+
+                self.dim = dim
+
+                # Core shaping transforms
+                self.shape_lower = nn.Sequential(
+                    nn.Linear(dim, dim),
+                    nn.ReLU(),
+                    nn.Linear(dim, dim)
+                )
+
+                self.shape_upper = nn.Sequential(
+                    nn.Linear(dim, dim),
+                    nn.ReLU(),
+                    nn.Linear(dim, dim)
+                )
+
+                # Gate to determine shaping influence
+                self.shape_gate = nn.Sequential(
+                    nn.Linear(dim * 2, dim),
+                    nn.Tanh(),
+                    nn.Linear(dim, dim),
+                    nn.Sigmoid()
+                )
+
+                # Confluence combiner
+                self.confluence_mixer = nn.Sequential(
+                    nn.Linear(dim * 2, dim),
+                    nn.ReLU(),
+                    nn.Linear(dim, dim)
+                )
+
+                # Stability and residual controls
+                self.residual_scale = nn.Parameter(torch.tensor(0.012))
+                self.norm = nn.LayerNorm(dim)
+            except Exception:
+                self.dim = dim
+                self.shape_lower = None
+                self.shape_upper = None
+                self.shape_gate = None
+                self.confluence_mixer = None
+                self.residual_scale = None
+                self.norm = None
+
+        def forward(self, lower_state, upper_state):
+            """
+            Shape inter-layer confluence between lower and upper layer states.
+            """
+            try:
+                import torch
+
+                if (self.shape_lower is None or self.shape_upper is None or
+                    self.shape_gate is None or self.confluence_mixer is None or
+                    self.residual_scale is None or self.norm is None):
+                    return lower_state
+
+                def ensure_tensor(x):
+                    if not isinstance(x, torch.Tensor):
+                        x = torch.tensor(x, dtype=torch.float32)
+                    if x.dim() == 1:
+                        x = x.unsqueeze(0)
+                    return x
+
+                lower_state = ensure_tensor(lower_state)
+                upper_state = ensure_tensor(upper_state)
+
+                # Compute shaping transforms
+                shaped_lower = self.shape_lower(lower_state)
+                shaped_upper = self.shape_upper(upper_state)
+
+                # Gate determines shaping contribution
+                gate_input = torch.cat([shaped_lower, shaped_upper], dim=-1)
+                gate = self.shape_gate(gate_input)
+
+                # Combine via confluence mixing
+                mixed = self.confluence_mixer(torch.cat([
+                    shaped_lower * gate,
+                    shaped_upper * (1 - gate)
+                ], dim=-1))
+
+                # Residual stabilization
+                stabilized = mixed * (1 - self.residual_scale) + lower_state * self.residual_scale
+
+                # Normalize output
+                output = self.norm(stabilized)
+                if output.dim() == 2 and output.shape[0] == 1:
+                    output = output.squeeze(0)
+                return output
+            except Exception:
+                return lower_state
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -24793,6 +24909,13 @@ class NeuralBridge:
                 if getattr(self.hierarchical_confluence_refinement_layer_352, "dim", dim) != dim:
                     self.hierarchical_confluence_refinement_layer_352 = self.HierarchicalConfluenceRefinementLayer(dim=dim)
 
+            if self.inter_layer_confluence_shaping_kernel_353 is None:
+                self.inter_layer_confluence_shaping_kernel_353 = self.InterLayerConfluenceShapingKernel(dim=dim)
+            else:
+                # Check if dimension changed
+                if getattr(self.inter_layer_confluence_shaping_kernel_353, "dim", dim) != dim:
+                    self.inter_layer_confluence_shaping_kernel_353 = self.InterLayerConfluenceShapingKernel(dim=dim)
+
             # Expose convenience alias and register phase
             self.multi_route_confluence_interaction_layer = self.multi_route_confluence_interaction_layer_348
             if not hasattr(self, "phase_registry"):
@@ -24813,6 +24936,10 @@ class NeuralBridge:
             self.hierarchical_confluence_refinement_layer = self.hierarchical_confluence_refinement_layer_352
             if "MF-352: Hierarchical Confluence Refinement Layer (HCRL)" not in self.phase_registry:
                 self.phase_registry.append("MF-352: Hierarchical Confluence Refinement Layer (HCRL)")
+            # Alias and phase registration for MF-353
+            self.inter_layer_confluence_shaping_kernel = self.inter_layer_confluence_shaping_kernel_353
+            if "MF-353: Inter-Layer Confluence Shaping Kernel (ILCSK)" not in self.phase_registry:
+                self.phase_registry.append("MF-353: Inter-Layer Confluence Shaping Kernel (ILCSK)")
             
             if self.routing_kernel_330 is None:
                 self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336, drift_corrector=self.routing_drift_corrector_337, consistency_graph=self.routing_consistency_graph_338)
