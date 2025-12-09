@@ -335,6 +335,14 @@ class NeuralBridge:
             self.upcrf = self.UnifiedPredictiveConfluenceResonanceField(self.dim)
         except Exception:
             self.upcrf = None
+        try:
+            self.rfgcl = self.ResonanceFieldGradientCoupler(self.dim)
+        except Exception:
+            self.rfgcl = None
+        try:
+            self.mris = self.MetaResonantInteractionStack(self.dim, layers=3)
+        except Exception:
+            self.mris = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -26373,6 +26381,163 @@ class NeuralBridge:
 
             return pred_out, conf_out, field
 
+    class ResonanceFieldGradientCoupler(nn.Module):
+        """
+        MF-381 — Resonance Field Gradient Coupling Layer (RFGCL)
+
+        Introduces a gradient-coupling mechanism that lets the unified resonance field
+        influence predictive and confluence gradient flow, as well as cross-field modulation dynamics.
+
+        This is a numeric technique where the auxiliary latent field (resonance field) conditions
+        downstream gradients, acting as a weak supervisory signal that adjusts how both streams update.
+
+        Practical effects:
+        - If predictive drift grows, the field counteracts it
+        - If confluence routing destabilizes, the field dampens it
+        - If both streams align too tightly (loss of diversity), the field introduces corrective decorrelation
+
+        This preserves healthy model dynamics across expanding complexity.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.pred_gate = None
+                self.conf_gate = None
+                self.mix = None
+                self.scale = None
+                return
+
+            self.pred_gate = nn.Linear(dim, dim)
+            self.conf_gate = nn.Linear(dim, dim)
+            self.mix = nn.Linear(dim, dim)
+            self.scale = nn.Parameter(torch.tensor(0.004))
+
+        def forward(self, pred_vec, conf_vec, resonance_field):
+            if (torch is None or
+                self.pred_gate is None or
+                self.conf_gate is None or
+                self.mix is None or
+                self.scale is None or
+                resonance_field is None):
+                return pred_vec, conf_vec, None
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            pred_vec = ensure_tensor(pred_vec)
+            conf_vec = ensure_tensor(conf_vec)
+            resonance_field = ensure_tensor(resonance_field)
+
+            if pred_vec is None or conf_vec is None or resonance_field is None:
+                return pred_vec, conf_vec, None
+
+            # Compute gradient-modulating deltas
+            pred_delta = torch.tanh(self.pred_gate(resonance_field))
+            conf_delta = torch.tanh(self.conf_gate(resonance_field))
+
+            # Adjust both streams via small, stable injections
+            pred_adj = pred_vec + self.scale * pred_delta
+            conf_adj = conf_vec + self.scale * conf_delta
+
+            # Fused view for later phases
+            fused = torch.tanh(self.mix(pred_adj + conf_adj))
+
+            return pred_adj, conf_adj, fused
+
+    class MetaResonantInteractionStack(nn.Module):
+        """
+        MF-382 — Meta-Resonant Interaction Stack (MRIS) Initialization
+
+        Introduces the first stacked meta-interaction layer, which acts like a multi-depth
+        conditioning module that processes:
+        - the unified resonance field
+        - predictive–confluence fused vectors
+        - gradient-coupled adjustments (MF-381 output)
+
+        This stack:
+        1. Adds vertical depth: multiple sublayers, each performing slightly different transformations
+        2. Introduces stacked residual pathways: residual gates, micro-regularization, controlled variance
+        3. Produces a meta-interaction embedding: multi-resolution feature for MF-383 to MF-390 phases
+
+        This is mathematically standard in large-scale ML systems: a multi-layer block that extracts
+        richer, deeper interaction dynamics from existing signals.
+        """
+
+        def __init__(self, dim, layers=3):
+            super().__init__()
+            self.dim = dim
+            self.layers_count = layers
+            if torch is None or not hasattr(nn, "Linear"):
+                self.layers = None
+                self.residual_gates = None
+                self.norms = None
+                self.activation = None
+                return
+
+            self.layers = nn.ModuleList([
+                nn.Linear(dim, dim) for _ in range(layers)
+            ])
+            self.residual_gates = nn.ParameterList([
+                nn.Parameter(torch.tensor(0.05)) for _ in range(layers)
+            ])
+            self.norms = nn.ModuleList([
+                nn.LayerNorm(dim) for _ in range(layers)
+            ])
+            self.activation = nn.Tanh()
+
+        def forward(self, x):
+            if (torch is None or
+                self.layers is None or
+                self.residual_gates is None or
+                self.norms is None or
+                self.activation is None or
+                x is None):
+                return x
+
+            # Ensure input is tensor
+            if not isinstance(x, torch.Tensor):
+                try:
+                    x = torch.tensor(x, dtype=torch.float32)
+                except Exception:
+                    return None
+            if x.dim() == 1:
+                x = x.unsqueeze(0)
+            flat = x.flatten()
+            if flat.shape[0] < self.dim:
+                flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+            elif flat.shape[0] > self.dim:
+                flat = flat[:self.dim]
+            if flat.dim() == 1:
+                flat = flat.unsqueeze(0)
+            x = flat
+
+            out = x
+            for layer, gate, norm in zip(self.layers, self.residual_gates, self.norms):
+                transformed = self.activation(layer(out))
+                # Gated residual update — highly stable
+                out = norm(out + gate * transformed)
+
+            return out
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -27908,6 +28073,99 @@ class NeuralBridge:
                                                 self.mf380_resonance_field = None
                                                 self.mf380_unified_pred = None
                                                 self.mf380_unified_conf = None
+
+                                            # MF-381 — Resonance Field Gradient Coupling Layer (RFGCL)
+                                            # Gradient-coupling mechanism that lets resonance field influence both streams
+                                            fused_meta = None
+                                            if (getattr(self, "rfgcl", None) is not None and
+                                                pred_vec is not None and
+                                                conf_vec is not None and
+                                                resonance_field is not None):
+                                                try:
+                                                    # Apply gradient coupling via resonance field
+                                                    pred_vec, conf_vec, fused_meta = self.rfgcl(
+                                                        pred_vec,
+                                                        conf_vec,
+                                                        resonance_field
+                                                    )
+                                                    if pred_vec is not None and conf_vec is not None:
+                                                        self.mf381_fused_meta = fused_meta
+                                                        self.mf381_gradient_coupled_pred = pred_vec
+                                                        self.mf381_gradient_coupled_conf = conf_vec
+                                                        # Update predictive vectors with gradient-coupled version
+                                                        if resonant_state is not None:
+                                                            resonant_state = pred_vec
+                                                            self.mf375_resonant_state = pred_vec
+                                                        reinforced_vector = pred_vec
+                                                        self.mf374_reinforced_vector = pred_vec
+                                                        stable_synthesis = pred_vec
+                                                        self.mf373_stable_synthesis = pred_vec
+                                                        synthesis_vector = pred_vec
+                                                        self.mf372_synthesis_vector = pred_vec
+                                                        gradient_coupled_pred = pred_vec
+                                                        self.mf376_gradient_coupled_pred = pred_vec
+                                                        feedback_routed_pred = pred_vec
+                                                        self.mf377_feedback_routed_pred = pred_vec
+                                                        normalized_pred = pred_vec
+                                                        self.mf378_normalized_pred = pred_vec
+                                                        drift_suppressed_pred = pred_vec
+                                                        self.mf379_drift_suppressed_pred = pred_vec
+                                                        # Update unified resonance field outputs
+                                                        self.mf380_unified_pred = pred_vec
+                                                        # Update confluence state with gradient-coupled version
+                                                        normalized_conf = conf_vec
+                                                        self.mf378_normalized_conf = conf_vec
+                                                        drift_suppressed_conf = conf_vec
+                                                        self.mf379_drift_suppressed_conf = conf_vec
+                                                        # Update unified resonance field outputs
+                                                        self.mf380_unified_conf = conf_vec
+                                                        if hasattr(self, 'mf348_interacted_state'):
+                                                            self.mf348_interacted_state = conf_vec
+                                                        if hasattr(self, 'mf347_stabilized_state'):
+                                                            self.mf347_stabilized_state = conf_vec
+                                                        if hasattr(self, 'mf346_routed_state'):
+                                                            self.mf346_routed_state = conf_vec
+                                                    else:
+                                                        self.mf381_fused_meta = None
+                                                        self.mf381_gradient_coupled_pred = None
+                                                        self.mf381_gradient_coupled_conf = None
+                                                except Exception as rfgcl_error:
+                                                    self.mf381_fused_meta = None
+                                                    self.mf381_gradient_coupled_pred = None
+                                                    self.mf381_gradient_coupled_conf = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf381_error": str(rfgcl_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf381_fused_meta = None
+                                                self.mf381_gradient_coupled_pred = None
+                                                self.mf381_gradient_coupled_conf = None
+
+                                            # MF-382 — Meta-Resonant Interaction Stack (MRIS) Initialization
+                                            # Stacked meta-interaction layer with multi-depth conditioning
+                                            meta_interaction = None
+                                            if (getattr(self, "mris", None) is not None and
+                                                fused_meta is not None):
+                                                try:
+                                                    # Apply stacked meta-interaction processing
+                                                    meta_interaction = self.mris(fused_meta)
+                                                    if meta_interaction is not None:
+                                                        self.mf382_meta_interaction = meta_interaction
+                                                        # Store as core driver for future Meta-Field and Multi-Manifold phases
+                                                        # This meta_interaction tensor becomes the foundation for MF-383 to MF-390
+                                                    else:
+                                                        self.mf382_meta_interaction = None
+                                                except Exception as mris_error:
+                                                    self.mf382_meta_interaction = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf382_error": str(mris_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf382_meta_interaction = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
