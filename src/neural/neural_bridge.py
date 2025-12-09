@@ -1796,6 +1796,9 @@ class NeuralBridge:
             self.dual_state_confluence_router_346 = None
             self.confluence_stabilization_kernel_347 = None
             self.multi_route_confluence_interaction_layer_348 = None
+            self.confluence_graph_stabilization_349 = None
+            self.hierarchical_confluence_stack_350 = None
+            self.hierarchical_layer_interaction_kernel_351 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -24057,6 +24060,302 @@ class NeuralBridge:
                 # Fallback: return temporal stream
                 return temporal
 
+    class ConfluenceGraphStabilization:
+        """
+        MF-349 — Confluence Graph Stabilization & Routing Integrity Layer
+
+        Purpose (strict ML framing):
+        - Ensures inter-module routing integrity
+        - Stabilizes graph-level transitions between confluence layers
+        - Dampens oscillations from multi-route interactions
+        - Prepares for stacked confluence layers (MF-350+)
+        """
+
+        def __init__(self, dim):
+            try:
+                import torch
+                import torch.nn as nn
+                from .torch_utils import TORCH_AVAILABLE
+
+                if not TORCH_AVAILABLE:
+                    self.dim = dim
+                    self.integrity_proj = None
+                    self.stability_gate = None
+                    self.residual_scale = None
+                    self.graph_smoothing = None
+                    self.norm = None
+                    return
+
+                self.dim = dim
+
+                # Routing integrity projection
+                self.integrity_proj = nn.Sequential(
+                    nn.Linear(dim, dim),
+                    nn.ReLU(),
+                    nn.Linear(dim, dim)
+                )
+
+                # Stability gating to detect and dampen irregular transitions
+                self.stability_gate = nn.Sequential(
+                    nn.Linear(dim, dim),
+                    nn.Tanh(),
+                    nn.Linear(dim, dim),
+                    nn.Sigmoid()
+                )
+
+                # Residual blend to protect original structure
+                self.residual_scale = nn.Parameter(torch.tensor(0.012))
+
+                # Graph-level smoothing kernel
+                self.graph_smoothing = nn.Sequential(
+                    nn.Linear(dim, dim),
+                    nn.Tanh(),
+                    nn.Linear(dim, dim)
+                )
+
+                # Final normalization for routing integrity
+                self.norm = nn.LayerNorm(dim)
+            except Exception:
+                self.dim = dim
+                self.integrity_proj = None
+                self.stability_gate = None
+                self.residual_scale = None
+                self.graph_smoothing = None
+                self.norm = None
+
+        def forward(self, confluence_tensor):
+            """
+            Stabilize confluence graph and enforce routing integrity.
+            """
+            try:
+                import torch
+
+                if (self.integrity_proj is None or self.stability_gate is None or
+                    self.residual_scale is None or self.graph_smoothing is None or self.norm is None):
+                    return confluence_tensor
+
+                # Ensure tensor and shape
+                if not isinstance(confluence_tensor, torch.Tensor):
+                    confluence_tensor = torch.tensor(confluence_tensor, dtype=torch.float32)
+                if confluence_tensor.dim() == 1:
+                    confluence_tensor = confluence_tensor.unsqueeze(0)
+
+                # Project tensor to integrity-stabilized space
+                integrity_t = self.integrity_proj(confluence_tensor)
+
+                # Compute stabilization gate
+                gate = self.stability_gate(integrity_t)
+
+                # Apply gating to enforce stability
+                gated = confluence_tensor * (1 - gate) + integrity_t * gate
+
+                # Apply graph smoothing
+                smoothed = self.graph_smoothing(gated)
+
+                # Residual reinforcement for consistent routing
+                reinforced = smoothed * (1 - self.residual_scale) + confluence_tensor * self.residual_scale
+
+                # Normalize output for downstream layers
+                output = self.norm(reinforced)
+
+                # Remove batch dimension if needed
+                if output.dim() == 2 and output.shape[0] == 1:
+                    output = output.squeeze(0)
+
+                return output
+            except Exception:
+                return confluence_tensor
+
+    class HierarchicalConfluenceStack:
+        """
+        MF-350 — Hierarchical Confluence Stack Initialization
+
+        Purpose:
+        - Establishes a multi-layer confluence stack container
+        - Enables vertical (up/down) flow between layers
+        - Provides a structural backbone for MF-351+ specialized modules
+        """
+
+        def __init__(self, dim, num_layers=4):
+            try:
+                import torch
+                import torch.nn as nn
+                from .torch_utils import TORCH_AVAILABLE
+
+                if not TORCH_AVAILABLE:
+                    self.dim = dim
+                    self.num_layers = num_layers
+                    self.layers = None
+                    self.vertical_flow = None
+                    self.norm = None
+                    return
+
+                self.dim = dim
+                self.num_layers = num_layers
+
+                # Each layer: basic confluence-processing block
+                self.layers = nn.ModuleList([
+                    nn.Sequential(
+                        nn.Linear(dim, dim),
+                        nn.ReLU(),
+                        nn.Linear(dim, dim)
+                    ) for _ in range(num_layers)
+                ])
+
+                # Vertical interaction kernel for up/down flow
+                self.vertical_flow = nn.Sequential(
+                    nn.Linear(dim, dim),
+                    nn.Tanh(),
+                    nn.Linear(dim, dim)
+                )
+
+                # Normalization for hierarchical stability
+                self.norm = nn.LayerNorm(dim)
+            except Exception:
+                self.dim = dim
+                self.num_layers = num_layers
+                self.layers = None
+                self.vertical_flow = None
+                self.norm = None
+
+        def forward(self, x):
+            """
+            Process tensor through hierarchical confluence stack.
+            """
+            try:
+                import torch
+
+                if self.layers is None or self.vertical_flow is None or self.norm is None:
+                    return x
+
+                # Ensure tensor shape
+                if not isinstance(x, torch.Tensor):
+                    x = torch.tensor(x, dtype=torch.float32)
+                current = x
+                if current.dim() == 1:
+                    current = current.unsqueeze(0)
+
+                # Process through layers with vertical flow mixing
+                for layer in self.layers:
+                    processed = layer(current)
+                    current = self.vertical_flow(processed + current)
+
+                # Final normalization
+                output = self.norm(current)
+                if output.dim() == 2 and output.shape[0] == 1:
+                    output = output.squeeze(0)
+                return output
+            except Exception:
+                return x
+
+    class HierarchicalLayerInteractionKernel:
+        """
+        MF-351 — Hierarchical Layer Interaction Kernel (HLIK)
+
+        Enables inter-layer communication within the hierarchical confluence stack:
+        - Upward/downward transforms
+        - Gated mixing
+        - Residual stabilization
+        - LayerNorm for stability
+        """
+
+        def __init__(self, dim):
+            try:
+                import torch
+                import torch.nn as nn
+                from .torch_utils import TORCH_AVAILABLE
+
+                if not TORCH_AVAILABLE:
+                    self.dim = dim
+                    self.upward_transform = None
+                    self.downward_transform = None
+                    self.mix_gate = None
+                    self.norm = None
+                    self.residual_scale = None
+                    return
+
+                self.dim = dim
+
+                # Transform signals between adjacent layers
+                self.upward_transform = nn.Sequential(
+                    nn.Linear(dim, dim),
+                    nn.ReLU(),
+                    nn.Linear(dim, dim)
+                )
+
+                self.downward_transform = nn.Sequential(
+                    nn.Linear(dim, dim),
+                    nn.ReLU(),
+                    nn.Linear(dim, dim)
+                )
+
+                # Mixing gate determines influence between layers
+                self.mix_gate = nn.Sequential(
+                    nn.Linear(dim * 2, dim),
+                    nn.Tanh(),
+                    nn.Linear(dim, dim),
+                    nn.Sigmoid()
+                )
+
+                # Stabilization tools
+                self.norm = nn.LayerNorm(dim)
+                self.residual_scale = nn.Parameter(torch.tensor(0.01))
+            except Exception:
+                self.dim = dim
+                self.upward_transform = None
+                self.downward_transform = None
+                self.mix_gate = None
+                self.norm = None
+                self.residual_scale = None
+
+        def forward(self, lower_layer_state, upper_layer_state):
+            """
+            Compute bidirectional interaction between adjacent layers.
+            """
+            try:
+                import torch
+
+                if (self.upward_transform is None or self.downward_transform is None or
+                    self.mix_gate is None or self.norm is None or self.residual_scale is None):
+                    # Fallback: prefer lower layer state
+                    return lower_layer_state
+
+                # Ensure tensors and shape
+                def ensure_tensor(x):
+                    if not isinstance(x, torch.Tensor):
+                        x = torch.tensor(x, dtype=torch.float32)
+                    if x.dim() == 1:
+                        x = x.unsqueeze(0)
+                    return x
+
+                lower = ensure_tensor(lower_layer_state)
+                upper = ensure_tensor(upper_layer_state)
+
+                # Transform upward and downward paths
+                up = self.upward_transform(lower)
+                down = self.downward_transform(upper)
+
+                # Compute mixing gate
+                gate_input = torch.cat([up, down], dim=-1)
+                mix = self.mix_gate(gate_input)
+
+                # Weighted bidirectional interaction
+                interacted = up * mix + down * (1 - mix)
+
+                # Residual stability
+                stabilized = interacted * (1 - self.residual_scale) + lower * self.residual_scale
+
+                # Normalize output
+                output = self.norm(stabilized)
+
+                # Remove batch dim if added
+                if output.dim() == 2 and output.shape[0] == 1:
+                    output = output.squeeze(0)
+
+                return output
+            except Exception:
+                return lower_layer_state
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -24354,12 +24653,43 @@ class NeuralBridge:
                 if getattr(self.multi_route_confluence_interaction_layer_348, "dim", dim) != dim:
                     self.multi_route_confluence_interaction_layer_348 = self.MultiRouteConfluenceInteractionLayer(dim=dim)
 
+            if self.confluence_graph_stabilization_349 is None:
+                self.confluence_graph_stabilization_349 = self.ConfluenceGraphStabilization(dim=dim)
+            else:
+                # Check if dimension changed
+                if getattr(self.confluence_graph_stabilization_349, "dim", dim) != dim:
+                    self.confluence_graph_stabilization_349 = self.ConfluenceGraphStabilization(dim=dim)
+
+            if self.hierarchical_confluence_stack_350 is None:
+                self.hierarchical_confluence_stack_350 = self.HierarchicalConfluenceStack(dim=dim, num_layers=4)
+            else:
+                # Check if dimension changed
+                if getattr(self.hierarchical_confluence_stack_350, "dim", dim) != dim:
+                    self.hierarchical_confluence_stack_350 = self.HierarchicalConfluenceStack(dim=dim, num_layers=4)
+
+            if self.hierarchical_layer_interaction_kernel_351 is None:
+                self.hierarchical_layer_interaction_kernel_351 = self.HierarchicalLayerInteractionKernel(dim=dim)
+            else:
+                # Check if dimension changed
+                if getattr(self.hierarchical_layer_interaction_kernel_351, "dim", dim) != dim:
+                    self.hierarchical_layer_interaction_kernel_351 = self.HierarchicalLayerInteractionKernel(dim=dim)
+
             # Expose convenience alias and register phase
             self.multi_route_confluence_interaction_layer = self.multi_route_confluence_interaction_layer_348
             if not hasattr(self, "phase_registry"):
                 self.phase_registry = []
             if "MF-348: Multi-Route Confluence Interaction Layer" not in self.phase_registry:
                 self.phase_registry.append("MF-348: Multi-Route Confluence Interaction Layer")
+            if "MF-349: Confluence Graph Stabilization & Routing Integrity Layer" not in self.phase_registry:
+                self.phase_registry.append("MF-349: Confluence Graph Stabilization & Routing Integrity Layer")
+            # Alias and phase registration for MF-350
+            self.hierarchical_confluence_stack = self.hierarchical_confluence_stack_350
+            if "MF-350: Hierarchical Confluence Stack Initialization" not in self.phase_registry:
+                self.phase_registry.append("MF-350: Hierarchical Confluence Stack Initialization")
+            # Alias and phase registration for MF-351
+            self.hierarchical_layer_interaction_kernel = self.hierarchical_layer_interaction_kernel_351
+            if "MF-351: Hierarchical Layer Interaction Kernel (HLIK)" not in self.phase_registry:
+                self.phase_registry.append("MF-351: Hierarchical Layer Interaction Kernel (HLIK)")
             
             if self.routing_kernel_330 is None:
                 self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336, drift_corrector=self.routing_drift_corrector_337, consistency_graph=self.routing_consistency_graph_338)
@@ -24966,8 +25296,40 @@ class NeuralBridge:
                                             self.mf347_stabilized_state = stabilized_state if 'stabilized_state' in locals() else routed_state
                                             self.mf348_interacted_state = interacted_state
                                             self.mf348_interaction_applied = True
+
+                                            # MF-349 — Confluence Graph Stabilization & Routing Integrity Layer
+                                            # Apply graph-level stabilization to the integrated confluence tensor
+                                            if self.confluence_graph_stabilization_349 is not None:
+                                                try:
+                                                    stabilized_graph = self.confluence_graph_stabilization_349.forward(interacted_state)
+
+                                                    # Update primary predictive representation with graph-stabilized result
+                                                    if hasattr(self, 'stable_meta_field') and self.stable_meta_field is interacted_state:
+                                                        self.stable_meta_field = stabilized_graph
+                                                    elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is interacted_state:
+                                                        self.unified_predictive_core = stabilized_graph
+                                                    elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is interacted_state:
+                                                        self.global_resonance_vector = stabilized_graph
+
+                                                    # Update stored states
+                                                    self.mf345_merged_state = stabilized_graph
+                                                    self.mf346_routed_state = stabilized_graph
+                                                    self.mf347_stabilized_state = stabilized_state if 'stabilized_state' in locals() else routed_state
+                                                    self.mf348_interacted_state = interacted_state
+                                                    self.mf349_graph_stabilized_state = stabilized_graph
+                                                    self.mf349_graph_stabilization_applied = True
+                                                except Exception as graph_stabilization_error:
+                                                    self.mf349_graph_stabilization_applied = False
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf349_error": str(graph_stabilization_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf349_graph_stabilization_applied = False
                                         except Exception as interaction_error:
                                             self.mf348_interaction_applied = False
+                                            self.mf349_graph_stabilization_applied = False
                                             if hasattr(self, 'logger'):
                                                 try:
                                                     self.logger.write({"mf348_error": str(interaction_error)})
@@ -24975,11 +25337,13 @@ class NeuralBridge:
                                                     pass
                                     else:
                                         self.mf348_interaction_applied = False
+                                        self.mf349_graph_stabilization_applied = False
                                 except Exception as router_error:
                                     # Continue if router fails
                                     self.mf346_router_applied = False
                                     self.mf347_stabilization_applied = False
                                     self.mf348_interaction_applied = False
+                                    self.mf349_graph_stabilization_applied = False
                                     if hasattr(self, 'logger'):
                                         try:
                                             self.logger.write({"mf346_error": str(router_error)})
@@ -24989,23 +25353,27 @@ class NeuralBridge:
                                 self.mf346_router_applied = False
                                 self.mf347_stabilization_applied = False
                                 self.mf348_interaction_applied = False
+                                self.mf349_graph_stabilization_applied = False
                         except Exception as merger_error:
                             # Continue if merger fails
                             self.mf345_merger_applied = False
                             self.mf346_router_applied = False
                             self.mf347_stabilization_applied = False
                             self.mf348_interaction_applied = False
+                            self.mf349_graph_stabilization_applied = False
                     else:
                         self.mf345_merger_applied = False
                         self.mf346_router_applied = False
                         self.mf347_stabilization_applied = False
                         self.mf348_interaction_applied = False
+                        self.mf349_graph_stabilization_applied = False
                 except Exception as e:
                     # Silently continue if MF-345 fails
                     self.mf345_merger_applied = False
                     self.mf346_router_applied = False
                     self.mf347_stabilization_applied = False
                     self.mf348_interaction_applied = False
+                    self.mf349_graph_stabilization_applied = False
                     if hasattr(self, 'logger'):
                         try:
                             self.logger.write({"mf345_error": str(e)})
