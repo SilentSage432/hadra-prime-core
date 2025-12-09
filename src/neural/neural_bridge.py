@@ -448,6 +448,14 @@ class NeuralBridge:
             )
         except Exception:
             self.mf403_mbimf = None
+        # MF-404 — Cross-Band Resonance Stabilization Layer (CB-RSL)
+        try:
+            self.mf404_cbrsl = self.CrossBandResonanceStabilizationLayer(
+                substrate_dim=self.dim,
+                band_count=4
+            )
+        except Exception:
+            self.mf404_cbrsl = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -28966,6 +28974,182 @@ class NeuralBridge:
             except Exception:
                 # If modulation fails, return the input
                 return g_bal
+
+    class CrossBandResonanceStabilizationLayer(nn.Module):
+        """
+        MF-404 — Cross-Band Resonance Stabilization Layer (CB-RSL)
+
+        Introduces a resonance stabilization mechanism that regulates interactions between the
+        parallel modulation bands produced in MF-403.
+
+        MF-403 generated multiple band outputs with different modulation behaviors.
+        MF-404 ensures those outputs remain:
+        - phase-aligned
+        - drift-stabilized
+        - cross-band coherent
+        - substrate-compatible
+
+        All behavior remains strictly mathematical.
+
+        Core Computational Functions:
+        1. Cross-Band Correlation Matrix: computes correlation matrix across modulation bands
+           to determine similarity relationships, interference risks, and stabilization priorities.
+        2. Resonance Detection: identifies resonance intensities across bands using softmax
+           over correlation sums.
+        3. Anti-Resonance Dampening: applies dampening coefficients to prevent destabilizing
+           cross-band oscillation.
+        4. Stabilized Band Recombination: scales each band by its dampening factor.
+        5. Resonance-Normalized Output Field: recombines all stabilized bands and normalizes
+           through substrate projection.
+
+        Outcome:
+        MF-404 provides cross-band correlation analysis, resonance intensity detection,
+        interference dampening, stabilized multi-band recombination, and substrate-compatible
+        output field. This prepares the system for MF-405, where we move from stabilization
+        to Influence-Field Coherence Projection, ensuring all modulated bands resolve into a
+        coherent substrate-aligned influence map.
+        """
+
+        def __init__(self, substrate_dim, band_count=4):
+            super().__init__()
+            self.substrate_dim = substrate_dim
+            self.band_count = band_count
+
+            # Substrate projection matrix to maintain compatibility with MF-400
+            self.substrate_map = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def compute_correlation(self, bands):
+            """
+            Compute correlation matrix across the list of band tensors.
+            Each band tensor has shape [batch, dim].
+            """
+            if torch is None or bands is None or len(bands) == 0:
+                return None
+
+            try:
+                # Ensure all bands are tensors
+                band_tensors = []
+                for band in bands:
+                    if not isinstance(band, torch.Tensor):
+                        try:
+                            band = torch.tensor(band, dtype=torch.float32)
+                        except Exception:
+                            continue
+                    # Ensure proper shape
+                    if band.dim() == 1:
+                        band = band.unsqueeze(0)
+                    if band.shape[-1] != self.substrate_dim:
+                        # Resize if needed
+                        if band.shape[-1] < self.substrate_dim:
+                            padding = torch.zeros(band.shape[:-1] + (self.substrate_dim - band.shape[-1],), dtype=band.dtype)
+                            band = torch.cat([band, padding], dim=-1)
+                        else:
+                            band = band[..., :self.substrate_dim]
+                    band_tensors.append(band)
+
+                if len(band_tensors) == 0:
+                    return None
+
+                # Stack bands: [bands, batch, dim]
+                band_stack = torch.stack(band_tensors[:self.band_count], dim=0)
+                # Flatten batch + dim: [bands, batch*dim]
+                bands_flat = band_stack.reshape(self.band_count, -1)
+
+                # Initialize correlation matrix
+                corr = torch.zeros(self.band_count, self.band_count, device=bands_flat.device, dtype=bands_flat.dtype)
+
+                # Compute Pearson-style correlation (simplified, purely mathematical)
+                for i in range(self.band_count):
+                    for j in range(self.band_count):
+                        a = bands_flat[i]
+                        b = bands_flat[j]
+
+                        a_mean = a.mean()
+                        b_mean = b.mean()
+                        cov = torch.mean((a - a_mean) * (b - b_mean))
+                        std_a = a.std()
+                        std_b = b.std()
+                        std = std_a * std_b + 1e-8
+                        corr[i, j] = cov / std
+
+                return corr
+            except Exception:
+                return None
+
+        def forward(self, band_outputs):
+            """
+            band_outputs: list of band outputs from MF-403, each shape [batch, dim]
+            """
+            if torch is None or band_outputs is None or len(band_outputs) == 0:
+                # If no band outputs, return zeros or first band if available
+                if band_outputs and len(band_outputs) > 0:
+                    first_band = band_outputs[0]
+                    if isinstance(first_band, torch.Tensor):
+                        return first_band
+                return None
+
+            try:
+                import torch.nn.functional as F
+                # Ensure we have the right number of bands
+                if len(band_outputs) < self.band_count:
+                    # Pad with zeros if needed
+                    first_band = band_outputs[0] if band_outputs else None
+                    if first_band is not None and isinstance(first_band, torch.Tensor):
+                        zero_band = torch.zeros_like(first_band)
+                        band_outputs = list(band_outputs) + [zero_band] * (self.band_count - len(band_outputs))
+                    else:
+                        return None
+                elif len(band_outputs) > self.band_count:
+                    band_outputs = band_outputs[:self.band_count]
+
+                # 1. Cross-band correlation matrix
+                corr_matrix = self.compute_correlation(band_outputs)
+                if corr_matrix is None:
+                    # Fallback: simple sum of bands
+                    S_total = torch.stack(band_outputs[:self.band_count], dim=0).sum(dim=0)
+                    S_norm = torch.matmul(S_total, self.substrate_map)
+                    S_norm = F.normalize(S_norm, dim=-1)
+                    return S_norm
+
+                # 2. Resonance detection
+                resonance = torch.softmax(corr_matrix.sum(dim=1), dim=0)  # shape [band_count]
+
+                # 3. Anti-resonance dampening
+                dampening = 1 / (1 + resonance)  # shape [band_count]
+
+                # 4. Stabilized band recombination
+                stabilized_bands = []
+                for i in range(self.band_count):
+                    if i < len(band_outputs):
+                        stabilized_bands.append(band_outputs[i] * dampening[i])
+                    else:
+                        # If band missing, use zero
+                        if len(stabilized_bands) > 0:
+                            zero_band = torch.zeros_like(stabilized_bands[0])
+                            stabilized_bands.append(zero_band * dampening[i])
+
+                S_total = torch.stack(stabilized_bands, dim=0).sum(dim=0)
+
+                # 5. Substrate projection + normalization
+                S_norm = torch.matmul(S_total, self.substrate_map)
+                S_norm = F.normalize(S_norm, dim=-1)
+
+                return S_norm
+            except Exception:
+                # If stabilization fails, return simple sum of bands
+                try:
+                    import torch.nn.functional as F
+                    S_total = torch.stack(band_outputs[:self.band_count], dim=0).sum(dim=0)
+                    S_norm = torch.matmul(S_total, self.substrate_map)
+                    S_norm = F.normalize(S_norm, dim=-1)
+                    return S_norm
+                except Exception:
+                    # Final fallback: return first band if available
+                    if band_outputs and len(band_outputs) > 0:
+                        return band_outputs[0]
+                    return None
 
     def integrate_A301(self):
         """
