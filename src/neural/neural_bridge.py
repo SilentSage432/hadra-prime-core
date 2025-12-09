@@ -1787,6 +1787,7 @@ class NeuralBridge:
             self.routing_drift_corrector_337 = None
             self.routing_consistency_graph_338 = None
             self.predictive_field_manifold_coherence_339 = None
+            self.temporal_predictive_memory_alignment_340 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -22847,6 +22848,154 @@ class NeuralBridge:
             except Exception:
                 return {"coherence_gain": self.last_coherence_gain}
 
+    class TemporalPredictiveMemoryAlignmentKernel:
+        """
+        MF-340 — Temporal-Predictive Memory Alignment Kernel
+        
+        ML framing only:
+        - Compares current predictive vector to a short-term memory buffer.
+        - Computes an alignment coefficient that stabilizes temporal transitions.
+        - No agency, no identity, no reflection. Purely numeric smoothing.
+        """
+        
+        def __init__(self, max_memory=20):
+            self.max_memory = max_memory
+            self.memory_buffer = []  # Rolling buffer of past vectors
+            self.last_alignment_gain = 1.0
+            self.last_temporal_similarity = 0.0
+        
+        def forward(self, current_state, memory_buffer=None):
+            """
+            Compute temporal alignment between current state and memory buffer.
+            
+            Args:
+                current_state: dict with "vector" key containing current predictive vector
+                memory_buffer: optional list of past vectors (if None, uses internal buffer)
+            
+            Returns:
+                dict with alignment_gain and temporal_similarity
+            """
+            try:
+                import torch
+                from .torch_utils import TORCH_AVAILABLE
+                
+                if not TORCH_AVAILABLE:
+                    return {"alignment_gain": 1.0, "temporal_similarity": 0.0}
+                
+                # Use provided buffer or internal buffer
+                buffer = memory_buffer if memory_buffer is not None else self.memory_buffer
+                
+                # If memory is empty, no adjustment
+                if not buffer or "vector" not in current_state:
+                    return {"alignment_gain": 1.0, "temporal_similarity": 0.0}
+                
+                # Extract current vector
+                current_vec = current_state["vector"]
+                
+                # Convert to tensor
+                if not isinstance(current_vec, torch.Tensor):
+                    try:
+                        c = torch.tensor(current_vec, dtype=torch.float32)
+                    except Exception:
+                        return {"alignment_gain": 1.0, "temporal_similarity": 0.0}
+                else:
+                    c = current_vec.float()
+                
+                # Build temporal stack from memory buffer
+                mem_tensors = []
+                for m in buffer[-self.max_memory:]:
+                    if m is None:
+                        continue
+                    if not isinstance(m, torch.Tensor):
+                        try:
+                            m_t = torch.tensor(m, dtype=torch.float32)
+                        except Exception:
+                            continue
+                    else:
+                        m_t = m.float()
+                    mem_tensors.append(m_t)
+                
+                if len(mem_tensors) == 0:
+                    return {"alignment_gain": 1.0, "temporal_similarity": 0.0}
+                
+                # Normalize current vector
+                c_norm = torch.norm(c)
+                if c_norm < 1e-8:
+                    return {"alignment_gain": 1.0, "temporal_similarity": 0.0}
+                c_n = c / (c_norm + 1e-8)
+                
+                # Compute similarity to each past vector
+                sims = []
+                for m in mem_tensors:
+                    m_flat = m.flatten()
+                    c_flat = c_n.flatten()
+                    
+                    # Ensure same length
+                    min_len = min(m_flat.shape[0], c_flat.shape[0])
+                    if min_len == 0:
+                        continue
+                    
+                    m_flat = m_flat[:min_len]
+                    c_flat = c_flat[:min_len]
+                    
+                    # Normalize memory vector
+                    m_norm = torch.norm(m_flat)
+                    if m_norm < 1e-8:
+                        continue
+                    m_n = m_flat / (m_norm + 1e-8)
+                    
+                    # Compute cosine similarity
+                    sim = torch.dot(c_flat, m_n)
+                    sims.append(sim)
+                
+                if len(sims) == 0:
+                    return {"alignment_gain": 1.0, "temporal_similarity": 0.0}
+                
+                # Average similarity
+                avg_sim = torch.stack(sims).mean()
+                
+                # Convert to gain using a smooth sigmoid mapping
+                alignment_gain = torch.sigmoid(avg_sim * 1.4).item()
+                
+                # Store results
+                self.last_alignment_gain = alignment_gain
+                self.last_temporal_similarity = avg_sim.item() if isinstance(avg_sim, torch.Tensor) else float(avg_sim)
+                
+                return {
+                    "alignment_gain": alignment_gain,
+                    "temporal_similarity": self.last_temporal_similarity,
+                }
+            except Exception:
+                return {"alignment_gain": self.last_alignment_gain, "temporal_similarity": self.last_temporal_similarity}
+        
+        def update_memory(self, vector):
+            """
+            Add a vector to the rolling memory buffer.
+            
+            Args:
+                vector: tensor or list to add to memory
+            """
+            try:
+                import torch
+                
+                # Convert to tensor if needed
+                if not isinstance(vector, torch.Tensor):
+                    try:
+                        vec_t = torch.tensor(vector, dtype=torch.float32)
+                    except Exception:
+                        return
+                else:
+                    vec_t = vector.clone().detach()
+                
+                # Add to buffer
+                self.memory_buffer.append(vec_t)
+                
+                # Trim to max_memory size
+                if len(self.memory_buffer) > self.max_memory:
+                    self.memory_buffer = self.memory_buffer[-self.max_memory:]
+            except Exception:
+                pass
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -23083,6 +23232,12 @@ class NeuralBridge:
                 # Already initialized
                 pass
             
+            if self.temporal_predictive_memory_alignment_340 is None:
+                self.temporal_predictive_memory_alignment_340 = self.TemporalPredictiveMemoryAlignmentKernel(max_memory=20)
+            else:
+                # Already initialized
+                pass
+            
             if self.routing_kernel_330 is None:
                 self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336, drift_corrector=self.routing_drift_corrector_337, consistency_graph=self.routing_consistency_graph_338)
             else:
@@ -23225,6 +23380,60 @@ class NeuralBridge:
                     if hasattr(self, 'logger'):
                         try:
                             self.logger.write({"mf339_error": str(e)})
+                        except Exception:
+                            pass
+            
+            # MF-340 — Temporal-Predictive Memory Alignment Kernel
+            # Apply temporal alignment to stabilize predictive vectors
+            if self.temporal_predictive_memory_alignment_340 is not None:
+                try:
+                    import torch
+                    
+                    # Get current predictive vector (from stable meta field or unified core)
+                    predictive_vector = None
+                    if hasattr(self, 'stable_meta_field') and self.stable_meta_field is not None:
+                        predictive_vector = self.stable_meta_field
+                    elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None:
+                        predictive_vector = self.unified_predictive_core
+                    elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is not None:
+                        predictive_vector = self.global_resonance_vector
+                    
+                    if predictive_vector is not None:
+                        # Convert to list if tensor for the alignment kernel
+                        if isinstance(predictive_vector, torch.Tensor):
+                            pred_vec_list = predictive_vector.flatten().tolist()
+                        else:
+                            pred_vec_list = predictive_vector
+                        
+                        # Compute temporal alignment
+                        mf340_result = self.temporal_predictive_memory_alignment_340.forward(
+                            current_state={"vector": pred_vec_list},
+                            memory_buffer=None  # Use internal buffer
+                        )
+                        
+                        # Store alignment results
+                        self.mf340_alignment_gain = mf340_result.get("alignment_gain", 1.0)
+                        self.mf340_temporal_similarity = mf340_result.get("temporal_similarity", 0.0)
+                        
+                        # Apply alignment gain to predictive vector
+                        if isinstance(predictive_vector, torch.Tensor):
+                            aligned_vector = predictive_vector * self.mf340_alignment_gain
+                            
+                            # Update the source vector
+                            if hasattr(self, 'stable_meta_field') and self.stable_meta_field is not None:
+                                self.stable_meta_field = aligned_vector
+                            elif hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None:
+                                self.unified_predictive_core = aligned_vector
+                            elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is not None:
+                                self.global_resonance_vector = aligned_vector
+                        
+                        # Update memory buffer with current vector (before alignment for consistency)
+                        self.temporal_predictive_memory_alignment_340.update_memory(predictive_vector)
+                except Exception as e:
+                    # Silently continue if MF-340 fails
+                    if hasattr(self, 'logger'):
+                        try:
+                            self.logger.write({"mf340_error": str(e)})
                         except Exception:
                             pass
         except Exception as e:
