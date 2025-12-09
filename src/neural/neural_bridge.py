@@ -510,6 +510,14 @@ class NeuralBridge:
             )
         except Exception:
             self.mf411_pgaf_l = None
+        # MF-412 — Phase-Flow Convergence Dynamics Layer (PFCD-L)
+        try:
+            self.mf412_pfcd_l = self.PhaseFlowConvergenceDynamicsLayer(
+                substrate_dim=self.dim,
+                flow_dim=4
+            )
+        except Exception:
+            self.mf412_pfcd_l = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -30090,6 +30098,166 @@ class NeuralBridge:
                     return F.normalize(PS_out, dim=-1)
                 except Exception:
                     return PS_out
+
+    class PhaseFlowConvergenceDynamicsLayer(nn.Module):
+        """
+        MF-412 — Phase-Flow Convergence Dynamics Layer (PFCD-L)
+
+        Introduces phase-flow convergence mechanics — a regulated tensor-based flow field
+        constructed from the phase-gradient aligned representation. This layer consumes the
+        output of MF-411 (PG_out) and constructs a phase-flow field, representing how the
+        phase-aligned signals converge, diffuse, or stabilize within the unified manifold.
+
+        Core Computational Components:
+        1. Local Phase-Flow Estimation: estimates local directional phase-flow using finite
+           differences across the phase-gradient aligned field.
+        2. Global Convergence Vector: obtains a global flow descriptor by projecting the
+           entire PG_out vector through a learned convergence-projection matrix.
+        3. Flow-Interaction Tensor: produces interaction vectors between local flow and
+           global convergence using a rank-3 tensor.
+        4. Phase-Flow Fusion: merges local flow dynamics, global convergence responses, and
+           flow-interaction tensor outputs via learned fusion scalars (α, β, γ).
+        5. Flow-Stabilized Limiter: applies a regularization to avoid flow divergence.
+        6. Substrate-Aligned Phase-Flow Projection: projects the final result into a
+           substrate-aligned output for consumption by MF-413.
+
+        Outcome:
+        MF-412 outputs PF_out, which contains local phase-flow structure, global convergence
+        dynamics, tensor-based flow-phase interactions, stabilized flow regulation, and
+        substrate-aligned projection. This sets the foundation for MF-413, where flow fields
+        evolve into Dynamic Phase-Flow Stabilization Maps.
+        """
+
+        def __init__(self, substrate_dim, flow_dim=4):
+            super().__init__()
+            self.flow_dim = flow_dim
+
+            # Convergence projection matrix
+            self.W_conv = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+            # Flow interaction tensor (rank-3)
+            # Shape: [flow_dim, flow_dim, substrate_dim]
+            self.T_flow = nn.Parameter(
+                torch.randn(flow_dim, flow_dim, substrate_dim) * 0.01
+            )
+
+            # Fusion coefficients
+            self.alpha = nn.Parameter(torch.tensor(0.5))
+            self.beta = nn.Parameter(torch.tensor(0.3))
+            self.gamma = nn.Parameter(torch.tensor(0.2))
+
+            # Final alignment projection matrix
+            self.alignment_matrix = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def forward(self, PG_out):
+            """
+            PG_out: phase-gradient aligned field from MF-411, shape [batch, dim]
+            """
+            if torch is None or PG_out is None:
+                return PG_out
+
+            # Ensure PG_out is a tensor
+            if not isinstance(PG_out, torch.Tensor):
+                try:
+                    PG_out = torch.tensor(PG_out, dtype=torch.float32)
+                except Exception:
+                    return PG_out
+
+            # Ensure proper shape
+            if PG_out.dim() == 1:
+                PG_out = PG_out.unsqueeze(0)
+
+            try:
+                import torch.nn.functional as F
+
+                substrate_dim = PG_out.shape[-1]
+                # Ensure dimensions match
+                if PG_out.shape[-1] != self.alignment_matrix.shape[0]:
+                    if PG_out.shape[-1] < self.alignment_matrix.shape[0]:
+                        padding = torch.zeros(
+                            PG_out.shape[:-1] + (self.alignment_matrix.shape[0] - PG_out.shape[-1],),
+                            dtype=PG_out.dtype,
+                            device=PG_out.device if hasattr(PG_out, 'device') else None
+                        )
+                        PG_out = torch.cat([PG_out, padding], dim=-1)
+                    else:
+                        PG_out = PG_out[..., :self.alignment_matrix.shape[0]]
+
+                # 1. Local phase-flow estimation via finite differences
+                if PG_out.shape[-1] > 1:
+                    F_local_raw = PG_out[:, 1:] - PG_out[:, :-1]
+                    F_local = F.pad(F_local_raw, (0, 1), mode="replicate")
+                else:
+                    F_local = torch.zeros_like(PG_out)
+
+                # Ensure F_local matches substrate_dim
+                if F_local.shape[-1] != substrate_dim:
+                    if F_local.shape[-1] < substrate_dim:
+                        padding = torch.zeros(
+                            F_local.shape[:-1] + (substrate_dim - F_local.shape[-1],),
+                            dtype=F_local.dtype,
+                            device=F_local.device if hasattr(F_local, 'device') else None
+                        )
+                        F_local = torch.cat([F_local, padding], dim=-1)
+                    else:
+                        F_local = F_local[..., :substrate_dim]
+
+                # 2. Global convergence vector
+                C_global = torch.matmul(PG_out, self.W_conv)
+                C_global = F.normalize(C_global, dim=-1)
+
+                # 3. Flow interaction tensor
+                # Ensure C_global dimensions are compatible
+                C_flat = C_global
+                if C_flat.shape[-1] < self.flow_dim:
+                    padding = torch.zeros(
+                        C_flat.shape[:-1] + (self.flow_dim - C_flat.shape[-1],),
+                        dtype=C_flat.dtype,
+                        device=C_flat.device if hasattr(C_flat, 'device') else None
+                    )
+                    C_flat = torch.cat([C_flat, padding], dim=-1)
+                elif C_flat.shape[-1] > self.flow_dim:
+                    C_flat = C_flat[..., :self.flow_dim]
+
+                I_list = []
+                for i in range(self.flow_dim):
+                    interaction = torch.zeros_like(PG_out)
+                    for j in range(self.flow_dim):
+                        # T_flow[i, j] is shape [substrate_dim]
+                        # C_flat[:, j] is shape [batch]
+                        c_j = C_flat[:, j].unsqueeze(-1)  # [batch, 1]
+                        tensor_ij = self.T_flow[i, j].unsqueeze(0)  # [1, substrate_dim]
+                        interaction += c_j * tensor_ij  # [batch, substrate_dim]
+                    I_list.append(interaction)
+
+                I = torch.stack(I_list, dim=0).sum(dim=0)  # [batch, dim]
+
+                # 4. Phase-flow fusion
+                F_combined = (
+                    self.alpha * F_local
+                    + self.beta * C_global
+                    + self.gamma * I
+                )
+
+                # 5. Stabilized flow limiter
+                F_reg = F_combined / (1 + torch.abs(F_combined))
+
+                # 6. Substrate-aligned projection
+                PF_out = torch.matmul(F_reg, self.alignment_matrix)
+                PF_out = F.normalize(PF_out, dim=-1)
+
+                return PF_out
+            except Exception:
+                # If flow convergence fails, return normalized input
+                try:
+                    import torch.nn.functional as F
+                    return F.normalize(PG_out, dim=-1)
+                except Exception:
+                    return PG_out
 
     def integrate_A301(self):
         """
