@@ -267,6 +267,14 @@ class NeuralBridge:
             self.pcik = self.PredictiveConfluenceIntegrationKernel(self.dim)
         except Exception:
             self.pcik = None
+        try:
+            self.cwpdr = self.ConfluenceWeightedPredictiveDriftRegulator(self.dim)
+        except Exception:
+            self.cwpdr = None
+        try:
+            self.pd_ccl = self.PredictiveDriftConfluenceCouplingLayer(self.dim)
+        except Exception:
+            self.pd_ccl = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -24965,6 +24973,131 @@ class NeuralBridge:
 
             return integrated
 
+    class ConfluenceWeightedPredictiveDriftRegulator(nn.Module):
+        """
+        MF-364 — Confluence-Weighted Predictive Drift Regulator (CW-PDR)
+
+        Regulates drift by comparing predictive signals with the previous cycle,
+        then applying confluence-weighted dampening and normalization.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+
+            if torch is None or not hasattr(nn, "Linear"):
+                self.drift_transform = None
+                self.confluence_weight = None
+                self.drift_damp = None
+                self.out_norm = None
+                self.prev_signal = None
+                return
+
+            # Drift analysis + transform layers
+            self.drift_transform = nn.Linear(dim, dim)
+            self.confluence_weight = nn.Linear(dim, dim)
+
+            # Dampening parameters
+            self.drift_damp = nn.Parameter(torch.randn(dim) * 0.01)
+
+            # Output stabilization
+            self.out_norm = nn.LayerNorm(dim)
+
+            # Storage for previous predictive signal
+            self.register_buffer("prev_signal", torch.zeros(dim))
+
+        def forward(self, predictive_signal, confluence_state):
+            if (torch is None or
+                self.drift_transform is None or
+                self.confluence_weight is None or
+                self.drift_damp is None or
+                self.out_norm is None or
+                self.prev_signal is None):
+                return predictive_signal
+
+            # Compute drift = difference from previous prediction
+            drift = predictive_signal - self.prev_signal
+
+            # Transform drift to feature space
+            drift_features = torch.tanh(self.drift_transform(drift))
+
+            # Confluence weighting
+            c_weight = torch.sigmoid(self.confluence_weight(confluence_state))
+
+            # Apply confluence-weighted dampening
+            damp = torch.sigmoid(self.drift_damp)
+
+            regulated = drift_features * c_weight * damp
+
+            # Normalize output
+            stabilized = self.out_norm(regulated)
+
+            # Update prev_signal buffer (detached to avoid gradient leakage)
+            self.prev_signal = predictive_signal.detach().clone()
+
+            return stabilized
+
+    class PredictiveDriftConfluenceCouplingLayer(nn.Module):
+        """
+        MF-365 — Predictive Drift–Confluence Coupling Layer (PD-CCL)
+
+        Couples regulated drift signals with confluence signals using dual projection
+        transforms and a learned coupling matrix. Produces a unified coupling tensor
+        for downstream predictive-manifold operations.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+
+            if torch is None or not hasattr(nn, "Linear"):
+                self.drift_to_conf = None
+                self.conf_to_drift = None
+                self.coupling = None
+                self.residual = None
+                self.norm = None
+                return
+
+            # Drift → Confluence and Confluence → Drift projections
+            self.drift_to_conf = nn.Linear(dim, dim)
+            self.conf_to_drift = nn.Linear(dim, dim)
+
+            # Learned coupling matrix
+            self.coupling = nn.Linear(dim, dim)
+
+            # Residual stabilizer
+            self.residual = nn.Linear(dim, dim)
+
+            # Final normalization
+            self.norm = nn.LayerNorm(dim)
+
+        def forward(self, drift_regulated, confluence_state):
+            if (torch is None or
+                self.drift_to_conf is None or
+                self.conf_to_drift is None or
+                self.coupling is None or
+                self.residual is None or
+                self.norm is None):
+                return drift_regulated
+
+            # Project drift into confluence-aligned space
+            drift_proj = torch.relu(self.drift_to_conf(drift_regulated))
+
+            # Project confluence into drift-aligned space
+            conf_proj = torch.relu(self.conf_to_drift(confluence_state))
+
+            # Merge via learned coupling matrix
+            combined = drift_proj + conf_proj
+            coupled = torch.relu(self.coupling(combined))
+
+            # Residual stability blending
+            stabilized = 0.7 * coupled + 0.3 * self.residual(coupled)
+
+            # Normalize final output
+            output = self.norm(torch.tanh(stabilized))
+
+            return output
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -26073,6 +26206,50 @@ class NeuralBridge:
                                                                 if hasattr(self, 'logger'):
                                                                     try:
                                                                         self.logger.write({"mf363_error": str(pcik_error)})
+                                                                    except Exception:
+                                                                        pass
+
+                                                            # MF-364 — Confluence-Weighted Predictive Drift Regulator
+                                                            try:
+                                                                if (getattr(self, "cwpdr", None) is not None and
+                                                                    internal_states.get("predictive_confluence_integrated") is not None and
+                                                                    internal_states.get("confluence_state") is not None):
+                                                                    cwpdr_out = self.cwpdr(
+                                                                        internal_states["predictive_confluence_integrated"],
+                                                                        internal_states["confluence_state"]
+                                                                    )
+                                                                    internal_states["predictive_drift_regulated"] = cwpdr_out
+                                                                    primary_state = primary_state + cwpdr_out * 0.015
+                                                                    self.mf364_predictive_drift_regulated = cwpdr_out
+                                                                else:
+                                                                    self.mf364_predictive_drift_regulated = None
+                                                            except Exception as cwpdr_error:
+                                                                self.mf364_predictive_drift_regulated = None
+                                                                if hasattr(self, 'logger'):
+                                                                    try:
+                                                                        self.logger.write({"mf364_error": str(cwpdr_error)})
+                                                                    except Exception:
+                                                                        pass
+
+                                                            # MF-365 — Predictive Drift–Confluence Coupling Layer
+                                                            try:
+                                                                if (getattr(self, "pd_ccl", None) is not None and
+                                                                    internal_states.get("predictive_drift_regulated") is not None and
+                                                                    internal_states.get("confluence_state") is not None):
+                                                                    pd_ccl_out = self.pd_ccl(
+                                                                        internal_states["predictive_drift_regulated"],
+                                                                        internal_states["confluence_state"]
+                                                                    )
+                                                                    internal_states["predictive_confluence_coupled"] = pd_ccl_out
+                                                                    primary_state = primary_state + pd_ccl_out * 0.015
+                                                                    self.mf365_predictive_confluence_coupled = pd_ccl_out
+                                                                else:
+                                                                    self.mf365_predictive_confluence_coupled = None
+                                                            except Exception as pd_ccl_error:
+                                                                self.mf365_predictive_confluence_coupled = None
+                                                                if hasattr(self, 'logger'):
+                                                                    try:
+                                                                        self.logger.write({"mf365_error": str(pd_ccl_error)})
                                                                     except Exception:
                                                                         pass
 
