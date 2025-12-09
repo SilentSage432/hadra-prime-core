@@ -275,6 +275,10 @@ class NeuralBridge:
             self.pd_ccl = self.PredictiveDriftConfluenceCouplingLayer(self.dim)
         except Exception:
             self.pd_ccl = None
+        try:
+            self.cd_rsk = self.CoupledDriftRoutingStabilizationKernel(self.dim)
+        except Exception:
+            self.cd_rsk = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -25098,6 +25102,71 @@ class NeuralBridge:
 
             return output
 
+    class CoupledDriftRoutingStabilizationKernel(nn.Module):
+        """
+        MF-366 — Coupled Drift–Routing Stabilization Kernel (CD-RSK)
+
+        Stabilizes the bidirectional coupling between drift and routing signals
+        by applying alignment transforms, stability weighting, and temporal smoothing.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+
+            if torch is None or not hasattr(nn, "Linear"):
+                self.drift_align = None
+                self.routing_align = None
+                self.stability_weights = None
+                self.fusion = None
+                self.smoothing = None
+                self.norm = None
+                return
+
+            # Alignment transforms
+            self.drift_align = nn.Linear(dim, dim)
+            self.routing_align = nn.Linear(dim, dim)
+
+            # Stability weighting
+            self.stability_weights = nn.Parameter(torch.randn(dim) * 0.01)
+
+            # Fusion + smoothing
+            self.fusion = nn.Linear(dim, dim)
+            self.smoothing = nn.Linear(dim, dim)
+
+            # Normalization
+            self.norm = nn.LayerNorm(dim)
+
+        def forward(self, coupled_signal, routing_state):
+            if (torch is None or
+                self.drift_align is None or
+                self.routing_align is None or
+                self.stability_weights is None or
+                self.fusion is None or
+                self.smoothing is None or
+                self.norm is None):
+                return coupled_signal
+
+            # Project signals to aligned spaces
+            drift_proj = torch.relu(self.drift_align(coupled_signal))
+            routing_proj = torch.relu(self.routing_align(routing_state))
+
+            # Combine signals
+            combined = drift_proj + routing_proj
+
+            # Stability weighting (controls amplification)
+            weights = torch.sigmoid(self.stability_weights)
+            stabilized = combined * weights
+
+            # Fusion + smoothing
+            fused = torch.relu(self.fusion(stabilized))
+            smoothed = 0.7 * fused + 0.3 * self.smoothing(fused)
+
+            # Normalize
+            output = self.norm(torch.tanh(smoothed))
+
+            return output
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -26250,6 +26319,28 @@ class NeuralBridge:
                                                                 if hasattr(self, 'logger'):
                                                                     try:
                                                                         self.logger.write({"mf365_error": str(pd_ccl_error)})
+                                                                    except Exception:
+                                                                        pass
+
+                                                            # MF-366 — Coupled Drift–Routing Stabilization Kernel (CD-RSK)
+                                                            try:
+                                                                if (getattr(self, "cd_rsk", None) is not None and
+                                                                    internal_states.get("predictive_confluence_coupled") is not None and
+                                                                    internal_states.get("routing_state") is not None):
+                                                                    cd_rsk_out = self.cd_rsk(
+                                                                        internal_states["predictive_confluence_coupled"],
+                                                                        internal_states["routing_state"]
+                                                                    )
+                                                                    internal_states["drift_routing_stabilized"] = cd_rsk_out
+                                                                    primary_state = primary_state + cd_rsk_out * 0.014
+                                                                    self.mf366_drift_routing_stabilized = cd_rsk_out
+                                                                else:
+                                                                    self.mf366_drift_routing_stabilized = None
+                                                            except Exception as cd_rsk_error:
+                                                                self.mf366_drift_routing_stabilized = None
+                                                                if hasattr(self, 'logger'):
+                                                                    try:
+                                                                        self.logger.write({"mf366_error": str(cd_rsk_error)})
                                                                     except Exception:
                                                                         pass
 
