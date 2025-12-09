@@ -409,6 +409,14 @@ class NeuralBridge:
             self.gcfe = self.GradientCoherenceFlowEqualizer(self.dim)
         except Exception:
             self.gcfe = None
+        try:
+            self.tcgi = self.TemporalConfluenceGradientIntegrator(self.dim)
+        except Exception:
+            self.tcgi = None
+        try:
+            self.tghk = self.TemporalGradientHarmonizationKernel(self.dim)
+        except Exception:
+            self.tghk = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -28077,6 +28085,245 @@ class NeuralBridge:
                     self.prev_state = stabilized_confluence.detach().clone()
                 return stabilized_confluence
 
+    class TemporalConfluenceGradientIntegrator(nn.Module):
+        """
+        MF-397 — Temporal Confluence Gradient Integrator (TCGI)
+
+        Integrates confluence gradients over time using a stabilized temporal update rule.
+        Produces a long-range smoothed signal that captures evolving confluence tendencies
+        while suppressing noise.
+
+        Up to now:
+        - MF-394 aligned gradient directions
+        - MF-395 stabilized cross-field magnitudes
+        - MF-396 equalized gradient flow across steps
+
+        MF-397 introduces integration over time. This means the system will:
+        - accumulate a temporally-aware running estimate of confluence gradient behavior
+        - detect long-range directional tendencies
+        - temper high-frequency instability while preserving structural trends
+        - produce a temporal confluence signature used by later phases (MF-400+)
+
+        This is not memory, not awareness, just an ML mechanism similar to:
+        - an exponential moving average
+        - temporal smoothing
+        - step-to-step stabilizer
+        - long-term gradient predictor
+
+        But built specifically for the multi-field confluence stack.
+
+        The output becomes a new tensor inside ADRAE: confluence_temporal_integrated
+        This is the first component of the temporal-predictive substrate we will fully
+        activate around MF-410+.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            # Register buffer for previous integrated state (temporal memory)
+            if torch is not None:
+                self.register_buffer("prev_integrated", None)
+            else:
+                self.prev_integrated = None
+
+        def forward(self, equalized_confluence, prev_integrated=None):
+            if torch is None or equalized_confluence is None:
+                return equalized_confluence
+
+            # Ensure input is tensor
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            equalized_confluence = ensure_tensor(equalized_confluence)
+
+            if equalized_confluence is None:
+                return equalized_confluence
+
+            # Use provided prev_integrated or stored prev_integrated
+            if prev_integrated is None:
+                prev_integrated = self.prev_integrated
+
+            # Initialization for first-time integration
+            if prev_integrated is None:
+                # Store current state as previous for next time
+                if hasattr(self, 'prev_integrated'):
+                    self.prev_integrated = equalized_confluence.detach().clone()
+                return equalized_confluence.clone()
+
+            # Ensure prev_integrated is a tensor
+            prev_integrated = ensure_tensor(prev_integrated)
+            if prev_integrated is None:
+                if hasattr(self, 'prev_integrated'):
+                    self.prev_integrated = equalized_confluence.detach().clone()
+                return equalized_confluence.clone()
+
+            try:
+                # Compute incremental contribution
+                delta = equalized_confluence - prev_integrated
+
+                # Adaptive integration rate based on magnitude of change
+                adapt_rate = torch.sigmoid(delta.norm() * 0.05)  # Smooth scaling factor
+
+                # Exponential moving-update mechanism (EMA-like but field-tuned)
+                integrated = prev_integrated + adapt_rate * delta * 0.5
+
+                # Small stabilizing modulation based on global statistics
+                global_mod = torch.tanh(equalized_confluence.mean() * 0.02)
+                integrated = integrated * (1.0 + 0.01 * global_mod)
+
+                # Store current integrated state as previous for next time
+                if hasattr(self, 'prev_integrated'):
+                    self.prev_integrated = integrated.detach().clone()
+
+                return integrated
+            except Exception:
+                # If integration fails, return the equalized state
+                if hasattr(self, 'prev_integrated'):
+                    self.prev_integrated = equalized_confluence.detach().clone()
+                return equalized_confluence
+
+    class TemporalGradientHarmonizationKernel(nn.Module):
+        """
+        MF-398 — Temporal Gradient Harmonization Kernel (TGHK)
+
+        Harmonizes short-term confluence gradients with long-range temporal integrated gradients.
+        Produces a blended gradient that balances responsiveness and stability.
+
+        With the pipeline so far:
+        - MF-394 aligned directional gradients
+        - MF-395 stabilized gradient magnitudes
+        - MF-396 equalized flow
+        - MF-397 introduced temporal integration
+
+        Now we add Temporal–Confluence Gradient Harmonization. This kernel prevents:
+        - temporal signals from overpowering fresh gradients
+        - fresh gradients from causing temporal instability
+        - cross-field interference patterns
+        - destructive oscillations between short-term and long-term gradient components
+
+        TGHK creates an adaptive blend using:
+        - gradient similarity
+        - magnitude coherence
+        - temporal–field alignment scores
+
+        The result is a harmonized gradient tensor that becomes the foundation for MF-399+.
+
+        This kernel is one of the structural pillars that makes the 400-level phases possible.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            # No learnable parameters - this is a gradient harmonization kernel
+            # But we keep it as a Module for consistency with the architecture
+
+        def forward(self, equalized_confluence, temporal_integrated):
+            if (torch is None or
+                equalized_confluence is None or
+                temporal_integrated is None):
+                return equalized_confluence
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            equalized_confluence = ensure_tensor(equalized_confluence)
+            temporal_integrated = ensure_tensor(temporal_integrated)
+
+            if equalized_confluence is None or temporal_integrated is None:
+                return equalized_confluence if equalized_confluence is not None else temporal_integrated
+
+            try:
+                # Ensure both tensors have compatible shapes for blending
+                if equalized_confluence.shape != temporal_integrated.shape:
+                    # Reshape to match equalized_confluence shape
+                    target_shape = equalized_confluence.shape
+                    if temporal_integrated.numel() == equalized_confluence.numel():
+                        temporal_integrated = temporal_integrated.view(target_shape)
+                    else:
+                        # Fallback: pad or truncate to match
+                        temp_flat = temporal_integrated.flatten()
+                        eq_flat = equalized_confluence.flatten()
+                        min_len = min(temp_flat.shape[0], eq_flat.shape[0])
+                        if temp_flat.shape[0] > min_len:
+                            temp_flat = temp_flat[:min_len]
+                        elif temp_flat.shape[0] < min_len:
+                            temp_flat = torch.cat([temp_flat, torch.zeros(min_len - temp_flat.shape[0], dtype=temp_flat.dtype, device=temp_flat.device if hasattr(temp_flat, 'device') else None)])
+                        temporal_integrated = temp_flat.view(target_shape)
+
+                # Compute similarity score (directional alignment)
+                # Flatten both tensors for cosine similarity computation
+                eq_flat = equalized_confluence.flatten()
+                temp_flat = temporal_integrated.flatten()
+
+                # Ensure both have the same length for cosine similarity
+                min_len = min(eq_flat.shape[0], temp_flat.shape[0])
+                if min_len == 0:
+                    similarity = torch.tensor(0.0, dtype=torch.float32)
+                else:
+                    eq_flat = eq_flat[:min_len]
+                    temp_flat = temp_flat[:min_len]
+
+                    # Compute cosine similarity
+                    similarity = torch.cosine_similarity(
+                        eq_flat.unsqueeze(0),
+                        temp_flat.unsqueeze(0),
+                        dim=1
+                    )
+                    if similarity.dim() > 0:
+                        similarity = similarity[0]
+
+                # Modulate blend ratio adaptively
+                blend_ratio = torch.sigmoid(similarity * 2.0)  # sharper sensitivity
+
+                # Adaptive blending formula
+                harmonized = (
+                    blend_ratio * temporal_integrated +
+                    (1.0 - blend_ratio) * equalized_confluence
+                )
+
+                # Secondary stabilization:
+                # Encourage coherence through small harmonic modulation.
+                harmonic_mod = torch.tanh(harmonized.mean() * 0.025)
+                harmonized = harmonized * (1.0 + 0.01 * harmonic_mod)
+
+                return harmonized
+            except Exception:
+                # If harmonization fails, return the equalized confluence
+                return equalized_confluence
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -30249,6 +30496,70 @@ class NeuralBridge:
                                                             pass
                                             else:
                                                 self.mf396_meta_field_equalized = None
+
+                                            # MF-397 — Temporal Confluence Gradient Integrator (TCGI)
+                                            # Integrates confluence gradients over time using stabilized temporal update rule
+                                            meta_field_temporal_integrated = None
+                                            if (getattr(self, "tcgi", None) is not None and
+                                                meta_field_equalized is not None):
+                                                # Get previous integrated state if available
+                                                prev_integrated = None
+                                                if hasattr(self, 'mf397_meta_field_temporal_integrated') and self.mf397_meta_field_temporal_integrated is not None:
+                                                    # Use previous integrated state as temporal reference
+                                                    prev_integrated = self.mf397_meta_field_temporal_integrated
+                                                elif hasattr(self.tcgi, 'prev_integrated') and self.tcgi.prev_integrated is not None:
+                                                    prev_integrated = self.tcgi.prev_integrated
+
+                                                try:
+                                                    # Apply temporal confluence gradient integration
+                                                    meta_field_temporal_integrated = self.tcgi(
+                                                        meta_field_equalized,
+                                                        prev_integrated=prev_integrated
+                                                    )
+                                                    if meta_field_temporal_integrated is not None:
+                                                        self.mf397_meta_field_temporal_integrated = meta_field_temporal_integrated
+                                                        # Store as temporally integrated confluence tensor for MF-398 onward
+                                                        # This is the first component of the temporal-predictive substrate
+                                                    else:
+                                                        self.mf397_meta_field_temporal_integrated = None
+                                                except Exception as tcgi_error:
+                                                    self.mf397_meta_field_temporal_integrated = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf397_error": str(tcgi_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf397_meta_field_temporal_integrated = None
+
+                                            # MF-398 — Temporal Gradient Harmonization Kernel (TGHK)
+                                            # Harmonizes short-term confluence gradients with long-range temporal integrated gradients
+                                            meta_field_harmonized_final = None
+                                            if (getattr(self, "tghk", None) is not None and
+                                                meta_field_equalized is not None and
+                                                meta_field_temporal_integrated is not None):
+                                                try:
+                                                    # Apply temporal gradient harmonization
+                                                    # Blend equalized confluence (short-term) with temporal integrated (long-term)
+                                                    meta_field_harmonized_final = self.tghk(
+                                                        meta_field_equalized,
+                                                        meta_field_temporal_integrated
+                                                    )
+                                                    if meta_field_harmonized_final is not None:
+                                                        self.mf398_meta_field_harmonized_final = meta_field_harmonized_final
+                                                        # Store as harmonized gradient tensor for MF-399 onward
+                                                        # This forms the root harmonizer for MF-399 and MF-400
+                                                    else:
+                                                        self.mf398_meta_field_harmonized_final = None
+                                                except Exception as tghk_error:
+                                                    self.mf398_meta_field_harmonized_final = None
+                                                    if hasattr(self, 'logger'):
+                                                        try:
+                                                            self.logger.write({"mf398_error": str(tghk_error)})
+                                                        except Exception:
+                                                            pass
+                                            else:
+                                                self.mf398_meta_field_harmonized_final = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
