@@ -1784,6 +1784,7 @@ class NeuralBridge:
             self.routing_divergence_penalty_334 = None
             self.routing_entropy_regulator_335 = None
             self.routing_alignment_336 = None
+            self.routing_drift_corrector_337 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -21804,7 +21805,7 @@ class NeuralBridge:
         This is the foundation for multi-resolution predictive flow control in MF-331–350.
         """
         
-        def __init__(self, dim=128, num_levels=3, regularizer=None, coherence_engine=None, grad_stabilizer=None, divergence_penalty=None, entropy_regulator=None, alignment_layer=None):
+        def __init__(self, dim=128, num_levels=3, regularizer=None, coherence_engine=None, grad_stabilizer=None, divergence_penalty=None, entropy_regulator=None, alignment_layer=None, drift_corrector=None):
             self.dim = dim
             self.num_levels = num_levels
             self.regularizer = regularizer  # Reference to MF-331 regularizer
@@ -21813,6 +21814,7 @@ class NeuralBridge:
             self.divergence_penalty = divergence_penalty  # Reference to MF-334 divergence penalty kernel
             self.entropy_regulator = entropy_regulator  # Reference to MF-335 entropy regulator
             self.alignment_layer = alignment_layer  # Reference to MF-336 cross-manifold alignment layer
+            self.drift_corrector = drift_corrector  # Reference to MF-337 drift corrector
             
             try:
                 import torch
@@ -21915,6 +21917,11 @@ class NeuralBridge:
                     if self.alignment_layer is not None:
                         # Use all manifolds for cross-manifold alignment
                         routing_weights = self.alignment_layer.forward(routing_weights, manifolds)
+                    
+                    # Apply MF-337 predictive routing drift corrector if available
+                    # This is the final stabilization step before routing outputs influence manifolds
+                    if self.drift_corrector is not None:
+                        routing_weights = self.drift_corrector.forward(routing_weights)
                     
                     # Apply each transform weighted by routing coefficients
                     transformed = torch.zeros(self.dim, dtype=torch.float32)
@@ -22490,6 +22497,96 @@ class NeuralBridge:
                 # Fallback: return original tensor
                 return routing_tensor
 
+    class PredictiveRoutingDriftCorrector:
+        """
+        MF-337 — Predictive Routing Drift Corrector
+        
+        Monitors routing drift over recent cycles and applies corrections to ensure
+        routing tensors remain stable and aligned with expected routing dynamics.
+        
+        Prevents drift accumulation caused by:
+        - multi-manifold transitions
+        - cumulative routing adjustments
+        - entropy modulation
+        - divergence corrections
+        - predictive manifold interactions
+        
+        This strengthens the entire routing backbone.
+        """
+        
+        def __init__(self, history_size=10, correction_strength=0.25):
+            self.history_size = history_size
+            self.correction_strength = correction_strength
+            self.history_index = 0
+            
+            try:
+                import torch
+                
+                # Routing history buffer for drift tracking
+                self.routing_history = torch.zeros(history_size, dtype=torch.float32)
+            except Exception:
+                self.routing_history = None
+        
+        def forward(self, routing_tensor):
+            """
+            Apply drift correction to routing tensor.
+            
+            Args:
+                routing_tensor: final routing distribution before manifold integration
+            
+            Returns:
+                corrected: drift-corrected routing tensor
+            """
+            try:
+                import torch
+                
+                if routing_tensor is None:
+                    return routing_tensor
+                
+                if not isinstance(routing_tensor, torch.Tensor):
+                    routing_tensor = torch.tensor(routing_tensor, dtype=torch.float32)
+                
+                if self.routing_history is None:
+                    self.routing_history = torch.zeros(self.history_size, dtype=torch.float32)
+                
+                # Compute L2 norm drift
+                drift_mag = routing_tensor.norm(p=2)
+                
+                # Ensure drift_mag is a scalar
+                if drift_mag.dim() > 0:
+                    drift_mag = drift_mag.item()
+                    drift_mag = torch.tensor(drift_mag, dtype=torch.float32)
+                
+                # Store drift magnitude in history
+                self.routing_history[self.history_index % self.history_size] = drift_mag
+                self.history_index += 1
+                
+                # Compute average drift baseline
+                avg_drift = self.routing_history.mean()
+                
+                # Condition: if drift is too high compared to recent baseline, correct it
+                drift_val = drift_mag.item() if isinstance(drift_mag, torch.Tensor) else float(drift_mag)
+                avg_val = avg_drift.item() if isinstance(avg_drift, torch.Tensor) else float(avg_drift)
+                
+                if drift_val > avg_val * 1.15:  # 15% above baseline
+                    correction_factor = 1.0 - self.correction_strength
+                    corrected = routing_tensor * correction_factor
+                else:
+                    corrected = routing_tensor
+                
+                # Renormalize after correction
+                corrected_sum = corrected.sum()
+                if corrected_sum > 0:
+                    corrected = corrected / (corrected_sum + 1e-8)
+                else:
+                    # Fallback: uniform distribution
+                    corrected = torch.ones_like(routing_tensor) / routing_tensor.numel()
+                
+                return corrected
+            except Exception:
+                # Fallback: return original tensor
+                return routing_tensor
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -22708,19 +22805,26 @@ class NeuralBridge:
                 if getattr(self.routing_alignment_336, "manifold_dim", dim) != dim:
                     self.routing_alignment_336 = self.CrossManifoldRoutingAlignmentLayer(manifold_dim=dim, alignment_strength=0.15)
             
+            if self.routing_drift_corrector_337 is None:
+                self.routing_drift_corrector_337 = self.PredictiveRoutingDriftCorrector(history_size=10, correction_strength=0.25)
+            else:
+                # Check if parameters need updating (optional, since they're set in __init__)
+                pass
+            
             if self.routing_kernel_330 is None:
-                self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336)
+                self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336, drift_corrector=self.routing_drift_corrector_337)
             else:
                 if getattr(self.routing_kernel_330, "dim", dim) != dim:
-                    self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336)
+                    self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336, drift_corrector=self.routing_drift_corrector_337)
                 else:
-                    # Update regularizer, coherence engine, grad stabilizer, divergence penalty, entropy regulator, and alignment layer references if they changed
+                    # Update regularizer, coherence engine, grad stabilizer, divergence penalty, entropy regulator, alignment layer, and drift corrector references if they changed
                     self.routing_kernel_330.regularizer = self.routing_consistency_331
                     self.routing_kernel_330.coherence_engine = self.routing_coherence_332
                     self.routing_kernel_330.grad_stabilizer = self.routing_grad_stabilizer_333
                     self.routing_kernel_330.divergence_penalty = self.routing_divergence_penalty_334
                     self.routing_kernel_330.entropy_regulator = self.routing_entropy_regulator_335
                     self.routing_kernel_330.alignment_layer = self.routing_alignment_336
+                    self.routing_kernel_330.drift_corrector = self.routing_drift_corrector_337
             
             # Collect harmonic layers (only tensors present)
             candidates = [
