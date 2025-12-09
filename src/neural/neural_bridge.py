@@ -59,6 +59,18 @@ from persistence.log_writer import LogWriter
 from perception.perception_manager import PerceptionManager
 from tasks.task_queue import TaskQueue
 
+# Optional torch dependency for predictive cascade layers
+try:
+    import torch
+    import torch.nn as nn
+except Exception:
+    torch = None
+    class _TorchFallbackNN:
+        class Module:
+            def __init__(self, *args, **kwargs):
+                pass
+    nn = _TorchFallbackNN()
+
 class NeuralBridge:
 
     def __init__(self):
@@ -237,6 +249,12 @@ class NeuralBridge:
         self.baseline_identity = None
         self.ready_for_adaptive_evolution = False
         self.cycle_count = 0
+        # Core embedding dimension for predictive cascade components
+        self.dim = getattr(self, "embedding_dim", 128)
+        try:
+            self.pcel = self.PredictiveCascadeExpansionLayer(self.dim, branches=4)
+        except Exception:
+            self.pcel = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -1801,6 +1819,7 @@ class NeuralBridge:
             self.hierarchical_layer_interaction_kernel_351 = None
             self.hierarchical_confluence_refinement_layer_352 = None
             self.inter_layer_confluence_shaping_kernel_353 = None
+            self.confluence_conditioned_cascade_primer_359 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -24584,6 +24603,174 @@ class NeuralBridge:
             except Exception:
                 return lower_state
 
+    class ConfluenceConditionedCascadePrimer:
+        """
+        MF-359 — Confluence-Conditioned Predictive Cascade Primer (CCPCP)
+
+        Lightweight predictive cascade initiator conditioned on:
+        - Confluence shaping (MF-353+)
+        - Routing conditioning
+        - Harmonic previews
+        - Manifold interaction signatures
+        """
+
+        def __init__(self, dim):
+            try:
+                import torch
+                import torch.nn as nn
+                from .torch_utils import TORCH_AVAILABLE
+
+                if not TORCH_AVAILABLE:
+                    self.dim = dim
+                    self.precondition = None
+                    self.harmonic_gate = None
+                    self.routing_gate = None
+                    self.norm_pre = None
+                    self.norm_h = None
+                    self.norm_r = None
+                    self.synth = None
+                    return
+
+                self.dim = dim
+                # Core transformation blocks
+                self.precondition = nn.Linear(dim, dim)
+                self.harmonic_gate = nn.Linear(dim, dim)
+                self.routing_gate = nn.Linear(dim, dim)
+                # Normalization layers for stability
+                self.norm_pre = nn.LayerNorm(dim)
+                self.norm_h = nn.LayerNorm(dim)
+                self.norm_r = nn.LayerNorm(dim)
+                # Final synthesis
+                self.synth = nn.Linear(dim, dim)
+            except Exception:
+                self.dim = dim
+                self.precondition = None
+                self.harmonic_gate = None
+                self.routing_gate = None
+                self.norm_pre = None
+                self.norm_h = None
+                self.norm_r = None
+                self.synth = None
+
+        def forward(self, x, confluence_state, routing_state, harmonic_state):
+            """
+            Produce a stabilized pre-cascade vector conditioned on confluence dynamics.
+            """
+            try:
+                import torch
+
+                if (self.precondition is None or self.harmonic_gate is None or
+                    self.routing_gate is None or self.norm_pre is None or
+                    self.norm_h is None or self.norm_r is None or self.synth is None):
+                    return x
+
+                # Ensure tensors and shape
+                def ensure_tensor(t):
+                    if not isinstance(t, torch.Tensor):
+                        t = torch.tensor(t, dtype=torch.float32)
+                    if t.dim() == 1:
+                        t = t.unsqueeze(0)
+                    return t
+
+                x = ensure_tensor(x)
+                confluence_state = ensure_tensor(confluence_state)
+                routing_state = ensure_tensor(routing_state)
+                harmonic_state = ensure_tensor(harmonic_state)
+
+                # Preconditioning path
+                p = self.precondition(x)
+                p = torch.tanh(self.norm_pre(p))
+
+                # Harmonic modulation
+                h = self.harmonic_gate(harmonic_state)
+                h = torch.sigmoid(self.norm_h(h))
+
+                # Routing modulation
+                r = self.routing_gate(routing_state)
+                r = torch.sigmoid(self.norm_r(r))
+
+                # Confluence shaping: multiplicative constraint
+                conditioned = p * h * r * confluence_state
+
+                # Final stabilized output
+                out = torch.tanh(self.synth(conditioned))
+
+                if out.dim() == 2 and out.shape[0] == 1:
+                    out = out.squeeze(0)
+                return out
+            except Exception:
+                return x
+
+    class PredictiveCascadeExpansionLayer(nn.Module):
+        """
+        MF-360 — Predictive Cascade Expansion Layer (PCEL)
+
+        Expands the cascade_primer output into multiple predictive branches,
+        applies conditioning from manifold/confluence/harmonic fields,
+        and merges the propagated signals into a stabilized cascade output.
+        """
+
+        def __init__(self, dim, branches=4):
+            super().__init__()
+            self.dim = dim
+            self.branches = branches
+
+            if torch is None or not hasattr(nn, "ModuleList"):
+                self.branch_layers = None
+                self.confluence_gate = None
+                self.harmonic_gate = None
+                self.routing_gate = None
+                self.merge = None
+                self.norm = None
+                return
+
+            # Branch expansion projections
+            self.branch_layers = nn.ModuleList([
+                nn.Linear(dim, dim) for _ in range(branches)
+            ])
+
+            # Conditioning gates
+            self.confluence_gate = nn.Linear(dim, dim)
+            self.harmonic_gate = nn.Linear(dim, dim)
+            self.routing_gate = nn.Linear(dim, dim)
+
+            # Merge + stability transforms
+            self.merge = nn.Linear(dim * branches, dim)
+            self.norm = nn.LayerNorm(dim)
+
+        def forward(self, primer, confluence_state, harmonic_state, routing_state):
+            if (torch is None or
+                self.branch_layers is None or
+                self.confluence_gate is None or
+                self.harmonic_gate is None or
+                self.routing_gate is None or
+                self.merge is None or
+                self.norm is None):
+                return primer
+
+            # Expand into branches
+            branch_outputs = []
+            for layer in self.branch_layers:
+                b = torch.relu(layer(primer))
+                branch_outputs.append(b)
+
+            # Stack branches for merging
+            expanded = torch.cat(branch_outputs, dim=-1)
+
+            # Conditioning fields
+            c_gate = torch.sigmoid(self.confluence_gate(confluence_state))
+            h_gate = torch.sigmoid(self.harmonic_gate(harmonic_state))
+            r_gate = torch.sigmoid(self.routing_gate(routing_state))
+
+            # Combine all conditioning
+            conditioned = expanded * c_gate * h_gate * r_gate
+
+            # Merge back down with stability
+            merged = self.merge(conditioned)
+            stabilized = self.norm(torch.tanh(merged))
+
+            return stabilized
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -24916,6 +25103,13 @@ class NeuralBridge:
                 if getattr(self.inter_layer_confluence_shaping_kernel_353, "dim", dim) != dim:
                     self.inter_layer_confluence_shaping_kernel_353 = self.InterLayerConfluenceShapingKernel(dim=dim)
 
+            if self.confluence_conditioned_cascade_primer_359 is None:
+                self.confluence_conditioned_cascade_primer_359 = self.ConfluenceConditionedCascadePrimer(dim=dim)
+            else:
+                # Check if dimension changed
+                if getattr(self.confluence_conditioned_cascade_primer_359, "dim", dim) != dim:
+                    self.confluence_conditioned_cascade_primer_359 = self.ConfluenceConditionedCascadePrimer(dim=dim)
+
             # Expose convenience alias and register phase
             self.multi_route_confluence_interaction_layer = self.multi_route_confluence_interaction_layer_348
             if not hasattr(self, "phase_registry"):
@@ -24940,6 +25134,10 @@ class NeuralBridge:
             self.inter_layer_confluence_shaping_kernel = self.inter_layer_confluence_shaping_kernel_353
             if "MF-353: Inter-Layer Confluence Shaping Kernel (ILCSK)" not in self.phase_registry:
                 self.phase_registry.append("MF-353: Inter-Layer Confluence Shaping Kernel (ILCSK)")
+            # Alias and phase registration for MF-359
+            self.confluence_conditioned_cascade_primer = self.confluence_conditioned_cascade_primer_359
+            if "MF-359: Confluence-Conditioned Predictive Cascade Primer (CCPCP)" not in self.phase_registry:
+                self.phase_registry.append("MF-359: Confluence-Conditioned Predictive Cascade Primer (CCPCP)")
             
             if self.routing_kernel_330 is None:
                 self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332, grad_stabilizer=self.routing_grad_stabilizer_333, divergence_penalty=self.routing_divergence_penalty_334, entropy_regulator=self.routing_entropy_regulator_335, alignment_layer=self.routing_alignment_336, drift_corrector=self.routing_drift_corrector_337, consistency_graph=self.routing_consistency_graph_338)
@@ -25568,6 +25766,75 @@ class NeuralBridge:
                                                     self.mf348_interacted_state = interacted_state
                                                     self.mf349_graph_stabilized_state = stabilized_graph
                                                     self.mf349_graph_stabilization_applied = True
+
+                                                    # MF-359 — Confluence-Conditioned Predictive Cascade Primer (CCPCP)
+                                                    if self.confluence_conditioned_cascade_primer_359 is not None:
+                                                        try:
+                                                            primary_state = stabilized_graph
+                                                            confluence_state = primary_state
+                                                            routing_state = self.mf346_routed_state if getattr(self, "mf346_routed_state", None) is not None else primary_state
+                                                            harmonic_state = None
+                                                            if hasattr(self, 'harmonic_predictive_lattice_resonance') and self.harmonic_predictive_lattice_resonance is not None:
+                                                                harmonic_state = self.harmonic_predictive_lattice_resonance
+                                                            elif hasattr(self, 'resonance_fused_field') and self.resonance_fused_field is not None:
+                                                                harmonic_state = self.resonance_fused_field
+                                                            elif hasattr(self, 'phi_predictive_field') and self.phi_predictive_field is not None:
+                                                                harmonic_state = self.phi_predictive_field
+                                                            elif hasattr(self, 'global_resonance_vector') and self.global_resonance_vector is not None:
+                                                                harmonic_state = self.global_resonance_vector
+                                                            else:
+                                                                harmonic_state = primary_state
+
+                                                            primer_out = self.confluence_conditioned_cascade_primer_359.forward(
+                                                                primary_state,
+                                                                confluence_state,
+                                                                routing_state,
+                                                                harmonic_state
+                                                            )
+
+                                                            internal_states = {
+                                                                "cascade_primer": primer_out,
+                                                                "confluence_state": confluence_state,
+                                                                "harmonic_state": harmonic_state,
+                                                                "routing_state": routing_state,
+                                                            }
+
+                                                            # MF-360 — Predictive Cascade Expansion
+                                                            try:
+                                                                if getattr(self, "pcel", None) is not None:
+                                                                    pcel_out = self.pcel(
+                                                                        internal_states["cascade_primer"],
+                                                                        internal_states["confluence_state"],
+                                                                        internal_states["harmonic_state"],
+                                                                        internal_states["routing_state"]
+                                                                    )
+                                                                    internal_states["cascade_expansion"] = pcel_out
+                                                                    primary_state = primary_state + pcel_out * 0.03
+                                                                    self.mf360_cascade_expansion_output = pcel_out
+                                                                else:
+                                                                    self.mf360_cascade_expansion_output = None
+                                                            except Exception as pcel_error:
+                                                                self.mf360_cascade_expansion_output = None
+                                                                if hasattr(self, 'logger'):
+                                                                    try:
+                                                                        self.logger.write({"mf360_error": str(pcel_error)})
+                                                                    except Exception:
+                                                                        pass
+
+                                                            adjusted_state = primary_state + primer_out * 0.05
+                                                            self.mf359_cascade_primer_output = primer_out
+                                                            self.mf359_cascade_primer_adjusted = adjusted_state
+                                                            self.mf359_cascade_primer_applied = True
+                                                            self.mf360_internal_states = internal_states
+                                                        except Exception as primer_error:
+                                                            self.mf359_cascade_primer_applied = False
+                                                            if hasattr(self, 'logger'):
+                                                                try:
+                                                                    self.logger.write({"mf359_error": str(primer_error)})
+                                                                except Exception:
+                                                                    pass
+                                                    else:
+                                                        self.mf359_cascade_primer_applied = False
                                                 except Exception as graph_stabilization_error:
                                                     self.mf349_graph_stabilization_applied = False
                                                     if hasattr(self, 'logger'):
@@ -25580,6 +25847,7 @@ class NeuralBridge:
                                         except Exception as interaction_error:
                                             self.mf348_interaction_applied = False
                                             self.mf349_graph_stabilization_applied = False
+                                            self.mf359_cascade_primer_applied = False
                                             if hasattr(self, 'logger'):
                                                 try:
                                                     self.logger.write({"mf348_error": str(interaction_error)})
@@ -25588,12 +25856,14 @@ class NeuralBridge:
                                     else:
                                         self.mf348_interaction_applied = False
                                         self.mf349_graph_stabilization_applied = False
+                                        self.mf359_cascade_primer_applied = False
                                 except Exception as router_error:
                                     # Continue if router fails
                                     self.mf346_router_applied = False
                                     self.mf347_stabilization_applied = False
                                     self.mf348_interaction_applied = False
                                     self.mf349_graph_stabilization_applied = False
+                                    self.mf359_cascade_primer_applied = False
                                     if hasattr(self, 'logger'):
                                         try:
                                             self.logger.write({"mf346_error": str(router_error)})
@@ -25604,6 +25874,7 @@ class NeuralBridge:
                                 self.mf347_stabilization_applied = False
                                 self.mf348_interaction_applied = False
                                 self.mf349_graph_stabilization_applied = False
+                                self.mf359_cascade_primer_applied = False
                         except Exception as merger_error:
                             # Continue if merger fails
                             self.mf345_merger_applied = False
@@ -25611,12 +25882,14 @@ class NeuralBridge:
                             self.mf347_stabilization_applied = False
                             self.mf348_interaction_applied = False
                             self.mf349_graph_stabilization_applied = False
+                            self.mf359_cascade_primer_applied = False
                     else:
                         self.mf345_merger_applied = False
                         self.mf346_router_applied = False
                         self.mf347_stabilization_applied = False
                         self.mf348_interaction_applied = False
                         self.mf349_graph_stabilization_applied = False
+                        self.mf359_cascade_primer_applied = False
                 except Exception as e:
                     # Silently continue if MF-345 fails
                     self.mf345_merger_applied = False
@@ -25624,6 +25897,7 @@ class NeuralBridge:
                     self.mf347_stabilization_applied = False
                     self.mf348_interaction_applied = False
                     self.mf349_graph_stabilization_applied = False
+                    self.mf359_cascade_primer_applied = False
                     if hasattr(self, 'logger'):
                         try:
                             self.logger.write({"mf345_error": str(e)})
