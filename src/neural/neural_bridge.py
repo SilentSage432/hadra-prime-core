@@ -1775,6 +1775,7 @@ class NeuralBridge:
             self.routing_matrix = None
             self.cross_manifold_harmonizer = None
             self.global_harmony_score = None
+            self.manifold_density_aligner = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -3677,6 +3678,72 @@ class NeuralBridge:
                                                                                                                                                     harmony_score = self.cross_manifold_harmonizer.harmony_score
                                                                                                                                                     internal_state["global_harmony_score"] = float(harmony_score)
                                                                                                                                                     self.global_harmony_score = harmony_score
+                                                                                                                                            except Exception:
+                                                                                                                                                pass
+                                                                                                                                            # MF-328 — Cross-Manifold Predictive Density Alignment Module
+                                                                                                                                            try:
+                                                                                                                                                # Apply density alignment to key manifold pairs
+                                                                                                                                                # Primary pair: predictive and narrative manifolds
+                                                                                                                                                predictive_field = None
+                                                                                                                                                narrative_field = None
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'predictive_manifold') and self.predictive_manifold is not None:
+                                                                                                                                                    predictive_field = self.predictive_manifold
+                                                                                                                                                elif "predictive_manifold" in internal_state:
+                                                                                                                                                    predictive_field = torch.tensor(internal_state["predictive_manifold"])
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'narrative_manifold') and self.narrative_manifold is not None:
+                                                                                                                                                    narrative_field = self.narrative_manifold
+                                                                                                                                                elif "narrative_manifold" in internal_state:
+                                                                                                                                                    narrative_field = torch.tensor(internal_state["narrative_manifold"])
+                                                                                                                                                
+                                                                                                                                                # Apply density alignment if we have both fields and the aligner
+                                                                                                                                                if (predictive_field is not None and narrative_field is not None and 
+                                                                                                                                                    hasattr(self, 'manifold_density_aligner') and self.manifold_density_aligner is not None):
+                                                                                                                                                    aligned_predictive, aligned_narrative = self.manifold_density_aligner.forward(
+                                                                                                                                                        predictive_field,
+                                                                                                                                                        narrative_field
+                                                                                                                                                    )
+                                                                                                                                                    
+                                                                                                                                                    # Update manifolds with aligned densities
+                                                                                                                                                    if aligned_predictive is not None:
+                                                                                                                                                        internal_state["predictive_manifold"] = aligned_predictive.tolist()
+                                                                                                                                                        self.predictive_manifold = aligned_predictive
+                                                                                                                                                    
+                                                                                                                                                    if aligned_narrative is not None:
+                                                                                                                                                        internal_state["narrative_manifold"] = aligned_narrative.tolist()
+                                                                                                                                                        self.narrative_manifold = aligned_narrative
+                                                                                                                                                
+                                                                                                                                                # Secondary pair: identity and meta manifolds
+                                                                                                                                                identity_field = None
+                                                                                                                                                meta_field = None
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'identity_vector') and self.identity_vector is not None:
+                                                                                                                                                    identity_field = self.identity_vector
+                                                                                                                                                elif "identity_vector" in internal_state:
+                                                                                                                                                    identity_field = torch.tensor(internal_state["identity_vector"])
+                                                                                                                                                
+                                                                                                                                                if hasattr(self, 'meta_field_unified') and self.meta_field_unified is not None:
+                                                                                                                                                    meta_field = self.meta_field_unified
+                                                                                                                                                elif "meta_field_unified" in internal_state:
+                                                                                                                                                    meta_field = torch.tensor(internal_state["meta_field_unified"])
+                                                                                                                                                
+                                                                                                                                                # Apply density alignment to identity-meta pair
+                                                                                                                                                if (identity_field is not None and meta_field is not None and 
+                                                                                                                                                    hasattr(self, 'manifold_density_aligner') and self.manifold_density_aligner is not None):
+                                                                                                                                                    aligned_identity, aligned_meta = self.manifold_density_aligner.forward(
+                                                                                                                                                        identity_field,
+                                                                                                                                                        meta_field
+                                                                                                                                                    )
+                                                                                                                                                    
+                                                                                                                                                    # Update manifolds with aligned densities
+                                                                                                                                                    if aligned_identity is not None:
+                                                                                                                                                        internal_state["identity_vector"] = aligned_identity.tolist()
+                                                                                                                                                        self.identity_vector = aligned_identity
+                                                                                                                                                    
+                                                                                                                                                    if aligned_meta is not None:
+                                                                                                                                                        internal_state["meta_field_unified"] = aligned_meta.tolist()
+                                                                                                                                                        self.meta_field_unified = aligned_meta
                                                                                                                                             except Exception:
                                                                                                                                                 pass
                                                                                                                     
@@ -21334,6 +21401,108 @@ class NeuralBridge:
                 # Fallback: return original flows
                 return manifold_flows
 
+    class CrossManifoldDensityAligner:
+        """
+        MF-328 — Cross-Manifold Predictive Density Alignment Module
+        
+        Lightweight alignment module that:
+        - inspects local predictive densities from neighboring manifold segments
+        - computes a normalized adjustment vector per segment
+        - produces an aligned density field used by downstream routing layers
+        - reduces the variance between adjacent manifold predictions
+        - prepares the system for multi-manifold fusion in MF-329+
+        
+        This is pure mathematical harmonization inside the model's manifold structure,
+        resulting in smoother surfaces, fewer oscillations, and reduced interference.
+        """
+        
+        def __init__(self, dim=128, smoothing_factor=0.15):
+            self.dim = dim
+            self.smoothing = smoothing_factor
+            
+            try:
+                import torch
+                import torch.nn as nn
+                
+                # Projections to comparable feature space
+                self.proj_a = nn.Linear(dim, dim)
+                self.proj_b = nn.Linear(dim, dim)
+            except Exception:
+                self.proj_a = None
+                self.proj_b = None
+        
+        def forward(self, manifold_a, manifold_b):
+            """
+            Aligns two manifolds by computing density contrast and applying smoothing.
+            
+            Args:
+                manifold_a: first manifold tensor
+                manifold_b: second manifold tensor
+                
+            Returns:
+                out_a: aligned first manifold
+                out_b: aligned second manifold
+            """
+            try:
+                import torch
+                
+                if manifold_a is None or manifold_b is None:
+                    # Fallback: return original manifolds if either is missing
+                    return manifold_a, manifold_b
+                
+                # Ensure both are tensors and correct dimension
+                if not isinstance(manifold_a, torch.Tensor):
+                    manifold_a = torch.tensor(manifold_a, dtype=torch.float32) if manifold_a is not None else torch.zeros(self.dim, dtype=torch.float32)
+                if not isinstance(manifold_b, torch.Tensor):
+                    manifold_b = torch.tensor(manifold_b, dtype=torch.float32) if manifold_b is not None else torch.zeros(self.dim, dtype=torch.float32)
+                
+                a_flat = manifold_a.flatten()
+                b_flat = manifold_b.flatten()
+                
+                # Normalize dimensions
+                if a_flat.shape[0] != self.dim:
+                    if a_flat.shape[0] < self.dim:
+                        a_flat = torch.cat([a_flat, torch.zeros(self.dim - a_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        a_flat = a_flat[:self.dim]
+                
+                if b_flat.shape[0] != self.dim:
+                    if b_flat.shape[0] < self.dim:
+                        b_flat = torch.cat([b_flat, torch.zeros(self.dim - b_flat.shape[0], dtype=torch.float32)])
+                    else:
+                        b_flat = b_flat[:self.dim]
+                
+                if self.proj_a is None or self.proj_b is None:
+                    # Fallback: simple averaging without projection
+                    avg = (a_flat + b_flat) / 2.0
+                    out_a = a_flat + (avg - a_flat) * self.smoothing
+                    out_b = b_flat + (avg - b_flat) * self.smoothing
+                    return out_a, out_b
+                
+                # Project to comparable feature space
+                a = self.proj_a(a_flat)
+                b = self.proj_b(b_flat)
+                
+                # Compute local density contrast
+                contrast = a - b
+                
+                # Normalize for stability
+                norm = torch.norm(contrast, dim=-1, keepdim=True) + 1e-8
+                if contrast.dim() == 1:
+                    norm = torch.norm(contrast) + 1e-8
+                    aligned = contrast / norm
+                else:
+                    aligned = contrast / norm
+                
+                # Weighted smoothing back into manifolds
+                out_a = a_flat - aligned * self.smoothing
+                out_b = b_flat + aligned * self.smoothing
+                
+                return out_a, out_b
+            except Exception:
+                # Fallback: return original manifolds
+                return manifold_a, manifold_b
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -21502,6 +21671,12 @@ class NeuralBridge:
             else:
                 if getattr(self.cross_manifold_harmonizer, "dim", dim) != dim:
                     self.cross_manifold_harmonizer = self.CrossManifoldFlowHarmonizationEngine(dim=dim)
+            
+            if self.manifold_density_aligner is None:
+                self.manifold_density_aligner = self.CrossManifoldDensityAligner(dim=dim, smoothing_factor=0.15)
+            else:
+                if getattr(self.manifold_density_aligner, "dim", dim) != dim:
+                    self.manifold_density_aligner = self.CrossManifoldDensityAligner(dim=dim, smoothing_factor=0.15)
             
             # Collect harmonic layers (only tensors present)
             candidates = [
