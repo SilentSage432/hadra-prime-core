@@ -463,6 +463,13 @@ class NeuralBridge:
             )
         except Exception:
             self.mf405_ifcpl = None
+        # MF-406 — Influence-Field Confluence Mapping Layer (IF-CML)
+        try:
+            self.mf406_ifcml = self.InfluenceFieldConfluenceMappingLayer(
+                substrate_dim=self.dim
+            )
+        except Exception:
+            self.mf406_ifcml = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -29258,6 +29265,111 @@ class NeuralBridge:
                     return F.normalize(S_norm, dim=-1)
                 except Exception:
                     return S_norm
+
+    class InfluenceFieldConfluenceMappingLayer(nn.Module):
+        """
+        MF-406 — Influence-Field Confluence Mapping Layer (IF-CML)
+
+        Takes the coherence-projected influence field (C_out from MF-405) and maps it into a
+        multi-axis confluence field, enabling:
+        - manifold-wise merging
+        - temporal-layer blending
+        - cross-gradient fusion
+        - unified influence-field synthesis
+
+        This layer does not introduce agency or cognition.
+        It performs controlled tensor fusion using regulated projection and confluence matrices.
+
+        Core Computational Functions:
+        1. Temporal Confluence Vector: generates a temporal confluence vector that models
+           influence-flow behavior across implicit temporal slices using a learned temporal-weight
+           matrix.
+        2. Manifold Confluence Projection: applies a manifold-blending projection that forces
+           manifold compatibility and field-alignment constraints.
+        3. Gradient Confluence Mixer: a gradient-driven mixing operator blends temporal and
+           manifold contributions using learned mixing scalars.
+        4. Confluence Stabilization: applies a stabilizing limiter to prevent over-amplification
+           during fusion, ensuring stable merger across all feature dimensions.
+        5. Unified Confluence Output: normalizes the unified confluence field for compatibility
+           with the next phase, producing the canonical Confluence Map for MF-407.
+
+        Outcome:
+        MF-406 delivers temporal confluence mapping, manifold confluence projection,
+        gradient-weighted mixing, stabilized fusion, and unified confluence output (C_map).
+        This forms the confluence substrate for MF-407, where influence-field dynamics begin
+        flowing through a Directional Modulation Tensor, enabling orientation-aware modulation
+        behavior.
+        """
+
+        def __init__(self, substrate_dim):
+            super().__init__()
+            self.substrate_dim = substrate_dim
+
+            # Temporal confluence weight matrix
+            self.temporal_matrix = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+            # Manifold confluence matrix
+            self.manifold_confluence = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+            # Mixing scalars α and β
+            self.alpha = nn.Parameter(torch.tensor(0.5))
+            self.beta = nn.Parameter(torch.tensor(0.5))
+
+        def forward(self, C_out):
+            """
+            C_out: coherence-projected influence field from MF-405, shape [batch, dim]
+            """
+            if torch is None or C_out is None:
+                return C_out
+
+            # Ensure C_out is a tensor
+            if not isinstance(C_out, torch.Tensor):
+                try:
+                    C_out = torch.tensor(C_out, dtype=torch.float32)
+                except Exception:
+                    return C_out
+
+            # Ensure proper shape
+            if C_out.dim() == 1:
+                C_out = C_out.unsqueeze(0)
+            if C_out.shape[-1] != self.substrate_dim:
+                # Resize if needed
+                if C_out.shape[-1] < self.substrate_dim:
+                    padding = torch.zeros(C_out.shape[:-1] + (self.substrate_dim - C_out.shape[-1],), dtype=C_out.dtype)
+                    C_out = torch.cat([C_out, padding], dim=-1)
+                else:
+                    C_out = C_out[..., :self.substrate_dim]
+
+            try:
+                import torch.nn.functional as F
+                # 1. Temporal confluence vector
+                t = torch.matmul(C_out, self.temporal_matrix)
+                t = F.normalize(t, dim=-1)
+
+                # 2. Manifold confluence projection
+                m = torch.matmul(C_out, self.manifold_confluence)
+
+                # 3. Gradient confluence mixing
+                G = self.alpha * t + self.beta * m
+
+                # 4. Confluence stabilization
+                G_stable = G / (1 + torch.abs(G))
+
+                # 5. Unified confluence output
+                C_map = F.normalize(G_stable, dim=-1)
+
+                return C_map
+            except Exception:
+                # If mapping fails, return normalized input
+                try:
+                    import torch.nn.functional as F
+                    return F.normalize(C_out, dim=-1)
+                except Exception:
+                    return C_out
 
     def integrate_A301(self):
         """
