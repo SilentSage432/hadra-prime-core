@@ -1778,6 +1778,8 @@ class NeuralBridge:
             self.manifold_density_aligner = None
             self.density_equalizer_329 = None
             self.routing_kernel_330 = None
+            self.routing_consistency_331 = None
+            self.routing_coherence_332 = None
             if hasattr(self, 'logger'):
                 try:
                     self.logger.write({"latent_engine_init": "skipped_pytorch_unavailable"})
@@ -21798,9 +21800,11 @@ class NeuralBridge:
         This is the foundation for multi-resolution predictive flow control in MF-331–350.
         """
         
-        def __init__(self, dim=128, num_levels=3):
+        def __init__(self, dim=128, num_levels=3, regularizer=None, coherence_engine=None):
             self.dim = dim
             self.num_levels = num_levels
+            self.regularizer = regularizer  # Reference to MF-331 regularizer
+            self.coherence_engine = coherence_engine  # Reference to MF-332 coherence engine
             
             try:
                 import torch
@@ -21874,6 +21878,14 @@ class NeuralBridge:
                     # Softmax router for weighted distribution across hierarchy
                     routing_weights = F.softmax(-level_diffs, dim=0)
                     
+                    # Apply MF-331 consistency regularizer if available
+                    if self.regularizer is not None:
+                        routing_weights = self.regularizer.forward(routing_weights)
+                    
+                    # Apply MF-332 multi-scale routing coherence engine if available
+                    if self.coherence_engine is not None:
+                        routing_weights = self.coherence_engine.forward(routing_weights)
+                    
                     # Apply each transform weighted by routing coefficients
                     transformed = torch.zeros(self.dim, dtype=torch.float32)
                     for i in range(self.num_levels):
@@ -21884,10 +21896,174 @@ class NeuralBridge:
                     
                     updated_manifolds.append(transformed)
                 
-                return updated_manifolds
+                    return updated_manifolds
             except Exception:
                 # Fallback: return original manifolds
                 return manifolds
+
+    class MultiLevelRoutingConsistencyRegularizer:
+        """
+        MF-331 — Multi-Level Routing Consistency Regularizer
+        
+        Regularizes routing transitions across hierarchical routing layers by
+        penalizing abrupt changes in routing weights and enforcing smoothness.
+        
+        Ensures that as routing becomes hierarchical, density-aware, and cross-manifold,
+        the routing decisions remain stable, predictable, and free from oscillatory behavior.
+        
+        Functions as a temporal + structural stabilizer for hierarchical routing layers.
+        """
+        
+        def __init__(self, num_levels=3, smoothing_factor=0.15):
+            self.num_levels = num_levels
+            self.smoothing_factor = smoothing_factor
+            
+            try:
+                import torch
+                
+                # Track previous routing weights for stability
+                self.prev_weights = torch.zeros(num_levels, dtype=torch.float32)
+            except Exception:
+                self.prev_weights = None
+        
+        def forward(self, routing_weights):
+            """
+            Apply smoothing to routing weights to reduce oscillations and promote
+            stability over time.
+            
+            Args:
+                routing_weights: torch.Tensor of routing weights (num_levels,)
+                
+            Returns:
+                smoothed: torch.Tensor of smoothed routing weights
+            """
+            try:
+                import torch
+                
+                if routing_weights is None:
+                    return routing_weights
+                
+                if not isinstance(routing_weights, torch.Tensor):
+                    routing_weights = torch.tensor(routing_weights, dtype=torch.float32)
+                
+                if self.prev_weights is None:
+                    self.prev_weights = torch.zeros(self.num_levels, dtype=torch.float32)
+                
+                # Ensure routing weights match expected size
+                if routing_weights.numel() != self.num_levels:
+                    # Safety fallback — return weights untouched
+                    return routing_weights
+                
+                # Ensure routing_weights is 1D
+                if routing_weights.dim() > 1:
+                    routing_weights = routing_weights.flatten()
+                
+                if routing_weights.shape[0] != self.num_levels:
+                    return routing_weights
+                
+                # Smooth transition using exponential moving average
+                smoothed = (
+                    self.smoothing_factor * routing_weights +
+                    (1.0 - self.smoothing_factor) * self.prev_weights
+                )
+                
+                # Normalize to preserve a valid distribution
+                weight_sum = smoothed.sum()
+                if weight_sum > 0:
+                    smoothed = smoothed / weight_sum
+                else:
+                    # Fallback: uniform distribution
+                    smoothed = torch.ones(self.num_levels, dtype=torch.float32) / self.num_levels
+                
+                # Update stored memory
+                self.prev_weights = smoothed.clone()
+                
+                return smoothed
+            except Exception:
+                # Fallback: return original weights
+                return routing_weights
+
+    class MultiScaleRoutingCoherenceEngine:
+        """
+        MF-332 — Multi-Scale Routing Coherence Engine
+        
+        Ensures that routing weights remain coherent across multiple scales
+        of the routing hierarchy.
+        
+        Aligns routing weights across scales, enforces proportional consistency,
+        reduces cross-scale oscillations, and creates a smoothed global routing vector.
+        
+        This improves:
+        - downstream manifold updates
+        - predictive field consistency
+        - stability of meta-field operations
+        - reduction of drift spikes
+        """
+        
+        def __init__(self, num_scales=3, align_strength=0.25):
+            self.num_scales = num_scales
+            self.align_strength = align_strength
+            
+            try:
+                import torch
+                
+                # Track the previous multi-scale routing signature
+                self.prev_signature = torch.zeros(num_scales, dtype=torch.float32)
+            except Exception:
+                self.prev_signature = None
+        
+        def forward(self, routing_levels):
+            """
+            Apply cross-scale alignment to routing weights.
+            
+            Args:
+                routing_levels: tensor of shape [num_scales] or compatible
+            
+            Returns:
+                aligned: tensor of aligned routing weights
+            """
+            try:
+                import torch
+                
+                if routing_levels is None:
+                    return routing_levels
+                
+                if not isinstance(routing_levels, torch.Tensor):
+                    routing_levels = torch.tensor(routing_levels, dtype=torch.float32)
+                
+                if self.prev_signature is None:
+                    self.prev_signature = torch.zeros(self.num_scales, dtype=torch.float32)
+                
+                # Ensure routing_levels matches expected size
+                if routing_levels.numel() != self.num_scales:
+                    return routing_levels
+                
+                # Ensure routing_levels is 1D
+                if routing_levels.dim() > 1:
+                    routing_levels = routing_levels.flatten()
+                
+                if routing_levels.shape[0] != self.num_scales:
+                    return routing_levels
+                
+                # Normalize input (scale-invariant)
+                normed = routing_levels / (routing_levels.sum() + 1e-8)
+                
+                # Apply cross-scale alignment using a weighted average with historical signature
+                aligned = (
+                    (1 - self.align_strength) * normed +
+                    self.align_strength * self.prev_signature
+                )
+                
+                # Re-normalize
+                aligned = aligned / (aligned.sum() + 1e-8)
+                
+                # Store for next iteration
+                self.prev_signature = aligned.clone()
+                
+                return aligned
+            except Exception:
+                # Fallback: return original weights
+                return routing_levels
 
     def integrate_A301(self):
         """
@@ -22070,11 +22246,27 @@ class NeuralBridge:
                 if getattr(self.density_equalizer_329, "dim", dim) != dim:
                     self.density_equalizer_329 = self.CrossManifoldDensityEqualizer(dim=dim, epsilon=1e-5)
             
+            if self.routing_consistency_331 is None:
+                self.routing_consistency_331 = self.MultiLevelRoutingConsistencyRegularizer(num_levels=3, smoothing_factor=0.15)
+            else:
+                if getattr(self.routing_consistency_331, "num_levels", 3) != 3:
+                    self.routing_consistency_331 = self.MultiLevelRoutingConsistencyRegularizer(num_levels=3, smoothing_factor=0.15)
+            
+            if self.routing_coherence_332 is None:
+                self.routing_coherence_332 = self.MultiScaleRoutingCoherenceEngine(num_scales=3, align_strength=0.25)
+            else:
+                if getattr(self.routing_coherence_332, "num_scales", 3) != 3:
+                    self.routing_coherence_332 = self.MultiScaleRoutingCoherenceEngine(num_scales=3, align_strength=0.25)
+            
             if self.routing_kernel_330 is None:
-                self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3)
+                self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332)
             else:
                 if getattr(self.routing_kernel_330, "dim", dim) != dim:
-                    self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3)
+                    self.routing_kernel_330 = self.HierarchicalDensityRoutingKernel(dim=dim, num_levels=3, regularizer=self.routing_consistency_331, coherence_engine=self.routing_coherence_332)
+                else:
+                    # Update regularizer and coherence engine references if they changed
+                    self.routing_kernel_330.regularizer = self.routing_consistency_331
+                    self.routing_kernel_330.coherence_engine = self.routing_coherence_332
             
             # Collect harmonic layers (only tensors present)
             candidates = [
