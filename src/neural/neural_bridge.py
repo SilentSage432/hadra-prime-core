@@ -377,6 +377,10 @@ class NeuralBridge:
             self.cross_level_harmonic_coupling = self.CrossLevelHarmonicCouplingLayer(self.dim)
         except Exception:
             self.cross_level_harmonic_coupling = None
+        try:
+            self.hm_feedback_stabilizer = self.HarmonicManifoldFeedbackStabilizer(self.dim)
+        except Exception:
+            self.hm_feedback_stabilizer = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -27130,6 +27134,106 @@ class NeuralBridge:
             # Normalize for stability
             return self.norm(combined)
 
+    class HarmonicManifoldFeedbackStabilizer(nn.Module):
+        """
+        MF-389 — Harmonic–Manifold Feedback Stabilization Loop (HM-FSL)
+
+        Introduces a bidirectional feedback loop between:
+        - the manifold state
+        - the harmonic state
+        - the previously established coupling layer
+
+        This is a controlled residual feedback loop with strict stabilizers to prevent
+        runaway amplification. It gives the system a regulated feedback cycle that
+        strengthens useful harmonic–manifold alignments while suppressing unstable ones.
+
+        What it does:
+        1. Measures local alignment: computes agreement between harmonic projection and manifold projection
+        2. Uses alignment score to modulate feedback: higher alignment → stronger reinforcement,
+           lower alignment → weaker feedback (or damping)
+        3. Provides dynamic correction signal: feedback blend that sharpens the structure of the manifold
+        4. Ensures total stability: through layer normalization, bounded activations, learned gain parameter,
+           and residual-shaped updates
+
+        This phase is essential because MF-390 → MF-397 will build feedback-enhanced manifold shaping layers
+        that rely on this stabilizer to ensure their behavior stays bounded.
+        """
+
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+            if torch is None or not hasattr(nn, "Linear"):
+                self.alignment_proj_h = None
+                self.alignment_proj_m = None
+                self.feedback_gate = None
+                self.norm = None
+                self.activation = None
+                return
+
+            # Alignment scoring between signals
+            self.alignment_proj_h = nn.Linear(dim, dim)
+            self.alignment_proj_m = nn.Linear(dim, dim)
+
+            # Feedback modulation
+            self.feedback_gate = nn.Parameter(torch.tensor(0.05))
+
+            # Final stabilizers
+            self.norm = nn.LayerNorm(dim)
+            self.activation = nn.Tanh()
+
+        def forward(self, manifold_state, harmonic_state):
+            if (torch is None or
+                self.alignment_proj_h is None or
+                self.alignment_proj_m is None or
+                self.feedback_gate is None or
+                self.norm is None or
+                self.activation is None or
+                manifold_state is None or
+                harmonic_state is None):
+                return manifold_state
+
+            # Ensure inputs are tensors
+            def ensure_tensor(v):
+                if v is None:
+                    return None
+                if not isinstance(v, torch.Tensor):
+                    try:
+                        v = torch.tensor(v, dtype=torch.float32)
+                    except Exception:
+                        return None
+                if v.dim() == 1:
+                    v = v.unsqueeze(0)
+                flat = v.flatten()
+                if flat.shape[0] < self.dim:
+                    flat = torch.cat([flat, torch.zeros(self.dim - flat.shape[0], dtype=torch.float32)])
+                elif flat.shape[0] > self.dim:
+                    flat = flat[:self.dim]
+                if flat.dim() == 1:
+                    flat = flat.unsqueeze(0)
+                return flat
+
+            manifold_state = ensure_tensor(manifold_state)
+            harmonic_state = ensure_tensor(harmonic_state)
+
+            if manifold_state is None or harmonic_state is None:
+                return manifold_state
+
+            # Project both into a shared space for alignment
+            h_proj = self.alignment_proj_h(harmonic_state)
+            m_proj = self.alignment_proj_m(manifold_state)
+
+            # Compute alignment (elementwise agreement)
+            alignment = torch.tanh(h_proj * m_proj)
+
+            # Feedback correction signal
+            feedback = self.feedback_gate * alignment
+
+            # Apply feedback into manifold state (residual form)
+            updated = manifold_state + feedback
+
+            # Normalize for stability
+            return self.norm(updated)
+
     def integrate_A301(self):
         """
         A301 — Meta-Predictive Field Emergence Layer
@@ -28913,6 +29017,45 @@ class NeuralBridge:
                                                     self.mf388_meta_field_harmonic_coupled = None
                                             else:
                                                 self.mf388_meta_field_harmonic_coupled = None
+
+                                            # MF-389 — Harmonic–Manifold Feedback Stabilization Loop (HM-FSL)
+                                            # Bidirectional feedback loop with controlled residual feedback and strict stabilizers
+                                            meta_field_feedback_stabilized = None
+                                            if (getattr(self, "hm_feedback_stabilizer", None) is not None and
+                                                meta_field_harmonic_coupled is not None):
+                                                # Use same harmonic_state as MF-388
+                                                harmonic_state = None
+                                                if hasattr(self, 'mf375_resonant_state') and self.mf375_resonant_state is not None:
+                                                    harmonic_state = self.mf375_resonant_state
+                                                elif 'resonant_state' in locals() and resonant_state is not None:
+                                                    harmonic_state = resonant_state
+                                                else:
+                                                    # Fallback: use meta_field_harmonic_coupled as harmonic state (self-coupling)
+                                                    harmonic_state = meta_field_harmonic_coupled
+
+                                                if harmonic_state is not None:
+                                                    try:
+                                                        # Apply harmonic-manifold feedback stabilization
+                                                        meta_field_feedback_stabilized = self.hm_feedback_stabilizer(
+                                                            meta_field_harmonic_coupled,
+                                                            harmonic_state
+                                                        )
+                                                        if meta_field_feedback_stabilized is not None:
+                                                            self.mf389_meta_field_feedback_stabilized = meta_field_feedback_stabilized
+                                                            # Store as feedback-stabilized manifold for MF-390 onward
+                                                        else:
+                                                            self.mf389_meta_field_feedback_stabilized = None
+                                                    except Exception as hmfsl_error:
+                                                        self.mf389_meta_field_feedback_stabilized = None
+                                                        if hasattr(self, 'logger'):
+                                                            try:
+                                                                self.logger.write({"mf389_error": str(hmfsl_error)})
+                                                            except Exception:
+                                                                pass
+                                                else:
+                                                    self.mf389_meta_field_feedback_stabilized = None
+                                            else:
+                                                self.mf389_meta_field_feedback_stabilized = None
 
                                             # MF-348 — Multi-Route Confluence Interaction Layer
                                             # Enable cross-route interaction across manifold streams
