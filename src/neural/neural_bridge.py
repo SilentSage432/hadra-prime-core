@@ -526,6 +526,14 @@ class NeuralBridge:
             )
         except Exception:
             self.mf413_dpfsm_l = None
+        # MF-414 — Stabilized Influence Reprojection Kernel (SIRK)
+        try:
+            self.mf414_sirk = self.StabilizedInfluenceReprojectionKernel(
+                substrate_dim=self.dim,
+                inf_dim=4
+            )
+        except Exception:
+            self.mf414_sirk = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -30427,6 +30435,149 @@ class NeuralBridge:
                     return F.normalize(PF_out, dim=-1)
                 except Exception:
                     return PF_out
+
+    class StabilizedInfluenceReprojectionKernel(nn.Module):
+        """
+        MF-414 — Stabilized Influence Reprojection Kernel (SIRK)
+
+        Begins the Stabilized Influence Reprojection Series by consuming DS_out from MF-413
+        and reprojecting it into a new influence-oriented manifold. This kernel produces a
+        reprojected influence-field tensor aligned to the unified predictive substrate, stabilized
+        flow constraints, and influence-field modulation rules from early MF-401+ phases.
+
+        Core Computational Components:
+        1. Stabilized Influence Extraction: uses a learned extraction matrix to isolate
+           influence-relevant components from the stabilized flow, compressing it into an
+           influence-space vector.
+        2. Influence Reprojection Tensor: uses a rank-3 tensor to reproject the influence
+           vector across manifold axes, generating a new influence field aligned with
+           stabilization constraints, manifold topology, and directional modulation cues.
+        3. Stabilized Influence Fusion: merges stabilized flow, influence projection, and
+           tensor reprojection via learned coefficients (α, β, γ).
+        4. Influence Limit Regulation: applies a limiter to prevent overshooting during
+           reprojection.
+        5. Substrate-Aligned Output: projects the final result into a substrate-aligned
+           influence field for consumption by MF-415.
+
+        Outcome:
+        MF-414 outputs SI_out, which formalizes stabilized influence extraction, tensor-based
+        reprojection, influence-flow fusion, regulated influence limiting, and substrate-aligned
+        manifold output. This is the first kernel where stabilized flow begins feeding back into
+        influence-space, enabling the next layers to build modulation manifolds, influence
+        harmonics, and multi-field coupling.
+        """
+
+        def __init__(self, substrate_dim, inf_dim=4):
+            super().__init__()
+            self.inf_dim = inf_dim
+
+            # Influence extraction matrix
+            self.W_inf = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+            # Influence reprojection tensor
+            # Shape: [inf_dim, inf_dim, substrate_dim]
+            self.T_reproj = nn.Parameter(
+                torch.randn(inf_dim, inf_dim, substrate_dim) * 0.01
+            )
+
+            # Fusion coefficients
+            self.alpha = nn.Parameter(torch.tensor(0.50))
+            self.beta = nn.Parameter(torch.tensor(0.30))
+            self.gamma = nn.Parameter(torch.tensor(0.20))
+
+            # Final alignment projection
+            self.W_align = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def forward(self, DS_out):
+            """
+            DS_out: stabilized flow tensor from MF-413, shape [batch, dim]
+            """
+            if torch is None or DS_out is None:
+                return DS_out
+
+            # Ensure DS_out is a tensor
+            if not isinstance(DS_out, torch.Tensor):
+                try:
+                    DS_out = torch.tensor(DS_out, dtype=torch.float32)
+                except Exception:
+                    return DS_out
+
+            # Ensure proper shape
+            if DS_out.dim() == 1:
+                DS_out = DS_out.unsqueeze(0)
+
+            try:
+                import torch.nn.functional as F
+
+                substrate_dim = DS_out.shape[-1]
+                # Ensure dimensions match
+                if DS_out.shape[-1] != self.W_align.shape[0]:
+                    if DS_out.shape[-1] < self.W_align.shape[0]:
+                        padding = torch.zeros(
+                            DS_out.shape[:-1] + (self.W_align.shape[0] - DS_out.shape[-1],),
+                            dtype=DS_out.dtype,
+                            device=DS_out.device if hasattr(DS_out, 'device') else None
+                        )
+                        DS_out = torch.cat([DS_out, padding], dim=-1)
+                    else:
+                        DS_out = DS_out[..., :self.W_align.shape[0]]
+
+                # 1. Influence extraction
+                I_raw = torch.matmul(DS_out, self.W_inf)
+                I = F.normalize(I_raw, dim=-1)
+
+                # 2. Influence reprojection tensor
+                # Ensure I dimensions are compatible
+                I_flat = I
+                if I_flat.shape[-1] < self.inf_dim:
+                    padding = torch.zeros(
+                        I_flat.shape[:-1] + (self.inf_dim - I_flat.shape[-1],),
+                        dtype=I_flat.dtype,
+                        device=I_flat.device if hasattr(I_flat, 'device') else None
+                    )
+                    I_flat = torch.cat([I_flat, padding], dim=-1)
+                elif I_flat.shape[-1] > self.inf_dim:
+                    I_flat = I_flat[..., :self.inf_dim]
+
+                R_list = []
+                for i in range(self.inf_dim):
+                    interaction = torch.zeros_like(DS_out)
+                    for j in range(self.inf_dim):
+                        # T_reproj[i, j] is shape [substrate_dim]
+                        # I_flat[:, j] is shape [batch]
+                        i_j = I_flat[:, j].unsqueeze(-1)  # [batch, 1]
+                        tensor_ij = self.T_reproj[i, j].unsqueeze(0)  # [1, substrate_dim]
+                        interaction += i_j * tensor_ij  # [batch, substrate_dim]
+                    R_list.append(interaction)
+
+                R = torch.stack(R_list, dim=0).sum(dim=0)  # [batch, dim]
+
+                # 3. Influence fusion
+                F_combined = (
+                    self.alpha * DS_out
+                    + self.beta * I
+                    + self.gamma * R
+                )
+
+                # 4. Stabilized limiter
+                F_reg = F_combined / (1 + torch.abs(F_combined))
+
+                # 5. Substrate-aligned projection
+                SI_out = torch.matmul(F_reg, self.W_align)
+                SI_out = F.normalize(SI_out, dim=-1)
+
+                return SI_out
+            except Exception:
+                # If reprojection fails, return normalized input
+                try:
+                    import torch.nn.functional as F
+                    return F.normalize(DS_out, dim=-1)
+                except Exception:
+                    return DS_out
 
     def integrate_A301(self):
         """
