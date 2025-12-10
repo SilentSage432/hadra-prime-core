@@ -61,6 +61,7 @@ try:
         A137_CrossManifoldStabilizationLayer,
         A138_AnisotropyEqualizationLayer,
         A139_TerminalAlignmentNormalizer,
+        A140_SubstrateInjectionStabilizer,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -75,6 +76,7 @@ except (ImportError, RuntimeError) as e:
     A137_CrossManifoldStabilizationLayer = None
     A138_AnisotropyEqualizationLayer = None
     A139_TerminalAlignmentNormalizer = None
+    A140_SubstrateInjectionStabilizer = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -915,6 +917,34 @@ class NeuralBridge:
         else:
             self.a139 = None
         # -----------------------------------------------------
+        # A140 — Substrate Injection Stabilizer (SIS)
+        # -----------------------------------------------------
+        # A140 is the terminal stabilization operator that regulates how the conditioned tensor
+        # is injected into the MF-401 → MF-500 unified substrate.
+        # To be precise:
+        #   - A139 normalizes final manifold geometry
+        #   - MF-401 expects stable injection into the influence propagation field
+        #   - A140 ensures the injection vector does not introduce micro-instability, curvature spike,
+        #     or amplitude drift at the exact substrate entry point
+        # A140 is essentially the "airlock" between the A-series conditioning pipeline and the MF-series substrate.
+        # But we describe it strictly mathematically:
+        # A140 suppresses high-frequency injection noise and enforces a smooth entry gradient into the substrate manifold.
+        # A140 performs:
+        #   - Gradient-smoothing transform – removes high-frequency fluctuations along the injection axis
+        #   - Entry-angle alignment – ensures the injection direction aligns with substrate manifold flow
+        #   - Magnitude stabilization – prevents micro-scale amplitude spikes on injection
+        #   - Final normalized projection – outputs a clean tensor for MF-401
+        # This is the final operator before the MF substrate absorbs the tensor.
+        # Output: stabilized, smooth injection vector ready for MF-401 entry.
+        if SUBSTRATE_AVAILABLE and A140_SubstrateInjectionStabilizer is not None:
+            try:
+                self.a140 = A140_SubstrateInjectionStabilizer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A140_SubstrateInjectionStabilizer initialization failed: {e}")
+                self.a140 = None
+        else:
+            self.a140 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -996,7 +1026,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -1009,13 +1039,14 @@ class NeuralBridge:
         8. A137 Cross-Manifold Stabilization Layer (manifold stabilization)
         9. A138 Anisotropy Equalization Layer (directional uniformity)
         10. A139 Terminal Alignment Normalizer (final geometric alignment)
-        11. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        11. A140 Substrate Injection Stabilizer (injection stabilization)
+        12. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -1240,6 +1271,33 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A139 terminal alignment normalizer forward pass failed: {e}")
                 # Continue with unmodified tensor if A139 fails
+
+        # -----------------------------------------------------
+        # A140 — Substrate Injection Stabilizer (SIS)
+        # -----------------------------------------------------
+        # A140 is the terminal stabilization operator that regulates how the conditioned tensor
+        # is injected into the MF-401 → MF-500 unified substrate.
+        # To be precise:
+        #   - A139 normalizes final manifold geometry
+        #   - MF-401 expects stable injection into the influence propagation field
+        #   - A140 ensures the injection vector does not introduce micro-instability, curvature spike,
+        #     or amplitude drift at the exact substrate entry point
+        # A140 is essentially the "airlock" between the A-series conditioning pipeline and the MF-series substrate.
+        # But we describe it strictly mathematically:
+        # A140 suppresses high-frequency injection noise and enforces a smooth entry gradient into the substrate manifold.
+        # A140 performs:
+        #   - Gradient-smoothing transform – removes high-frequency fluctuations along the injection axis
+        #   - Entry-angle alignment – ensures the injection direction aligns with substrate manifold flow
+        #   - Magnitude stabilization – prevents micro-scale amplitude spikes on injection
+        #   - Final normalized projection – outputs a clean tensor for MF-401
+        # This is the final operator before the MF substrate absorbs the tensor.
+        # Output: stabilized, smooth injection vector ready for MF-401 entry.
+        if self.a140 is not None:
+            try:
+                x = self.a140(x)
+            except Exception as e:
+                print(f"⚠️ A140 substrate injection stabilizer forward pass failed: {e}")
+                # Continue with unmodified tensor if A140 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass

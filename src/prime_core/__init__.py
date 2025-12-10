@@ -13,6 +13,7 @@ from .influence_substrate import (
     A137_CrossManifoldStabilizationLayer,
     A138_AnisotropyEqualizationLayer,
     A139_TerminalAlignmentNormalizer,
+    A140_SubstrateInjectionStabilizer,
     MFPhaseBase,
     normalize_tensor,
 )
@@ -29,6 +30,7 @@ __all__ = [
     'A137_CrossManifoldStabilizationLayer',
     'A138_AnisotropyEqualizationLayer',
     'A139_TerminalAlignmentNormalizer',
+    'A140_SubstrateInjectionStabilizer',
     'MFPhaseBase',
     'normalize_tensor',
 ]

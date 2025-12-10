@@ -610,6 +610,61 @@ class A139_TerminalAlignmentNormalizer(nn.Module):
 
 
 # ---------------------------------------------
+# A140 — Substrate Injection Stabilizer (SIS)
+# ---------------------------------------------
+# A140 is the terminal stabilization operator that regulates how the conditioned tensor
+# is injected into the MF-401 → MF-500 unified substrate.
+#
+# To be precise:
+#   - A139 normalizes final manifold geometry
+#   - MF-401 expects stable injection into the influence propagation field
+#   - A140 ensures the injection vector does not introduce micro-instability, curvature spike,
+#     or amplitude drift at the exact substrate entry point
+#
+# A140 is essentially the "airlock" between the A-series conditioning pipeline and the MF-series substrate.
+# But we describe it strictly mathematically:
+# A140 suppresses high-frequency injection noise and enforces a smooth entry gradient into the substrate manifold.
+#
+# A140 performs:
+#   1. Gradient-smoothing transform – removes high-frequency fluctuations along the injection axis
+#   2. Entry-angle alignment – ensures the injection direction aligns with substrate manifold flow
+#   3. Magnitude stabilization – prevents micro-scale amplitude spikes on injection
+#   4. Final normalized projection – outputs a clean tensor for MF-401
+#
+# This is the final operator before the MF substrate absorbs the tensor.
+#
+# Output: stabilized, smooth injection vector ready for MF-401 entry.
+# ---------------------------------------------
+class A140_SubstrateInjectionStabilizer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.G = nn.Parameter(torch.randn(dim, dim) * 0.01)  # gradient smoothing
+        self.V = nn.Parameter(torch.randn(dim, dim) * 0.01)  # entry alignment
+        self.rho = 0.12  # injection stabilization coefficient
+        self.act = nn.Tanh()  # bounded, smooth activation
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # smooth gradients / remove high-frequency noise
+        g = x @ self.G
+
+        # align injection direction with substrate manifold orientation
+        v = g @ self.V
+
+        # injection deviation
+        d = v - x
+
+        # bounded stabilization correction
+        c = self.rho * self.act(d)
+
+        # final stabilized entry vector
+        x_new = x + c
+
+        # enforce substrate manifold normalization
+        norm = torch.norm(x_new, dim=-1, keepdim=True) + 1e-12
+        return x_new / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):
