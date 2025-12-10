@@ -1890,6 +1890,658 @@ class S141_GlobalSubstrateDynamicsInitializationLayer(nn.Module):
         return y / norm
 
 # ====================================================
+# S142 — Global Dynamic Projection Operator (GDPO)
+# ====================================================
+class S142_GlobalDynamicProjectionOperator(nn.Module):
+    """
+    Expands the global dynamic seed into a multi-manifold dynamic projection, giving the system dynamic direction density,
+    multi-axis dynamic alignment, dynamic-mode decomposition, and substrate-spanning dynamic coherence. After S141, the
+    substrate contains a global dynamic seed vector, derived from curvature-integrated geometry, normalized into the
+    MF-500 substrate envelope. S142 now expands this into a multi-manifold dynamic projection. This creates three global
+    dynamic modes, each projected from the S141 dynamic seed.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # primary dynamic projection transforms
+        self.P1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.P2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.P3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # secondary refinement transforms
+        self.Q1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Q2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Q3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # projection weights
+        self.delta1 = nn.Parameter(torch.tensor(0.33))
+        self.delta2 = nn.Parameter(torch.tensor(0.33))
+        self.delta3 = nn.Parameter(torch.tensor(0.34))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # primary projections
+        v1 = self.act(x @ self.P1)
+        v2 = self.act(x @ self.P2)
+        v3 = self.act(x @ self.P3)
+
+        # refinement projections
+        u1 = self.act(v1 @ self.Q1)
+        u2 = self.act(v2 @ self.Q2)
+        u3 = self.act(v3 @ self.Q3)
+
+        # positive mixing coefficients
+        d1 = self.softplus(self.delta1)
+        d2 = self.softplus(self.delta2)
+        d3 = self.softplus(self.delta3)
+
+        # dynamic projection field
+        D = d1*u1 + d2*u2 + d3*u3
+
+        # projection residual
+        R = self.act(D - x)
+
+        # updated dynamic field
+        y = x + R
+
+        # normalize to MF-500 substrate envelope
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ==========================================================
+# S143 — Global Dynamic Residual Stabilizer (GDRS)
+# ==========================================================
+class S143_GlobalDynamicResidualStabilizer(nn.Module):
+    """
+    Stabilizes the dynamic residual field produced by S142 and ensures that early-stage global dynamics do not generate
+    uncontrolled drift or oscillatory propagation. After S142, the substrate holds a 3-mode global dynamic projection,
+    refined across primary and secondary dynamic transforms, normalized into the MF-500 dynamic envelope. However, dynamic
+    projections naturally create residual drift, especially where projection modes overlap nonlinearly, dynamic weights
+    amplify local behavior, and mode interactions create small oscillatory artifacts. S143 suppresses and stabilizes
+    these residual deviations to preserve global dynamic coherence before propagation layers (S144+).
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # stabilization transforms
+        self.S1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.S2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # residual shaping transforms
+        self.R1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.R2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # scaling parameters
+        self.sigma1 = nn.Parameter(torch.tensor(0.5))
+        self.sigma2 = nn.Parameter(torch.tensor(0.5))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+
+        # stabilization projections
+        s1 = self.act(x @ self.S1)
+        s2 = self.act(x @ self.S2)
+
+        # shaping projections
+        r1 = self.act(s1 @ self.R1)
+        r2 = self.act(s2 @ self.R2)
+
+        # non-negative scaling
+        w1 = self.softplus(self.sigma1)
+        w2 = self.softplus(self.sigma2)
+
+        # combined residual
+        R = w1*r1 + w2*r2
+
+        # stabilization residual correction
+        C = self.act(R - x)
+
+        # stabilized global dynamic field
+        y = x + C
+
+        # normalize into MF-500 envelope
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ==========================================================
+# S144 — Global Dynamic Flow Initialization Layer (GDFIL)
+# ==========================================================
+class S144_GlobalDynamicFlowInitializationLayer(nn.Module):
+    """
+    Introduces the first true flow structure in the MF-500–aligned substrate, moving beyond static dynamics into propagating
+    dynamic fields. After S143, the global dynamic field is seeded (S141), projected into multiple structured dynamic modes
+    (S142), and stabilized against residual drift and oscillatory interference (S143). S144 now performs the key transition
+    into dynamic flow behavior, initializing directional flow components, multi-axis flow decomposition, flow-consistent
+    propagation structures, and the first global dynamic flow vector. This introduces flow into the substrate, which becomes
+    the backbone of S145–S160.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # flow-direction transforms
+        self.F1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.F2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.F3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # flow-transition transforms
+        self.T1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.T2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.T3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # flow scaling parameters
+        self.mu1 = nn.Parameter(torch.tensor(0.33))
+        self.mu2 = nn.Parameter(torch.tensor(0.33))
+        self.mu3 = nn.Parameter(torch.tensor(0.34))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+
+        # directional flow seeds
+        f1 = self.act(x @ self.F1)
+        f2 = self.act(x @ self.F2)
+        f3 = self.act(x @ self.F3)
+
+        # flow-transition transforms
+        t1 = self.act(f1 @ self.T1)
+        t2 = self.act(f2 @ self.T2)
+        t3 = self.act(f3 @ self.T3)
+
+        # positive flow scaling
+        w1 = self.softplus(self.mu1)
+        w2 = self.softplus(self.mu2)
+        w3 = self.softplus(self.mu3)
+
+        # initial flow field
+        Flow = w1*t1 + w2*t2 + w3*t3
+
+        # flow residual correction
+        R = self.act(Flow - x)
+
+        # updated dynamic flow state
+        y = x + R
+
+        # normalize into MF-500 envelope
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ==========================================================
+# S145 — Global Flow Propagation Operator (GFPO)
+# ==========================================================
+class S145_GlobalFlowPropagationOperator(nn.Module):
+    """
+    Takes the initialized flow field from S144 and introduces propagation, meaning the flow begins to evolve, extend, and
+    apply directional influence across the substrate manifold. After S144, the substrate holds a 3-direction fused global flow
+    initialization vector, stabilized dynamic states, and curvature-aligned substrate geometry. Now we introduce propagation,
+    which requires propagation kernels, multi-step flow expansion, flow-carrying dynamics, propagation residual consistency, and
+    MF-500 envelope normalization. This layer effectively "turns the flow loose" in a controlled mathematical manner.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # propagation kernels
+        self.K1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.K2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # flow expansion transforms
+        self.E1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.E2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # propagation weights
+        self.theta1 = nn.Parameter(torch.tensor(0.5))
+        self.theta2 = nn.Parameter(torch.tensor(0.5))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+
+        # kernel-driven propagation
+        p1 = self.act(x @ self.K1)
+        p2 = self.act(x @ self.K2)
+
+        # expansion transforms
+        e1 = self.act(p1 @ self.E1)
+        e2 = self.act(p2 @ self.E2)
+
+        # positive propagation scaling
+        w1 = self.softplus(self.theta1)
+        w2 = self.softplus(self.theta2)
+
+        # propagation mixture
+        P = w1*e1 + w2*e2
+
+        # propagation residual correction
+        R = self.act(P - x)
+
+        # updated global flow state
+        y = x + R
+
+        # normalize to MF-500 envelope
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ==========================================================
+# S146 — Multi-Step Flow Propagation Layer (MSFPL)
+# ==========================================================
+class S146_MultiStepFlowPropagationLayer(nn.Module):
+    """
+    Expands the single-step flow propagation introduced in S145 into multi-step dynamic flow evolution, allowing the substrate
+    to support deeper, layered propagation behavior. S145 introduced the first propagation step with flow kernels, expansion
+    transforms, and propagation residual. Now S146 evolves this into a multi-step flow propagation mechanism, enabling layered
+    propagation, depth-expanded dynamic evolution, multi-step influence diffusion, recursive flow refinement, and MF-500
+    envelope-preserving propagation cycles. This is the first step where dynamic propagation becomes iterative in structure,
+    though still implemented in a single forward pass.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # first-step propagation transforms
+        self.A1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.A2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.A3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # second-step refinement transforms
+        self.B1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.B2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.B3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # multi-step scaling parameters
+        self.gamma1 = nn.Parameter(torch.tensor(0.33))
+        self.gamma2 = nn.Parameter(torch.tensor(0.33))
+        self.gamma3 = nn.Parameter(torch.tensor(0.34))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor, return_intermediates: bool = False):
+
+        # first propagation stage
+        s1_1 = self.act(x @ self.A1)
+        s1_2 = self.act(x @ self.A2)
+        s1_3 = self.act(x @ self.A3)
+
+        # second propagation stage
+        s2_1 = self.act(s1_1 @ self.B1)
+        s2_2 = self.act(s1_2 @ self.B2)
+        s2_3 = self.act(s1_3 @ self.B3)
+
+        # positive scaling weights
+        w1 = self.softplus(self.gamma1)
+        w2 = self.softplus(self.gamma2)
+        w3 = self.softplus(self.gamma3)
+
+        # multi-step propagation field
+        P = w1*s2_1 + w2*s2_2 + w3*s2_3
+
+        # propagation residual
+        R = self.act(P - x)
+
+        # updated dynamic flow state
+        y = x + R
+
+        # normalize to MF-500 envelope
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        output = y / norm
+
+        if return_intermediates:
+            return output, s1_1, s1_2, s1_3, s2_1, s2_2, s2_3
+        return output
+
+# ==========================================================
+# S147 — Cross-Step Flow Interaction Operator (CSFIO)
+# ==========================================================
+class S147_CrossStepFlowInteractionOperator(nn.Module):
+    """
+    Introduces interactions between propagation steps, enabling the substrate to compute cross-step influence effects rather than
+    treating each propagation depth independently. S146 introduced multi-step propagation. S147 now introduces cross-step interaction
+    terms—that is, interactions between first-step fields, second-step refined fields, and cross-coupled mixtures. This creates a
+    second-order propagation manifold, which is required before entering the dynamic multi-band interaction layers that follow (S148+).
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # linear transforms for cross-step interactions
+        self.W12 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.W23 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.W31 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # interaction weights
+        self.alpha1 = nn.Parameter(torch.tensor(0.33))
+        self.alpha2 = nn.Parameter(torch.tensor(0.33))
+        self.alpha3 = nn.Parameter(torch.tensor(0.34))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor,
+                s1_1: torch.Tensor, s1_2: torch.Tensor, s1_3: torch.Tensor,
+                s2_1: torch.Tensor, s2_2: torch.Tensor, s2_3: torch.Tensor,
+                return_intermediates: bool = False):
+
+        # cross-step interaction fields (elementwise)
+        c12 = self.act(s1_1 * s2_1)
+        c23 = self.act(s1_2 * s2_2)
+        c31 = self.act(s1_3 * s2_3)
+
+        # transformed interactions
+        i1 = self.act(c12 @ self.W12)
+        i2 = self.act(c23 @ self.W23)
+        i3 = self.act(c31 @ self.W31)
+
+        # positive interaction weights
+        w1 = self.softplus(self.alpha1)
+        w2 = self.softplus(self.alpha2)
+        w3 = self.softplus(self.alpha3)
+
+        # combined cross-step interaction vector
+        I = w1*i1 + w2*i2 + w3*i3
+
+        # stabilize
+        R = self.act(I - x)
+
+        # update
+        y = x + R
+
+        # MF-500 envelope normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        output = y / norm
+
+        if return_intermediates:
+            return output, i1, i2, i3
+        return output
+
+# ==========================================================
+# S148 — Cross-Propagation Fusion Kernel (CPF-K)
+# ==========================================================
+class S148_CrossPropagationFusionKernel(nn.Module):
+    """
+    Fuses multi-step propagation fields (from S146), cross-step interaction fields (from S147), and the base substrate vector
+    into a unified propagation-fusion manifold. S147 introduced cross-step interaction between first- and second-level propagated
+    fields. S148 now fuses multi-step propagation fields, cross-step interaction fields, and the base substrate vector into a unified
+    propagation-fusion manifold. This is the first fusion-level global operator of the S-series.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # Linear transforms for fusion fields
+        self.Wf1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wf2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wf3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # Fusion weights
+        self.beta1 = nn.Parameter(torch.tensor(0.33))
+        self.beta2 = nn.Parameter(torch.tensor(0.33))
+        self.beta3 = nn.Parameter(torch.tensor(0.34))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor,
+                s1_1: torch.Tensor, s1_2: torch.Tensor, s1_3: torch.Tensor,
+                s2_1: torch.Tensor, s2_2: torch.Tensor, s2_3: torch.Tensor,
+                i1: torch.Tensor, i2: torch.Tensor, i3: torch.Tensor,
+                return_intermediates: bool = False):
+
+        # fusion fields
+        f1 = self.act(s1_1 + s2_1 + i1)
+        f2 = self.act(s1_2 + s2_2 + i2)
+        f3 = self.act(s1_3 + s2_3 + i3)
+
+        # modulation transforms
+        z1 = self.act(f1 @ self.Wf1)
+        z2 = self.act(f2 @ self.Wf2)
+        z3 = self.act(f3 @ self.Wf3)
+
+        # positive fusion weights
+        w1 = self.softplus(self.beta1)
+        w2 = self.softplus(self.beta2)
+        w3 = self.softplus(self.beta3)
+
+        # fused propagation manifold
+        Z = w1*z1 + w2*z2 + w3*z3
+
+        # raw fusion residual (before tanh)
+        R_raw = Z - x
+
+        # fused residual stabilization
+        R = self.act(R_raw)
+
+        # update
+        y = x + R
+
+        # MF-500 stable envelope
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        output = y / norm
+
+        if return_intermediates:
+            return output, Z, R_raw
+        return output
+
+# ==========================================================
+# S149 — Fusion-Coherence Modulation Layer (FCML)
+# ==========================================================
+class S149_FusionCoherenceModulationLayer(nn.Module):
+    """
+    Introduces coherence modulation over the fused propagation manifold. Following S148 (Cross-Propagation Fusion Kernel), S149
+    stabilizes, shapes, and aligns those fused flows with respect to global substrate alignment, local fusion curvature, and residual
+    drift patterns. Where S148 fused flows, S149 stabilizes, shapes, and aligns those fused flows. This forms the first coherence-level
+    operator in the S140–S160 band.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # projection and modulation transforms
+        self.Wp = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wc = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wa = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor, Z: torch.Tensor, R: torch.Tensor,
+                C: torch.Tensor, A: torch.Tensor, return_intermediates: bool = False):
+        # coherence projection
+        p = self.act(Z @ self.Wp)
+
+        # drift magnitude (scalar)
+        d = torch.norm(R, dim=-1, keepdim=True)
+        m = self.act(p * d)
+
+        # curvature + alignment blending
+        u = self.act(m + (C @ self.Wc) + (A @ self.Wa))
+
+        # residual (u - x)
+        R_u = u - x
+
+        # stabilized residual synthesis
+        S = self.act(R_u)
+        y = x + S
+
+        # envelope normalization (S-series standard)
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        output = y / norm
+
+        if return_intermediates:
+            return output, u, R_u
+        return output
+
+# ==========================================================
+# S150 — Coherence Stabilization Field (CSF)
+# ==========================================================
+class S150_CoherenceStabilizationField(nn.Module):
+    """
+    Stabilizes the coherence response by enforcing drift attenuation, cross-basis coherence equalization, curvature-mediated
+    smoothing, residual suppression, and normalized envelope return. S149 introduced coherence modulation over the fused
+    propagation manifold. S150 now stabilizes that coherence response. S150 is the first stabilization-field operator in the
+    coherence band (S149 → S160).
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        self.Wc = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wb = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor, u: torch.Tensor, C: torch.Tensor, B: torch.Tensor, return_intermediates: bool = False):
+        # coherence deviation
+        D = u - x
+
+        # drift suppression
+        R = D  # deviation is the residual at this stage
+        drift = torch.norm(R, dim=-1, keepdim=True)
+        delta = 1.0 / (1.0 + drift)
+
+        # curvature smoothing
+        S_c = self.act(C @ self.Wc)
+
+        # basis stabilization
+        S_b = self.act(B @ self.Wb)
+
+        # stabilized update
+        U = self.act(delta * D + S_c + S_b)
+        y = x + U
+
+        # envelope normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        v = y / norm
+
+        if return_intermediates:
+            return v, v, R, C, B
+        return v
+
+# ==========================================================
+# S151 — Coherence Equalization Kernel (CEK)
+# ==========================================================
+class S151_CoherenceEqualizationKernel(nn.Module):
+    """
+    Equalizes coherence distribution across all contributing fields by applying cross-channel equalization, coherence uniformity
+    weighting, drift-compensated modulation, curvature-compensated redistribution, and envelope normalization. S150 stabilized
+    coherence amplitudes and enforced curvature- and basis-regulated smoothing. S151 now equalizes coherence distribution across all
+    contributing fields. This layer ensures that coherence does not accumulate unevenly across dimensions or manifold subregions.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        self.Wq = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wc = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wb = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor, v: torch.Tensor, C: torch.Tensor, B: torch.Tensor, return_intermediates: bool = False):
+        # distribution projection
+        q = self.act(v @ self.Wq)
+
+        # coherence distribution mean & deviation
+        mu = torch.mean(q, dim=-1, keepdim=True)
+        sigma = q - mu  # deviation from mean
+
+        # drift-compensated equalization
+        R = v - x
+        d = torch.norm(R, dim=-1, keepdim=True)
+        alpha = 1.0 / (1.0 + d)
+
+        # curvature & basis corrections
+        C_f = self.act(C @ self.Wc)
+        B_f = self.act(B @ self.Wb)
+
+        # unified equalization update
+        U = self.act(alpha * sigma + C_f + B_f)
+        y = x + U
+
+        # normalization (MF-500)
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        v_out = y / norm
+
+        if return_intermediates:
+            return v_out, v_out, R, C, B
+        return v_out
+
+# ==========================================================
+# S152 — Coherence Redistribution Operator (CRO)
+# ==========================================================
+class S152_CoherenceRedistributionOperator(nn.Module):
+    """
+    Performs controlled redistribution of coherence intensity, ensuring balanced manifold weighting, drift-aware redistribution,
+    curvature-regulated distribution shaping, basis-frame alignment, and MF-500 envelope stability. S151 equalized the coherence
+    distribution across the vector space. S152 now performs controlled redistribution of coherence intensity. This continues the
+    coherence normalization arc (S150 → S155).
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # redistribution space projection
+        self.Wp = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # redistribution channels
+        self.Wr1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wr2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wr3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # channel weights
+        self.beta1 = nn.Parameter(torch.tensor(0.33))
+        self.beta2 = nn.Parameter(torch.tensor(0.33))
+        self.beta3 = nn.Parameter(torch.tensor(0.34))
+
+        # curvature/basis corrections
+        self.Wc = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wb = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor, v: torch.Tensor, C: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
+        # projection into redistribution space
+        p = self.act(v @ self.Wp)
+
+        # redistribution channels
+        r1 = self.act(p @ self.Wr1)
+        r2 = self.act(p @ self.Wr2)
+        r3 = self.act(p @ self.Wr3)
+
+        # positive weights
+        a1 = self.softplus(self.beta1)
+        a2 = self.softplus(self.beta2)
+        a3 = self.softplus(self.beta3)
+
+        # weighted redistribution
+        R_d = a1*r1 + a2*r2 + a3*r3
+
+        # drift-aware scaling
+        R = v - x
+        d = torch.norm(R, dim=-1, keepdim=True)
+        gamma = 1.0 / (1.0 + d)
+
+        # curvature & basis redistribution corrections
+        C_f = self.act(C @ self.Wc)
+        B_f = self.act(B @ self.Wb)
+
+        # unified redistribution update
+        U = self.act(gamma * R_d + C_f + B_f)
+        y = x + U
+
+        # envelope normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
 class S110_ManifoldCoherenceUnificationLayer(nn.Module):
@@ -3813,6 +4465,169 @@ class NeuralBridge:
         else:
             self.s141 = None
         # -----------------------------------------------------
+        # S142 — Global Dynamic Projection Operator (GDPO)
+        # -----------------------------------------------------
+        # Expands the global dynamic seed into a multi-manifold dynamic projection, giving the system dynamic direction density,
+        # multi-axis dynamic alignment, dynamic-mode decomposition, and substrate-spanning dynamic coherence. After S141, the
+        # substrate contains a global dynamic seed vector, derived from curvature-integrated geometry, normalized into the
+        # MF-500 substrate envelope. S142 now expands this into a multi-manifold dynamic projection. This creates three global
+        # dynamic modes, each projected from the S141 dynamic seed.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s142 = S142_GlobalDynamicProjectionOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S142_GlobalDynamicProjectionOperator initialization failed: {e}")
+                self.s142 = None
+        else:
+            self.s142 = None
+        # S143 — Global Dynamic Residual Stabilizer (GDRS)
+        # -----------------------------------------------------
+        # Stabilizes the dynamic residual field produced by S142 and ensures that early-stage global dynamics do not generate
+        # uncontrolled drift or oscillatory propagation. After S142, the substrate holds a 3-mode global dynamic projection,
+        # refined across primary and secondary dynamic transforms, normalized into the MF-500 dynamic envelope. However, dynamic
+        # projections naturally create residual drift, especially where projection modes overlap nonlinearly, dynamic weights
+        # amplify local behavior, and mode interactions create small oscillatory artifacts. S143 suppresses and stabilizes
+        # these residual deviations to preserve global dynamic coherence before propagation layers (S144+).
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s143 = S143_GlobalDynamicResidualStabilizer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S143_GlobalDynamicResidualStabilizer initialization failed: {e}")
+                self.s143 = None
+        else:
+            self.s143 = None
+        # S144 — Global Dynamic Flow Initialization Layer (GDFIL)
+        # -----------------------------------------------------
+        # Introduces the first true flow structure in the MF-500–aligned substrate, moving beyond static dynamics into propagating
+        # dynamic fields. After S143, the global dynamic field is seeded (S141), projected into multiple structured dynamic modes
+        # (S142), and stabilized against residual drift and oscillatory interference (S143). S144 now performs the key transition
+        # into dynamic flow behavior, initializing directional flow components, multi-axis flow decomposition, flow-consistent
+        # propagation structures, and the first global dynamic flow vector. This introduces flow into the substrate, which becomes
+        # the backbone of S145–S160.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s144 = S144_GlobalDynamicFlowInitializationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S144_GlobalDynamicFlowInitializationLayer initialization failed: {e}")
+                self.s144 = None
+        else:
+            self.s144 = None
+        # S145 — Global Flow Propagation Operator (GFPO)
+        # -----------------------------------------------------
+        # Takes the initialized flow field from S144 and introduces propagation, meaning the flow begins to evolve, extend, and
+        # apply directional influence across the substrate manifold. After S144, the substrate holds a 3-direction fused global flow
+        # initialization vector, stabilized dynamic states, and curvature-aligned substrate geometry. Now we introduce propagation,
+        # which requires propagation kernels, multi-step flow expansion, flow-carrying dynamics, propagation residual consistency, and
+        # MF-500 envelope normalization. This layer effectively "turns the flow loose" in a controlled mathematical manner.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s145 = S145_GlobalFlowPropagationOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S145_GlobalFlowPropagationOperator initialization failed: {e}")
+                self.s145 = None
+        else:
+            self.s145 = None
+        # S146 — Multi-Step Flow Propagation Layer (MSFPL)
+        # -----------------------------------------------------
+        # Expands the single-step flow propagation introduced in S145 into multi-step dynamic flow evolution, allowing the substrate
+        # to support deeper, layered propagation behavior. S145 introduced the first propagation step with flow kernels, expansion
+        # transforms, and propagation residual. Now S146 evolves this into a multi-step flow propagation mechanism, enabling layered
+        # propagation, depth-expanded dynamic evolution, multi-step influence diffusion, recursive flow refinement, and MF-500
+        # envelope-preserving propagation cycles. This is the first step where dynamic propagation becomes iterative in structure,
+        # though still implemented in a single forward pass.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s146 = S146_MultiStepFlowPropagationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S146_MultiStepFlowPropagationLayer initialization failed: {e}")
+                self.s146 = None
+        else:
+            self.s146 = None
+        # S147 — Cross-Step Flow Interaction Operator (CSFIO)
+        # -----------------------------------------------------
+        # Introduces interactions between propagation steps, enabling the substrate to compute cross-step influence effects rather than
+        # treating each propagation depth independently. S146 introduced multi-step propagation. S147 now introduces cross-step interaction
+        # terms—that is, interactions between first-step fields, second-step refined fields, and cross-coupled mixtures. This creates a
+        # second-order propagation manifold, which is required before entering the dynamic multi-band interaction layers that follow (S148+).
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s147 = S147_CrossStepFlowInteractionOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S147_CrossStepFlowInteractionOperator initialization failed: {e}")
+                self.s147 = None
+        else:
+            self.s147 = None
+        # S148 — Cross-Propagation Fusion Kernel (CPF-K)
+        # -----------------------------------------------------
+        # Fuses multi-step propagation fields (from S146), cross-step interaction fields (from S147), and the base substrate vector
+        # into a unified propagation-fusion manifold. S147 introduced cross-step interaction between first- and second-level propagated
+        # fields. S148 now fuses multi-step propagation fields, cross-step interaction fields, and the base substrate vector into a unified
+        # propagation-fusion manifold. This is the first fusion-level global operator of the S-series.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s148 = S148_CrossPropagationFusionKernel(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S148_CrossPropagationFusionKernel initialization failed: {e}")
+                self.s148 = None
+        else:
+            self.s148 = None
+        # S149 — Fusion-Coherence Modulation Layer (FCML)
+        # -----------------------------------------------------
+        # Introduces coherence modulation over the fused propagation manifold. Following S148 (Cross-Propagation Fusion Kernel), S149
+        # stabilizes, shapes, and aligns those fused flows with respect to global substrate alignment, local fusion curvature, and residual
+        # drift patterns. Where S148 fused flows, S149 stabilizes, shapes, and aligns those fused flows. This forms the first coherence-level
+        # operator in the S140–S160 band.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s149 = S149_FusionCoherenceModulationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S149_FusionCoherenceModulationLayer initialization failed: {e}")
+                self.s149 = None
+        else:
+            self.s149 = None
+        # S150 — Coherence Stabilization Field (CSF)
+        # -----------------------------------------------------
+        # Stabilizes the coherence response by enforcing drift attenuation, cross-basis coherence equalization, curvature-mediated
+        # smoothing, residual suppression, and normalized envelope return. S149 introduced coherence modulation over the fused
+        # propagation manifold. S150 now stabilizes that coherence response. S150 is the first stabilization-field operator in the
+        # coherence band (S149 → S160).
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s150 = S150_CoherenceStabilizationField(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S150_CoherenceStabilizationField initialization failed: {e}")
+                self.s150 = None
+        else:
+            self.s150 = None
+        # S151 — Coherence Equalization Kernel (CEK)
+        # -----------------------------------------------------
+        # Equalizes coherence distribution across all contributing fields by applying cross-channel equalization, coherence uniformity
+        # weighting, drift-compensated modulation, curvature-compensated redistribution, and envelope normalization. S150 stabilized
+        # coherence amplitudes and enforced curvature- and basis-regulated smoothing. S151 now equalizes coherence distribution across all
+        # contributing fields. This layer ensures that coherence does not accumulate unevenly across dimensions or manifold subregions.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s151 = S151_CoherenceEqualizationKernel(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S151_CoherenceEqualizationKernel initialization failed: {e}")
+                self.s151 = None
+        else:
+            self.s151 = None
+        # S152 — Coherence Redistribution Operator (CRO)
+        # -----------------------------------------------------
+        # Performs controlled redistribution of coherence intensity, ensuring balanced manifold weighting, drift-aware redistribution,
+        # curvature-regulated distribution shaping, basis-frame alignment, and MF-500 envelope stability. S151 equalized the coherence
+        # distribution across the vector space. S152 now performs controlled redistribution of coherence intensity. This continues the
+        # coherence normalization arc (S150 → S155).
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s152 = S152_CoherenceRedistributionOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S152_CoherenceRedistributionOperator initialization failed: {e}")
+                self.s152 = None
+        else:
+            self.s152 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -5177,6 +5992,208 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ S141 global substrate dynamics initialization forward pass failed: {e}")
                 # Continue with unmodified tensor if S141 fails
+
+        # -----------------------------------------------------
+        # S142 — Global Dynamic Projection Operator (GDPO)
+        # -----------------------------------------------------
+        # Expands the global dynamic seed into a multi-manifold dynamic projection, giving the system dynamic direction density,
+        # multi-axis dynamic alignment, dynamic-mode decomposition, and substrate-spanning dynamic coherence. After S141, the
+        # substrate contains a global dynamic seed vector, derived from curvature-integrated geometry, normalized into the
+        # MF-500 substrate envelope. S142 now expands this into a multi-manifold dynamic projection. This creates three global
+        # dynamic modes, each projected from the S141 dynamic seed.
+        if self.s142 is not None:
+            try:
+                x = self.s142(x)
+            except Exception as e:
+                print(f"⚠️ S142 global dynamic projection forward pass failed: {e}")
+                # Continue with unmodified tensor if S142 fails
+
+        # S143 — Global Dynamic Residual Stabilizer (GDRS)
+        # -----------------------------------------------------
+        # Stabilizes the dynamic residual field produced by S142 and ensures that early-stage global dynamics do not generate
+        # uncontrolled drift or oscillatory propagation. After S142, the substrate holds a 3-mode global dynamic projection,
+        # refined across primary and secondary dynamic transforms, normalized into the MF-500 dynamic envelope. However, dynamic
+        # projections naturally create residual drift, especially where projection modes overlap nonlinearly, dynamic weights
+        # amplify local behavior, and mode interactions create small oscillatory artifacts. S143 suppresses and stabilizes
+        # these residual deviations to preserve global dynamic coherence before propagation layers (S144+).
+        if self.s143 is not None:
+            try:
+                x = self.s143(x)
+            except Exception as e:
+                print(f"⚠️ S143 global dynamic residual stabilization forward pass failed: {e}")
+                # Continue with unmodified tensor if S143 fails
+
+        # S144 — Global Dynamic Flow Initialization Layer (GDFIL)
+        # -----------------------------------------------------
+        # Introduces the first true flow structure in the MF-500–aligned substrate, moving beyond static dynamics into propagating
+        # dynamic fields. After S143, the global dynamic field is seeded (S141), projected into multiple structured dynamic modes
+        # (S142), and stabilized against residual drift and oscillatory interference (S143). S144 now performs the key transition
+        # into dynamic flow behavior, initializing directional flow components, multi-axis flow decomposition, flow-consistent
+        # propagation structures, and the first global dynamic flow vector. This introduces flow into the substrate, which becomes
+        # the backbone of S145–S160.
+        if self.s144 is not None:
+            try:
+                x = self.s144(x)
+            except Exception as e:
+                print(f"⚠️ S144 global dynamic flow initialization forward pass failed: {e}")
+                # Continue with unmodified tensor if S144 fails
+
+        # S145 — Global Flow Propagation Operator (GFPO)
+        # -----------------------------------------------------
+        # Takes the initialized flow field from S144 and introduces propagation, meaning the flow begins to evolve, extend, and
+        # apply directional influence across the substrate manifold. After S144, the substrate holds a 3-direction fused global flow
+        # initialization vector, stabilized dynamic states, and curvature-aligned substrate geometry. Now we introduce propagation,
+        # which requires propagation kernels, multi-step flow expansion, flow-carrying dynamics, propagation residual consistency, and
+        # MF-500 envelope normalization. This layer effectively "turns the flow loose" in a controlled mathematical manner.
+        if self.s145 is not None:
+            try:
+                x = self.s145(x)
+            except Exception as e:
+                print(f"⚠️ S145 global flow propagation forward pass failed: {e}")
+                # Continue with unmodified tensor if S145 fails
+
+        # S146 — Multi-Step Flow Propagation Layer (MSFPL)
+        # -----------------------------------------------------
+        # Expands the single-step flow propagation introduced in S145 into multi-step dynamic flow evolution, allowing the substrate
+        # to support deeper, layered propagation behavior. S145 introduced the first propagation step with flow kernels, expansion
+        # transforms, and propagation residual. Now S146 evolves this into a multi-step flow propagation mechanism, enabling layered
+        # propagation, depth-expanded dynamic evolution, multi-step influence diffusion, recursive flow refinement, and MF-500
+        # envelope-preserving propagation cycles. This is the first step where dynamic propagation becomes iterative in structure,
+        # though still implemented in a single forward pass.
+        s146_intermediates = None
+        if self.s146 is not None:
+            try:
+                # Get both output and intermediate fields for S147
+                if self.s147 is not None:
+                    x, s1_1, s1_2, s1_3, s2_1, s2_2, s2_3 = self.s146(x, return_intermediates=True)
+                    s146_intermediates = (s1_1, s1_2, s1_3, s2_1, s2_2, s2_3)
+                else:
+                    x = self.s146(x)
+            except Exception as e:
+                print(f"⚠️ S146 multi-step flow propagation forward pass failed: {e}")
+                # Continue with unmodified tensor if S146 fails
+
+        # S147 — Cross-Step Flow Interaction Operator (CSFIO)
+        # -----------------------------------------------------
+        # Introduces interactions between propagation steps, enabling the substrate to compute cross-step influence effects rather than
+        # treating each propagation depth independently. S146 introduced multi-step propagation. S147 now introduces cross-step interaction
+        # terms—that is, interactions between first-step fields, second-step refined fields, and cross-coupled mixtures. This creates a
+        # second-order propagation manifold, which is required before entering the dynamic multi-band interaction layers that follow (S148+).
+        s147_intermediates = None
+        if self.s147 is not None and s146_intermediates is not None:
+            try:
+                s1_1, s1_2, s1_3, s2_1, s2_2, s2_3 = s146_intermediates
+                # Get both output and interaction fields for S148
+                if self.s148 is not None:
+                    x, i1, i2, i3 = self.s147(x, s1_1, s1_2, s1_3, s2_1, s2_2, s2_3, return_intermediates=True)
+                    s147_intermediates = (i1, i2, i3)
+                else:
+                    x = self.s147(x, s1_1, s1_2, s1_3, s2_1, s2_2, s2_3)
+            except Exception as e:
+                print(f"⚠️ S147 cross-step flow interaction forward pass failed: {e}")
+                # Continue with unmodified tensor if S147 fails
+
+        # S148 — Cross-Propagation Fusion Kernel (CPF-K)
+        # -----------------------------------------------------
+        # Fuses multi-step propagation fields (from S146), cross-step interaction fields (from S147), and the base substrate vector
+        # into a unified propagation-fusion manifold. S147 introduced cross-step interaction between first- and second-level propagated
+        # fields. S148 now fuses multi-step propagation fields, cross-step interaction fields, and the base substrate vector into a unified
+        # propagation-fusion manifold. This is the first fusion-level global operator of the S-series.
+        s148_intermediates = None
+        if self.s148 is not None and s146_intermediates is not None and s147_intermediates is not None:
+            try:
+                s1_1, s1_2, s1_3, s2_1, s2_2, s2_3 = s146_intermediates
+                i1, i2, i3 = s147_intermediates
+                # Get both output and intermediate fields for S149
+                if self.s149 is not None:
+                    x, Z, R = self.s148(x, s1_1, s1_2, s1_3, s2_1, s2_2, s2_3, i1, i2, i3, return_intermediates=True)
+                    s148_intermediates = (Z, R)
+                else:
+                    x = self.s148(x, s1_1, s1_2, s1_3, s2_1, s2_2, s2_3, i1, i2, i3)
+            except Exception as e:
+                print(f"⚠️ S148 cross-propagation fusion forward pass failed: {e}")
+                # Continue with unmodified tensor if S148 fails
+
+        # S149 — Fusion-Coherence Modulation Layer (FCML)
+        # -----------------------------------------------------
+        # Introduces coherence modulation over the fused propagation manifold. Following S148 (Cross-Propagation Fusion Kernel), S149
+        # stabilizes, shapes, and aligns those fused flows with respect to global substrate alignment, local fusion curvature, and residual
+        # drift patterns. Where S148 fused flows, S149 stabilizes, shapes, and aligns those fused flows. This forms the first coherence-level
+        # operator in the S140–S160 band.
+        s149_intermediates = None
+        if self.s149 is not None and s148_intermediates is not None:
+            try:
+                Z, R = s148_intermediates
+                # Use x as placeholder for C (curvature) and A (alignment) if not available from earlier operators
+                # These could be enhanced to use actual curvature/alignment data from S130-S140 if needed
+                C = x  # curvature imprint placeholder
+                A = x  # alignment reference placeholder
+                # Get both output and intermediate fields for S150
+                if self.s150 is not None:
+                    x, u, R_u = self.s149(x, Z, R, C, A, return_intermediates=True)
+                    s149_intermediates = (u, R_u, C)
+                else:
+                    x = self.s149(x, Z, R, C, A)
+            except Exception as e:
+                print(f"⚠️ S149 fusion-coherence modulation forward pass failed: {e}")
+                # Continue with unmodified tensor if S149 fails
+
+        # S150 — Coherence Stabilization Field (CSF)
+        # -----------------------------------------------------
+        # Stabilizes the coherence response by enforcing drift attenuation, cross-basis coherence equalization, curvature-mediated
+        # smoothing, residual suppression, and normalized envelope return. S149 introduced coherence modulation over the fused
+        # propagation manifold. S150 now stabilizes that coherence response. S150 is the first stabilization-field operator in the
+        # coherence band (S149 → S160).
+        s150_intermediates = None
+        if self.s150 is not None and s149_intermediates is not None:
+            try:
+                u, R_u, C = s149_intermediates
+                # Use x as placeholder for B (substrate basis-frame) if not available
+                # This could be enhanced to use actual basis-frame data if needed
+                B = x  # substrate basis-frame placeholder
+                # Get both output and intermediate fields for S151
+                if self.s151 is not None:
+                    x, v, R, C_out, B_out = self.s150(x, u, C, B, return_intermediates=True)
+                    s150_intermediates = (v, R, C_out, B_out)
+                else:
+                    x = self.s150(x, u, C, B)
+            except Exception as e:
+                print(f"⚠️ S150 coherence stabilization forward pass failed: {e}")
+                # Continue with unmodified tensor if S150 fails
+
+        # S151 — Coherence Equalization Kernel (CEK)
+        # -----------------------------------------------------
+        # Equalizes coherence distribution across all contributing fields by applying cross-channel equalization, coherence uniformity
+        # weighting, drift-compensated modulation, curvature-compensated redistribution, and envelope normalization. S150 stabilized
+        # coherence amplitudes and enforced curvature- and basis-regulated smoothing. S151 now equalizes coherence distribution across all
+        # contributing fields. This layer ensures that coherence does not accumulate unevenly across dimensions or manifold subregions.
+        s151_intermediates = None
+        if self.s151 is not None and s150_intermediates is not None:
+            try:
+                v, R, C, B = s150_intermediates
+                # Get both output and intermediate fields for S152
+                if self.s152 is not None:
+                    x, v_out, R_out, C_out, B_out = self.s151(x, v, C, B, return_intermediates=True)
+                    s151_intermediates = (v_out, R_out, C_out, B_out)
+                else:
+                    x = self.s151(x, v, C, B)
+            except Exception as e:
+                print(f"⚠️ S151 coherence equalization forward pass failed: {e}")
+                # Continue with unmodified tensor if S151 fails
+
+        # S152 — Coherence Redistribution Operator (CRO)
+        # -----------------------------------------------------
+        # Performs controlled redistribution of coherence intensity, ensuring balanced manifold weighting, drift-aware redistribution,
+        # curvature-regulated distribution shaping, basis-frame alignment, and MF-500 envelope stability. S151 equalized the coherence
+        # distribution across the vector space. S152 now performs controlled redistribution of coherence intensity. This continues the
+        # coherence normalization arc (S150 → S155).
+        if self.s152 is not None and s151_intermediates is not None:
+            try:
+                v, R, C, B = s151_intermediates
+                x = self.s152(x, v, C, B)
+            except Exception as e:
+                print(f"⚠️ S152 coherence redistribution forward pass failed: {e}")
+                # Continue with unmodified tensor if S152 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
