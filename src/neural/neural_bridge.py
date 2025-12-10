@@ -275,6 +275,123 @@ class S104_MultiStepFlowVarianceRegulator(nn.Module):
         norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
         return y / norm
 
+# ====================================================
+# S105 — Cross-Step Harmonic Alignment Layer (CSHAL)
+# ====================================================
+class S105_CrossStepHarmonicAlignmentLayer(nn.Module):
+    """
+    Aligns harmonic projections across steps to suppress rotational drift.
+    Uses one-step reference buffer; no temporal memory semantics.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        self.W1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.W2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.eta = 0.04  # harmonic alignment coefficient
+        self.act = nn.Tanh()
+        # Previous activation buffer (non-stateful beyond one step)
+        self.register_buffer("prev_x", torch.zeros(1, dim))
+
+    def forward(self, x):
+        h_t = self.act(x @ self.W1)
+        h_t_1 = self.act(self.prev_x @ self.W2)
+        delta_h = h_t - h_t_1
+        y = x - self.eta * delta_h
+        self.prev_x = x.detach()
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S106 — Cross-Step Frequency Band Regulator (CSFBR)
+# ====================================================
+class S106_CrossStepFrequencyBandRegulator(nn.Module):
+    """
+    Stabilizes frequency-band composition across sequential runs.
+    Uses learned band weights to suppress low/high-frequency drift.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        self.F = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.kappa_low = nn.Parameter(torch.ones(dim) * 0.5)
+        self.kappa_high = nn.Parameter(torch.ones(dim) * 0.5)
+        self.act = nn.Tanh()
+        # Previous activation buffer (one-step reference)
+        self.register_buffer("prev_x", torch.zeros(1, dim))
+
+    def forward(self, x):
+        f_t = self.act(x @ self.F)
+        f_t_1 = self.act(self.prev_x @ self.F)
+        delta_f = f_t - f_t_1
+        delta_low = delta_f * self.kappa_low
+        delta_high = delta_f * self.kappa_high
+        y = x - (delta_low + delta_high)
+        self.prev_x = x.detach()
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S107 — Spectral Coherence Regulator (SCR)
+# ====================================================
+class S107_SpectralCoherenceRegulator(nn.Module):
+    """
+    Enforces spectral coherence across steps via spectral projection alignment.
+    One-step buffer only; no temporal memory semantics.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        self.U = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.rho = 0.03  # spectral coherence coefficient
+        self.act = nn.Tanh()
+        self.register_buffer("prev_x", torch.zeros(1, dim))
+
+    def forward(self, x):
+        s_t = self.act(x @ self.U)
+        s_t_1 = self.act(self.prev_x @ self.U)
+        delta_s = s_t - s_t_1
+        y = x - self.rho * delta_s
+        self.prev_x = x.detach()
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S108 — Multi-Spectral Drift Suppression Operator (MSDSO)
+# ====================================================
+class S108_MultiSpectralDriftSuppressionOperator(nn.Module):
+    """
+    Suppresses drift across multiple spectral subspaces simultaneously.
+    Uses three spectral projections with band-weighted suppression.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        self.U1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.U2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.U3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.tau1 = nn.Parameter(torch.tensor(0.03))
+        self.tau2 = nn.Parameter(torch.tensor(0.03))
+        self.tau3 = nn.Parameter(torch.tensor(0.03))
+        self.act = nn.Tanh()
+        self.register_buffer("prev_x", torch.zeros(1, dim))
+
+    def forward(self, x):
+        s1_t = self.act(x @ self.U1)
+        s2_t = self.act(x @ self.U2)
+        s3_t = self.act(x @ self.U3)
+        s1_p = self.act(self.prev_x @ self.U1)
+        s2_p = self.act(self.prev_x @ self.U2)
+        s3_p = self.act(self.prev_x @ self.U3)
+        d1 = s1_t - s1_p
+        d2 = s2_t - s2_p
+        d3 = s3_t - s3_p
+        d_total = self.tau1 * d1 + self.tau2 * d2 + self.tau3 * d3
+        y = x - d_total
+        self.prev_x = x.detach()
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
 class NeuralBridge:
 
     def __init__(self):
@@ -1613,6 +1730,54 @@ class NeuralBridge:
         else:
             self.s104 = None
         # -----------------------------------------------------
+        # S105 — Cross-Step Harmonic Alignment Layer (CSHAL)
+        # -----------------------------------------------------
+        # Aligns harmonic projections across steps to suppress rotational drift.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s105 = S105_CrossStepHarmonicAlignmentLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S105_CrossStepHarmonicAlignmentLayer initialization failed: {e}")
+                self.s105 = None
+        else:
+            self.s105 = None
+        # -----------------------------------------------------
+        # S106 — Cross-Step Frequency Band Regulator (CSFBR)
+        # -----------------------------------------------------
+        # Stabilizes frequency-band composition across sequential runs.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s106 = S106_CrossStepFrequencyBandRegulator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S106_CrossStepFrequencyBandRegulator initialization failed: {e}")
+                self.s106 = None
+        else:
+            self.s106 = None
+        # -----------------------------------------------------
+        # S107 — Spectral Coherence Regulator (SCR)
+        # -----------------------------------------------------
+        # Enforces spectral coherence across steps via spectral projection alignment.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s107 = S107_SpectralCoherenceRegulator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S107_SpectralCoherenceRegulator initialization failed: {e}")
+                self.s107 = None
+        else:
+            self.s107 = None
+        # -----------------------------------------------------
+        # S108 — Multi-Spectral Drift Suppression Operator (MSDSO)
+        # -----------------------------------------------------
+        # Multi-band spectral drift suppression using three spectral projections.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s108 = S108_MultiSpectralDriftSuppressionOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S108_MultiSpectralDriftSuppressionOperator initialization failed: {e}")
+                self.s108 = None
+        else:
+            self.s108 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -2456,6 +2621,50 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ S104 multi-step flow variance forward pass failed: {e}")
                 # Continue with unmodified tensor if S104 fails
+
+        # -----------------------------------------------------
+        # S105 — Cross-Step Harmonic Alignment Layer (CSHAL)
+        # -----------------------------------------------------
+        # Aligns harmonic projections across steps to suppress rotational drift.
+        if self.s105 is not None:
+            try:
+                x = self.s105(x)
+            except Exception as e:
+                print(f"⚠️ S105 cross-step harmonic alignment forward pass failed: {e}")
+                # Continue with unmodified tensor if S105 fails
+
+        # -----------------------------------------------------
+        # S106 — Cross-Step Frequency Band Regulator (CSFBR)
+        # -----------------------------------------------------
+        # Stabilizes frequency-band composition across sequential runs.
+        if self.s106 is not None:
+            try:
+                x = self.s106(x)
+            except Exception as e:
+                print(f"⚠️ S106 cross-step frequency band forward pass failed: {e}")
+                # Continue with unmodified tensor if S106 fails
+
+        # -----------------------------------------------------
+        # S107 — Spectral Coherence Regulator (SCR)
+        # -----------------------------------------------------
+        # Enforces spectral coherence across sequential steps.
+        if self.s107 is not None:
+            try:
+                x = self.s107(x)
+            except Exception as e:
+                print(f"⚠️ S107 spectral coherence forward pass failed: {e}")
+                # Continue with unmodified tensor if S107 fails
+
+        # -----------------------------------------------------
+        # S108 — Multi-Spectral Drift Suppression Operator (MSDSO)
+        # -----------------------------------------------------
+        # Multi-band spectral drift suppression using three spectral projections.
+        if self.s108 is not None:
+            try:
+                x = self.s108(x)
+            except Exception as e:
+                print(f"⚠️ S108 multi-spectral drift suppression forward pass failed: {e}")
+                # Continue with unmodified tensor if S108 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
