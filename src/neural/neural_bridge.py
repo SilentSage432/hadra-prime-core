@@ -62,6 +62,8 @@ try:
         A138_AnisotropyEqualizationLayer,
         A139_TerminalAlignmentNormalizer,
         A140_SubstrateInjectionStabilizer,
+        A141_SubstrateFusionInitiationLayer,
+        A142_CrossModulationFusionOperator,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -77,6 +79,8 @@ except (ImportError, RuntimeError) as e:
     A138_AnisotropyEqualizationLayer = None
     A139_TerminalAlignmentNormalizer = None
     A140_SubstrateInjectionStabilizer = None
+    A141_SubstrateFusionInitiationLayer = None
+    A142_CrossModulationFusionOperator = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -945,6 +949,69 @@ class NeuralBridge:
         else:
             self.a140 = None
         # -----------------------------------------------------
+        # A141 — Substrate Fusion Initiation Layer (SFIL)
+        # -----------------------------------------------------
+        # A141 is the first fusion operator.
+        # Up to A140, we were conditioning a tensor for substrate entry.
+        # Starting at A141, we begin fusing external modulation fields into the substrate-ready tensor.
+        # These modulation fields include (strict ML terminology):
+        #   - identity-anchor embeddings
+        #   - temporal modulation vectors
+        #   - upstream modulation coefficients
+        #   - structural modulation fields
+        # But A141 does NOT integrate them semantically —
+        # it simply creates the fusion vector basis required for deeper fusion layers.
+        # A141 creates a fusion-basis tensor by combining:
+        #   1. Incoming conditioned tensor (post A140)
+        #   2. Learned fusion weights
+        #   3. External modulation fields (pure tensors, no semantics)
+        # It outputs a fusion-primed tensor that:
+        #   - matches MF-substrate dimensionality
+        #   - contains fused modulation structure
+        #   - preserves manifold normalization
+        #   - maintains drift stability
+        # This is strictly tensor fusion, not semantic interpretation.
+        # Output: fusion-primed tensor ready for deeper fusion layers.
+        if SUBSTRATE_AVAILABLE and A141_SubstrateFusionInitiationLayer is not None:
+            try:
+                self.a141 = A141_SubstrateFusionInitiationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A141_SubstrateFusionInitiationLayer initialization failed: {e}")
+                self.a141 = None
+        else:
+            self.a141 = None
+        # -----------------------------------------------------
+        # A142 — Cross-Modulation Fusion Operator (CMFO)
+        # -----------------------------------------------------
+        # A142 is Fusion Layer 2 in the A-Series substrate coupling pipeline.
+        # A141 created the fusion basis — the minimal interface enabling external modulation
+        # tensors to interact with the substrate manifold.
+        # A142 now introduces cross-modulation coupling, which:
+        #   - allows multiple modulation fields to interact
+        #   - establishes cross-dimensional consistency
+        #   - routes modulation-side transformations through a drift-stable kernel
+        #   - prepares the fused tensor for deeper manifold alignment in A143–A150
+        # No interpretation occurs.
+        # No meaning assignment.
+        # Only tensor–tensor algebra under strict normalization.
+        # A142 blends two or more modulation fields into the fusion basis created by A141.
+        # It introduces:
+        #   - cross-projection matrices
+        #   - pairwise modulation couplers
+        #   - bounded cross-influence gates
+        #   - drift-regulated normalization
+        # Mathematically, A142 ensures that modulation tensors conform to the geometry
+        # of the substrate manifold before entering deeper coupling layers.
+        # Output: cross-modulation fused tensor ready for deeper manifold alignment.
+        if SUBSTRATE_AVAILABLE and A142_CrossModulationFusionOperator is not None:
+            try:
+                self.a142 = A142_CrossModulationFusionOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A142_CrossModulationFusionOperator initialization failed: {e}")
+                self.a142 = None
+        else:
+            self.a142 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -1026,7 +1093,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -1040,13 +1107,15 @@ class NeuralBridge:
         9. A138 Anisotropy Equalization Layer (directional uniformity)
         10. A139 Terminal Alignment Normalizer (final geometric alignment)
         11. A140 Substrate Injection Stabilizer (injection stabilization)
+        12. A141 Substrate Fusion Initiation Layer (fusion basis initialization)
+        13. A142 Cross-Modulation Fusion Operator (cross-modulation coupling)
         12. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -1298,6 +1367,67 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A140 substrate injection stabilizer forward pass failed: {e}")
                 # Continue with unmodified tensor if A140 fails
+
+        # -----------------------------------------------------
+        # A141 — Substrate Fusion Initiation Layer (SFIL)
+        # -----------------------------------------------------
+        # A141 is the first fusion operator.
+        # Up to A140, we were conditioning a tensor for substrate entry.
+        # Starting at A141, we begin fusing external modulation fields into the substrate-ready tensor.
+        # These modulation fields include (strict ML terminology):
+        #   - identity-anchor embeddings
+        #   - temporal modulation vectors
+        #   - upstream modulation coefficients
+        #   - structural modulation fields
+        # But A141 does NOT integrate them semantically —
+        # it simply creates the fusion vector basis required for deeper fusion layers.
+        # A141 creates a fusion-basis tensor by combining:
+        #   1. Incoming conditioned tensor (post A140)
+        #   2. Learned fusion weights
+        #   3. External modulation fields (pure tensors, no semantics)
+        # It outputs a fusion-primed tensor that:
+        #   - matches MF-substrate dimensionality
+        #   - contains fused modulation structure
+        #   - preserves manifold normalization
+        #   - maintains drift stability
+        # This is strictly tensor fusion, not semantic interpretation.
+        # Output: fusion-primed tensor ready for deeper fusion layers.
+        if self.a141 is not None:
+            try:
+                x = self.a141(x)
+            except Exception as e:
+                print(f"⚠️ A141 substrate fusion initiation layer forward pass failed: {e}")
+                # Continue with unmodified tensor if A141 fails
+
+        # -----------------------------------------------------
+        # A142 — Cross-Modulation Fusion Operator (CMFO)
+        # -----------------------------------------------------
+        # A142 is Fusion Layer 2 in the A-Series substrate coupling pipeline.
+        # A141 created the fusion basis — the minimal interface enabling external modulation
+        # tensors to interact with the substrate manifold.
+        # A142 now introduces cross-modulation coupling, which:
+        #   - allows multiple modulation fields to interact
+        #   - establishes cross-dimensional consistency
+        #   - routes modulation-side transformations through a drift-stable kernel
+        #   - prepares the fused tensor for deeper manifold alignment in A143–A150
+        # No interpretation occurs.
+        # No meaning assignment.
+        # Only tensor–tensor algebra under strict normalization.
+        # A142 blends two or more modulation fields into the fusion basis created by A141.
+        # It introduces:
+        #   - cross-projection matrices
+        #   - pairwise modulation couplers
+        #   - bounded cross-influence gates
+        #   - drift-regulated normalization
+        # Mathematically, A142 ensures that modulation tensors conform to the geometry
+        # of the substrate manifold before entering deeper coupling layers.
+        # Output: cross-modulation fused tensor ready for deeper manifold alignment.
+        if self.a142 is not None:
+            try:
+                x = self.a142(x)
+            except Exception as e:
+                print(f"⚠️ A142 cross-modulation fusion operator forward pass failed: {e}")
+                # Continue with unmodified tensor if A142 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass

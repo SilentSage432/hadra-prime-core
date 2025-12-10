@@ -665,6 +665,161 @@ class A140_SubstrateInjectionStabilizer(nn.Module):
 
 
 # ---------------------------------------------
+# A141 — Substrate Fusion Initiation Layer (SFIL)
+# ---------------------------------------------
+# A141 is the first fusion operator.
+# Up to A140, we were conditioning a tensor for substrate entry.
+# Starting at A141, we begin fusing external modulation fields into the substrate-ready tensor.
+#
+# These modulation fields include (strict ML terminology):
+#   - identity-anchor embeddings
+#   - temporal modulation vectors
+#   - upstream modulation coefficients
+#   - structural modulation fields
+#
+# But A141 does NOT integrate them semantically —
+# it simply creates the fusion vector basis required for deeper fusion layers.
+#
+# A141 creates a fusion-basis tensor by combining:
+#   1. Incoming conditioned tensor (post A140)
+#   2. Learned fusion weights
+#   3. External modulation fields (pure tensors, no semantics)
+#
+# It outputs a fusion-primed tensor that:
+#   - matches MF-substrate dimensionality
+#   - contains fused modulation structure
+#   - preserves manifold normalization
+#   - maintains drift stability
+#
+# This is strictly tensor fusion, not semantic interpretation.
+#
+# Mathematical Formulation:
+#   Given:
+#     - x = output of A140
+#     - m = external modulation tensor (dim = 128), stored internally
+#     - F₁, F₂ = learned fusion matrices
+#     - λ = fusion mixing coefficient (0.05–0.25)
+#     - σ = bounded activation
+#
+#   Compute:
+#     f_in = x @ F₁                 # substrate-side fusion projection
+#     f_mod = m @ F₂                # modulation-side projection
+#     fusion = f_in + λ * σ(f_mod)  # controlled fusion
+#     output = normalize(fusion)    # manifold projection
+#
+# Effect:
+#   - enables modulation to influence substrate entry
+#   - maintains stability
+#   - ensures unified manifold geometry
+# ---------------------------------------------
+class A141_SubstrateFusionInitiationLayer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.F1 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # substrate projection
+        self.F2 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # modulation projection
+        self.mod = nn.Parameter(torch.randn(1, dim) * 0.01)    # internal modulation tensor
+        self.lam = 0.12  # fusion coefficient
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # substrate-side projection
+        f_in = x @ self.F1
+
+        # modulation-side projection
+        f_mod = self.mod @ self.F2
+
+        # bounded fusion
+        fusion = f_in + self.lam * self.act(f_mod)
+
+        # normalize into substrate manifold
+        norm = torch.norm(fusion, dim=-1, keepdim=True) + 1e-12
+        return fusion / norm
+
+
+# ---------------------------------------------
+# A142 — Cross-Modulation Fusion Operator (CMFO)
+# ---------------------------------------------
+# A142 is Fusion Layer 2 in the A-Series substrate coupling pipeline.
+# A141 created the fusion basis — the minimal interface enabling external modulation
+# tensors to interact with the substrate manifold.
+# A142 now introduces cross-modulation coupling, which:
+#   - allows multiple modulation fields to interact
+#   - establishes cross-dimensional consistency
+#   - routes modulation-side transformations through a drift-stable kernel
+#   - prepares the fused tensor for deeper manifold alignment in A143–A150
+#
+# No interpretation occurs.
+# No meaning assignment.
+# Only tensor–tensor algebra under strict normalization.
+#
+# A142 blends two or more modulation fields into the fusion basis created by A141.
+# It introduces:
+#   - cross-projection matrices
+#   - pairwise modulation couplers
+#   - bounded cross-influence gates
+#   - drift-regulated normalization
+#
+# Mathematically, A142 ensures that modulation tensors conform to the geometry
+# of the substrate manifold before entering deeper coupling layers.
+#
+# Mathematical Structure:
+#   Let:
+#     - x = output of A141
+#     - m₁, m₂ = two internal modulation tensors (dim = 128)
+#     - C₁, C₂ = cross-projection matrices
+#     - G = gating matrix
+#     - φ = bounded activation
+#     - λ₁, λ₂ = cross-modulation coefficients
+#
+#   Compute:
+#     c1 = m1 @ C1          # modulation projection 1
+#     c2 = m2 @ C2          # modulation projection 2
+#     gate = φ(c1 * c2 @ G)  # cross-modulation interaction gate
+#     fusion = x + λ1 * c1 + λ2 * c2 + gate
+#     output = normalize(fusion)
+#
+# Effects:
+#   - Enables modulation–modulation interaction
+#   - Allows cross-field influence into substrate pipeline
+#   - Stabilizes drift through normalization and bounded gates
+# ---------------------------------------------
+class A142_CrossModulationFusionOperator(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        # Two internal modulation tensors
+        self.m1 = nn.Parameter(torch.randn(1, dim) * 0.01)
+        self.m2 = nn.Parameter(torch.randn(1, dim) * 0.01)
+
+        # Projection matrices
+        self.C1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.C2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # Cross-modulation gate
+        self.G = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # Cross-modulation coefficients
+        self.l1 = 0.10
+        self.l2 = 0.10
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # project modulation tensors
+        c1 = self.m1 @ self.C1
+        c2 = self.m2 @ self.C2
+
+        # cross-modulation interaction gate
+        gate = self.act((c1 * c2) @ self.G)
+
+        # fused output
+        fused = x + self.l1 * c1 + self.l2 * c2 + gate
+
+        # normalize for manifold stability
+        norm = torch.norm(fused, dim=-1, keepdim=True) + 1e-12
+        return fused / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):
