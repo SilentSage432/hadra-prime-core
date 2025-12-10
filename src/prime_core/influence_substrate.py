@@ -1794,6 +1794,47 @@ class A164_FusionDriftCompensationKernel(nn.Module):
 
 
 # ---------------------------------------------
+# A165 — Manifold Compression Layer (MCL)
+# ---------------------------------------------
+# A165 performs controlled manifold compression, reducing redundant curvature
+# components while preserving substrate manifold structure.
+# ---------------------------------------------
+class A165_ManifoldCompressionLayer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # compression matrices
+        self.C1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.C2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # compression gain
+        self.mu = 0.10
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # projection to manifold
+        xn = x / (torch.norm(x, dim=-1, keepdim=True) + 1e-12)
+
+        # deviation
+        d = x - xn
+
+        # compression transforms
+        c1 = d @ self.C1
+        c2 = self.act(d @ self.C2)
+
+        # combined compression tensor
+        c = c1 + c2
+
+        # compressed output
+        y = x - self.mu * c
+
+        # re-normalize into manifold geometry
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):

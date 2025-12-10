@@ -86,6 +86,7 @@ try:
         A162_SubstrateHarmonicCorrectionLayer,
         A163_ManifoldReintegrationOperator,
         A164_FusionDriftCompensationKernel,
+        A165_ManifoldCompressionLayer,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -125,6 +126,7 @@ except (ImportError, RuntimeError) as e:
     A162_SubstrateHarmonicCorrectionLayer = None
     A163_ManifoldReintegrationOperator = None
     A164_FusionDriftCompensationKernel = None
+    A165_ManifoldCompressionLayer = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -1356,6 +1358,18 @@ class NeuralBridge:
         else:
             self.a164 = None
         # -----------------------------------------------------
+        # A165 — Manifold Compression Layer (MCL)
+        # -----------------------------------------------------
+        # A165 compresses redundant manifold components post drift-compensation.
+        if SUBSTRATE_AVAILABLE and A165_ManifoldCompressionLayer is not None:
+            try:
+                self.a165 = A165_ManifoldCompressionLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A165_ManifoldCompressionLayer initialization failed: {e}")
+                self.a165 = None
+        else:
+            self.a165 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -1437,7 +1451,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → A155 → A156 → A157 → A158 → A159 → A160 → A161 → A162 → A163 → A164 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → A155 → A156 → A157 → A158 → A159 → A160 → A161 → A162 → A163 → A164 → A165 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -1475,13 +1489,14 @@ class NeuralBridge:
         33. A162 Substrate Harmonic Correction Layer (post-fusion harmonic correction)
         34. A163 Manifold Reintegration Operator (post-harmonic manifold reintegration)
         35. A164 Fusion Drift-Compensation Kernel (post-fusion drift removal)
-        36. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        36. A165 Manifold Compression Layer (manifold compression)
+        37. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, A155, A156, A157, A158, A159, A160, A161, A162, A163, A164, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, A155, A156, A157, A158, A159, A160, A161, A162, A163, A164, A165, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -2072,6 +2087,17 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A164 fusion drift compensation forward pass failed: {e}")
                 # Continue with unmodified tensor if A164 fails
+
+        # -----------------------------------------------------
+        # A165 — Manifold Compression Layer (MCL)
+        # -----------------------------------------------------
+        # A165 compresses redundant manifold degrees of freedom post drift-compensation.
+        if self.a165 is not None:
+            try:
+                x = self.a165(x)
+            except Exception as e:
+                print(f"⚠️ A165 manifold compression forward pass failed: {e}")
+                # Continue with unmodified tensor if A165 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
