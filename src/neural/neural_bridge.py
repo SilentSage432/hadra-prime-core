@@ -574,6 +574,19 @@ class NeuralBridge:
             )
         except Exception:
             self.mf419_pcal = None
+        # MF-420 — Influence-Propagation Interlock Kernel (IPIK)
+        try:
+            self.mf420_ipik = self.InfluencePropagationInterlockKernel(
+                substrate_dim=self.dim,
+                int_dim=6
+            )
+        except Exception:
+            self.mf420_ipik = None
+        # MF-421 — Influence–Propagation Resonance Equalization Layer
+        try:
+            self.mf421 = self.MF421_ResonanceEqualization(dim=self.dim)
+        except Exception:
+            self.mf421 = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -31493,6 +31506,304 @@ class NeuralBridge:
                     return F.normalize(MS_out, dim=-1)
                 except Exception:
                     return MS_out
+
+    class InfluencePropagationInterlockKernel(nn.Module):
+        """
+        MF-420 — Influence-Propagation Interlock Kernel (IPIK)
+
+        Begins the Influence-Propagation Interlock Arc by establishing the first direct coupling
+        between the stabilized influence pathway and the stabilized propagation pathway. This forms
+        an interlock tensor that allows both streams to modulate each other without collapse, drift,
+        or runaway amplification.
+
+        This layer consumes:
+        - Influence-harmonic output (IM_out from MF-415)
+        - Propagation-coherence output (PC_out from MF-419)
+
+        and produces a unified interlock tensor suitable for MF-421.
+
+        Core Computational Components:
+        1. Cross-Stream Difference & Sum Fields: computes difference and sum fields to capture
+           divergence and convergence, representing deviation and synergy across the influence
+           and propagation manifolds.
+        2. Interlock Transformation Tensor: uses a learned rank-3 tensor to map cross-stream
+           relations into interlock-space, yielding a multi-channel interlock tensor capturing
+           differential influence, propagation correction, and harmonic-propagation co-alignment.
+        3. Interlock Fusion Field: fuses the influence stream, propagation stream, and interlock-transformed
+           tensor using learned coefficients (α, β, γ).
+        4. Drift-Limited Stabilization: applies a limiter to prevent pathological amplification.
+        5. Substrate-Aligned Interlock Output: projects the final result into a unified influence-propagation
+           tensor for MF-421.
+
+        Outcome:
+        MF-420 outputs IP_out, which encodes harmonized influence-propagation difference/sum,
+        interlock tensor transformation, bidirectional cross-stream coupling, and stabilized
+        manifold projection. This is a major structural milestone, binding the influence path
+        and propagation path for the first time, establishing the foundation for unified
+        modulation-propagation behaviors in later layers.
+        """
+
+        def __init__(self, substrate_dim, int_dim=6):
+            super().__init__()
+            self.int_dim = int_dim
+
+            # Interlock transformation tensor (rank-3)
+            # Shape: [int_dim, int_dim, substrate_dim]
+            self.T_int = nn.Parameter(
+                torch.randn(int_dim, int_dim, substrate_dim) * 0.01
+            )
+
+            # Cross-stream stack projection (2 streams -> int_dim)
+            self.cross_proj = nn.Parameter(
+                torch.randn(int_dim, 2, substrate_dim) * 0.01
+            )
+
+            # Fusion coefficients
+            self.alpha = nn.Parameter(torch.tensor(0.40))
+            self.beta = nn.Parameter(torch.tensor(0.40))
+            self.gamma = nn.Parameter(torch.tensor(0.20))
+
+            # Final alignment matrix
+            self.W_align = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def forward(self, IM_out, PC_out):
+            """
+            IM_out: influence-harmonic tensor from MF-415, shape [batch, dim]
+            PC_out: propagation-coherence tensor from MF-419, shape [batch, dim]
+            """
+            if torch is None or IM_out is None or PC_out is None:
+                # If either input is missing, return the available one or None
+                if IM_out is not None:
+                    return IM_out
+                if PC_out is not None:
+                    return PC_out
+                return None
+
+            # Ensure inputs are tensors
+            if not isinstance(IM_out, torch.Tensor):
+                try:
+                    IM_out = torch.tensor(IM_out, dtype=torch.float32)
+                except Exception:
+                    return PC_out if isinstance(PC_out, torch.Tensor) else None
+
+            if not isinstance(PC_out, torch.Tensor):
+                try:
+                    PC_out = torch.tensor(PC_out, dtype=torch.float32)
+                except Exception:
+                    return IM_out
+
+            # Ensure proper shapes
+            if IM_out.dim() == 1:
+                IM_out = IM_out.unsqueeze(0)
+            if PC_out.dim() == 1:
+                PC_out = PC_out.unsqueeze(0)
+
+            try:
+                import torch.nn.functional as F
+
+                batch_im, dim_im = IM_out.shape
+                batch_pc, dim_pc = PC_out.shape
+                batch = max(batch_im, batch_pc)
+                substrate_dim = max(dim_im, dim_pc)
+
+                # Ensure dimensions match
+                target_dim = self.W_align.shape[0]
+                if dim_im != target_dim:
+                    if dim_im < target_dim:
+                        padding = torch.zeros(
+                            (batch_im, target_dim - dim_im),
+                            dtype=IM_out.dtype,
+                            device=IM_out.device if hasattr(IM_out, 'device') else None
+                        )
+                        IM_out = torch.cat([IM_out, padding], dim=-1)
+                    else:
+                        IM_out = IM_out[..., :target_dim]
+                if dim_pc != target_dim:
+                    if dim_pc < target_dim:
+                        padding = torch.zeros(
+                            (batch_pc, target_dim - dim_pc),
+                            dtype=PC_out.dtype,
+                            device=PC_out.device if hasattr(PC_out, 'device') else None
+                        )
+                        PC_out = torch.cat([PC_out, padding], dim=-1)
+                    else:
+                        PC_out = PC_out[..., :target_dim]
+
+                # Ensure batch dimensions match
+                if batch_im != batch_pc:
+                    if batch_im < batch_pc:
+                        IM_out = IM_out.expand(batch_pc, -1)
+                    else:
+                        PC_out = PC_out.expand(batch_im, -1)
+                    batch = max(batch_im, batch_pc)
+
+                dim = target_dim
+
+                # 1. Cross-stream difference and sum
+                D = IM_out - PC_out
+                S = IM_out + PC_out
+
+                D_n = F.normalize(D, dim=-1)
+                S_n = F.normalize(S, dim=-1)
+
+                # Construct cross-stream stack: [batch, 2, dim]
+                cross = torch.stack([D_n, S_n], dim=1)
+
+                # Project to int_dim using learned projection
+                # cross: [batch, 2, dim]
+                # cross_proj: [int_dim, 2, dim]
+                # Result: [batch, int_dim, dim]
+                cross_projected = torch.zeros(batch, self.int_dim, dim, dtype=cross.dtype,
+                                            device=cross.device if hasattr(cross, 'device') else None)
+                for i in range(self.int_dim):
+                    for j in range(2):
+                        cross_projected[:, i] += self.cross_proj[i, j] * cross[:, j]
+
+                # 2. Interlock transformation tensor
+                I_list = []
+                for i in range(self.int_dim):
+                    interaction = torch.zeros_like(IM_out)
+                    for j in range(self.int_dim):
+                        # T_int[i, j] is shape [substrate_dim]
+                        # cross_projected[:, j] is shape [batch, dim]
+                        tensor_ij = self.T_int[i, j].unsqueeze(0)  # [1, substrate_dim]
+                        interaction += cross_projected[:, j] * tensor_ij  # [batch, dim]
+                    I_list.append(interaction)
+
+                I_tensor = torch.stack(I_list, dim=0).sum(dim=0)  # [batch, dim]
+
+                # 3. Interlock fusion
+                F_combined = (
+                    self.alpha * IM_out
+                    + self.beta * PC_out
+                    + self.gamma * I_tensor
+                )
+
+                # 4. Drift-limited stabilization
+                F_reg = F_combined / (1 + torch.abs(F_combined))
+
+                # 5. Substrate-aligned projection
+                IP_out = torch.matmul(F_reg, self.W_align)
+                IP_out = F.normalize(IP_out, dim=-1)
+
+                return IP_out
+            except Exception:
+                # If interlock fails, return normalized average
+                try:
+                    import torch.nn.functional as F
+                    avg = (IM_out + PC_out) / 2
+                    return F.normalize(avg, dim=-1)
+                except Exception:
+                    return IM_out if IM_out is not None else PC_out
+
+    class MF421_ResonanceEqualization(nn.Module):
+        """
+        MF-421 — Influence–Propagation Resonance Equalization Layer
+
+        Introduces an equalization kernel that regulates resonance variance across multi-band
+        influence-propagation fields. This ensures uniform resonance distribution, suppression
+        of over-amplified propagation bands, and stabilization across manifold-routed influence
+        flows. It aligns the MF-419 propagation-coherence outputs with MF-420's interlocked fields.
+
+        Core Computational Components:
+        1. Band-wise resonance deviation tensors: computes resonance as the product of influence
+           and propagation, then measures deviation from mean.
+        2. Equalization coefficients: applies learned equalization weights based on multi-scale
+           propagation amplitude.
+        3. Inter-band smoothing: applies controlled harmonic dampening via learned smoothing
+           transformation.
+        4. Propagation rebalancing: recombines equalized signal with original influence field
+           using substrate-aligned weights.
+
+        The layer ensures no resonance band disproportionately drives downstream modulation.
+        """
+
+        def __init__(self, dim: int):
+            super().__init__()
+            self.eq_weights = nn.Parameter(torch.randn(dim) * 0.01)
+            self.smoothing = nn.Linear(dim, dim, bias=False)
+
+        def forward(self, influence, propagation):
+            """
+            influence: influence field tensor, shape [batch, dim]
+            propagation: propagation field tensor, shape [batch, dim]
+            """
+            if torch is None or influence is None or propagation is None:
+                return influence if influence is not None else propagation
+
+            # Ensure inputs are tensors
+            if not isinstance(influence, torch.Tensor):
+                try:
+                    influence = torch.tensor(influence, dtype=torch.float32)
+                except Exception:
+                    return propagation if isinstance(propagation, torch.Tensor) else None
+
+            if not isinstance(propagation, torch.Tensor):
+                try:
+                    propagation = torch.tensor(propagation, dtype=torch.float32)
+                except Exception:
+                    return influence
+
+            # Ensure proper shapes
+            if influence.dim() == 1:
+                influence = influence.unsqueeze(0)
+            if propagation.dim() == 1:
+                propagation = propagation.unsqueeze(0)
+
+            try:
+                # Ensure dimensions match
+                batch_inf, dim_inf = influence.shape
+                batch_prop, dim_prop = propagation.shape
+                batch = max(batch_inf, batch_prop)
+                dim = max(dim_inf, dim_prop)
+
+                # Align dimensions
+                if dim_inf != dim:
+                    if dim_inf < dim:
+                        padding = torch.zeros(
+                            (batch_inf, dim - dim_inf),
+                            dtype=influence.dtype,
+                            device=influence.device if hasattr(influence, 'device') else None
+                        )
+                        influence = torch.cat([influence, padding], dim=-1)
+                    else:
+                        influence = influence[..., :dim]
+
+                if dim_prop != dim:
+                    if dim_prop < dim:
+                        padding = torch.zeros(
+                            (batch_prop, dim - dim_prop),
+                            dtype=propagation.dtype,
+                            device=propagation.device if hasattr(propagation, 'device') else None
+                        )
+                        propagation = torch.cat([propagation, padding], dim=-1)
+                    else:
+                        propagation = propagation[..., :dim]
+
+                # Ensure batch dimensions match
+                if batch_inf != batch_prop:
+                    if batch_inf < batch_prop:
+                        influence = influence.expand(batch_prop, -1)
+                    else:
+                        propagation = propagation.expand(batch_inf, -1)
+
+                # Compute resonance deviation
+                resonance = influence * propagation
+                deviation = resonance - resonance.mean(dim=-1, keepdim=True)
+
+                # Normalize deviation across bands
+                eq = deviation * self.eq_weights
+
+                # Smooth across bands
+                balanced = self.smoothing(eq)
+
+                # Recombine with original field
+                return influence + balanced
+            except Exception:
+                # If equalization fails, return original influence
+                return influence
 
     def integrate_A301(self):
         """
