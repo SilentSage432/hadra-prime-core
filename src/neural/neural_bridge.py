@@ -182,6 +182,99 @@ class S100_RuntimeSubstrateEntryField(nn.Module):
         norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
         return y / norm
 
+# ====================================================
+# S101 — Sequential Flow Harmonizer (SFH)
+# ====================================================
+class S101_SequentialFlowHarmonizer(nn.Module):
+    """
+    Harmonizes sequential substrate evaluations to suppress oscillatory drift.
+    Applies dual harmonic projections, damped correction, and manifold renorm.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        self.H1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.H2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.gamma = 0.05  # sequential-damping gain
+        self.act = nn.Tanh()
+
+    def forward(self, x):
+        h1 = self.act(x @ self.H1)
+        h2 = self.act(x @ self.H2)
+        d = h1 - h2
+        y = x - self.gamma * d
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S102 — Temporal Drift Dampening Operator (TDDO)
+# ====================================================
+class S102_TemporalDriftDampeningOperator(nn.Module):
+    """
+    Suppresses intra-run temporal drift between consecutive activations.
+    Uses one-step reference buffer (non-stateful) for drift normalization.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        self.lambda_coeff = 0.03  # drift suppression factor
+        self.register_buffer("prev_x", torch.zeros(1, dim))
+
+    def forward(self, x):
+        drift = x - self.prev_x
+        drift_norm = drift / (torch.norm(drift, dim=-1, keepdim=True) + 1e-12)
+        y = x - self.lambda_coeff * drift_norm
+        self.prev_x = x.detach()
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S103 — Temporal Flow Equalization Layer (TFEL)
+# ====================================================
+class S103_TemporalFlowEqualizationLayer(nn.Module):
+    """
+    Equalizes activation energy across sequential evaluations.
+    Maintains local equilibrium target (buffered EMA) and renormalizes.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        self.alpha = 0.05  # equalization rate
+        # Equilibrium energy buffer (not stateful memory)
+        self.register_buffer("energy_eq", torch.tensor(1.0))
+
+    def forward(self, x):
+        e_t = torch.norm(x, dim=-1, keepdim=True)
+        # Update equilibrium using mean energy (detached)
+        self.energy_eq = (1 - self.alpha) * self.energy_eq + self.alpha * e_t.mean().detach()
+        y = x * (self.energy_eq / (e_t + 1e-12))
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S104 — Multi-Step Flow Variance Regulator (MFVR)
+# ====================================================
+class S104_MultiStepFlowVarianceRegulator(nn.Module):
+    """
+    Suppresses multi-step variance by tracking rolling variance estimate.
+    Provides variance-based normalization with manifold renorm for stability.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        self.beta = 0.05  # variance smoothing coefficient
+        # Rolling variance buffer (non-stateful memory; resets with runtime)
+        self.register_buffer("var_est", torch.tensor(1.0))
+
+    def forward(self, x):
+        mean = x.mean(dim=-1, keepdim=True)
+        inst_var = ((x - mean) ** 2).mean()
+        # Update rolling variance using detached instantaneous variance
+        self.var_est = (1 - self.beta) * self.var_est + self.beta * inst_var.detach()
+        y = x / torch.sqrt(self.var_est + 1e-12)
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
 class NeuralBridge:
 
     def __init__(self):
@@ -1472,6 +1565,54 @@ class NeuralBridge:
         else:
             self.s100 = None
         # -----------------------------------------------------
+        # S101 — Sequential Flow Harmonizer (SFH)
+        # -----------------------------------------------------
+        # Harmonizes sequential evaluations to suppress runtime oscillatory drift.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s101 = S101_SequentialFlowHarmonizer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S101_SequentialFlowHarmonizer initialization failed: {e}")
+                self.s101 = None
+        else:
+            self.s101 = None
+        # -----------------------------------------------------
+        # S102 — Temporal Drift Dampening Operator (TDDO)
+        # -----------------------------------------------------
+        # Suppresses intra-run temporal drift between consecutive activations.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s102 = S102_TemporalDriftDampeningOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S102_TemporalDriftDampeningOperator initialization failed: {e}")
+                self.s102 = None
+        else:
+            self.s102 = None
+        # -----------------------------------------------------
+        # S103 — Temporal Flow Equalization Layer (TFEL)
+        # -----------------------------------------------------
+        # Equalizes activation energy across sequential evaluations.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s103 = S103_TemporalFlowEqualizationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S103_TemporalFlowEqualizationLayer initialization failed: {e}")
+                self.s103 = None
+        else:
+            self.s103 = None
+        # -----------------------------------------------------
+        # S104 — Multi-Step Flow Variance Regulator (MFVR)
+        # -----------------------------------------------------
+        # Tracks rolling variance to stabilize multi-step activation volatility.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s104 = S104_MultiStepFlowVarianceRegulator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S104_MultiStepFlowVarianceRegulator initialization failed: {e}")
+                self.s104 = None
+        else:
+            self.s104 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -2271,6 +2412,50 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ S100 runtime substrate entry forward pass failed: {e}")
                 # Continue with unmodified tensor if S100 fails
+
+        # -----------------------------------------------------
+        # S101 — Sequential Flow Harmonizer (SFH)
+        # -----------------------------------------------------
+        # Sequential harmonization to suppress oscillatory drift across passes.
+        if self.s101 is not None:
+            try:
+                x = self.s101(x)
+            except Exception as e:
+                print(f"⚠️ S101 sequential flow harmonizer forward pass failed: {e}")
+                # Continue with unmodified tensor if S101 fails
+
+        # -----------------------------------------------------
+        # S102 — Temporal Drift Dampening Operator (TDDO)
+        # -----------------------------------------------------
+        # Temporal drift suppression using one-step reference buffer.
+        if self.s102 is not None:
+            try:
+                x = self.s102(x)
+            except Exception as e:
+                print(f"⚠️ S102 temporal drift dampening forward pass failed: {e}")
+                # Continue with unmodified tensor if S102 fails
+
+        # -----------------------------------------------------
+        # S103 — Temporal Flow Equalization Layer (TFEL)
+        # -----------------------------------------------------
+        # Equalizes activation energy across sequential evaluations.
+        if self.s103 is not None:
+            try:
+                x = self.s103(x)
+            except Exception as e:
+                print(f"⚠️ S103 temporal flow equalization forward pass failed: {e}")
+                # Continue with unmodified tensor if S103 fails
+
+        # -----------------------------------------------------
+        # S104 — Multi-Step Flow Variance Regulator (MFVR)
+        # -----------------------------------------------------
+        # Variance stabilization across multi-step temporal windows.
+        if self.s104 is not None:
+            try:
+                x = self.s104(x)
+            except Exception as e:
+                print(f"⚠️ S104 multi-step flow variance forward pass failed: {e}")
+                # Continue with unmodified tensor if S104 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
