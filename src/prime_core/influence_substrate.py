@@ -1121,6 +1121,52 @@ class A148_IntrinsicManifoldReinforcementField(nn.Module):
 
 
 # ---------------------------------------------
+# A149 — Cross-Curvature Fusion Operator (CCFO)
+# ---------------------------------------------
+# A149 fuses multiple curvature channels to produce a unified, drift-stable
+# curvature tensor compatible with the substrate manifold. It:
+#   - extracts curvature channels
+#   - computes cross-curvature interactions
+#   - applies a fusion kernel
+#   - combines with the base tensor under manifold normalization
+class A149_CrossCurvatureFusionOperator(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # curvature extraction matrices
+        self.K1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.K2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.K3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # fusion kernel
+        self.F = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # fusion coefficient
+        self.lam = 0.17
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # extract curvature channels
+        c1 = x @ self.K1
+        c2 = x @ self.K2
+        c3 = x @ self.K3
+
+        # compute cross-curvature interactions
+        cross = self.act(c1 * c2 + c2 * c3 + c1 * c3)
+
+        # fuse curvature signals
+        fused = cross @ self.F
+
+        # combine with base tensor
+        out = x + self.lam * fused
+
+        # normalize for manifold stability
+        norm = torch.norm(out, dim=-1, keepdim=True) + 1e-12
+        return out / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):
