@@ -918,6 +918,47 @@ class S123_TemporalHarmonicResonanceAlignmentLayer(nn.Module):
         return y / norm
 
 # ====================================================
+# S124 — Temporal-Harmonic Frequency Coupling Layer (THFCL)
+# ====================================================
+class S124_TemporalHarmonicFrequencyCouplingLayer(nn.Module):
+    """
+    Establishes frequency-domain coupling between the temporal-flow projection and harmonic
+    projection generated from the consolidated manifold. After S123 aligned resonance structures,
+    S124 introduces frequency coupling by extracting frequency-like components from temporal and
+    harmonic vectors, identifying their mismatch across spectral bands, computing a coupled
+    frequency representation, and reintegrating the result back into the manifold. This ensures
+    that temporal and harmonic dimensions interact as if they share a compatible spectral basis.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # Frequency extraction
+        self.T_f = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.H_f = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Frequency coupling transforms
+        self.F_t = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.F_h = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Coupling strength
+        self.kappa = nn.Parameter(torch.tensor(0.035))
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Extract frequency components
+        ft = self.act(x @ self.T_f)
+        fh = self.act(x @ self.H_f)
+        # Coupling transforms
+        ft_c = self.act(ft @ self.F_t)
+        fh_c = self.act(fh @ self.F_h)
+        # Mismatch and correction
+        delta_f = ft_c - fh_c
+        correction = self.kappa * delta_f
+        # Apply correction
+        y = x - correction
+        # Renormalize to maintain manifold geometry
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
 class S110_ManifoldCoherenceUnificationLayer(nn.Module):
@@ -2530,6 +2571,23 @@ class NeuralBridge:
         else:
             self.s123 = None
         # -----------------------------------------------------
+        # S124 — Temporal-Harmonic Frequency Coupling Layer (THFCL)
+        # -----------------------------------------------------
+        # Establishes frequency-domain coupling between the temporal-flow projection and harmonic
+        # projection generated from the consolidated manifold. After S123 aligned resonance structures,
+        # S124 introduces frequency coupling by extracting frequency-like components from temporal and
+        # harmonic vectors, identifying their mismatch across spectral bands, computing a coupled
+        # frequency representation, and reintegrating the result back into the manifold. This ensures
+        # that temporal and harmonic dimensions interact as if they share a compatible spectral basis.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s124 = S124_TemporalHarmonicFrequencyCouplingLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S124_TemporalHarmonicFrequencyCouplingLayer initialization failed: {e}")
+                self.s124 = None
+        else:
+            self.s124 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -3601,6 +3659,22 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ S123 temporal-harmonic resonance alignment forward pass failed: {e}")
                 # Continue with unmodified tensor if S123 fails
+
+        # -----------------------------------------------------
+        # S124 — Temporal-Harmonic Frequency Coupling Layer (THFCL)
+        # -----------------------------------------------------
+        # Establishes frequency-domain coupling between the temporal-flow projection and harmonic
+        # projection generated from the consolidated manifold. After S123 aligned resonance structures,
+        # S124 introduces frequency coupling by extracting frequency-like components from temporal and
+        # harmonic vectors, identifying their mismatch across spectral bands, computing a coupled
+        # frequency representation, and reintegrating the result back into the manifold. This ensures
+        # that temporal and harmonic dimensions interact as if they share a compatible spectral basis.
+        if self.s124 is not None:
+            try:
+                x = self.s124(x)
+            except Exception as e:
+                print(f"⚠️ S124 temporal-harmonic frequency coupling forward pass failed: {e}")
+                # Continue with unmodified tensor if S124 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
