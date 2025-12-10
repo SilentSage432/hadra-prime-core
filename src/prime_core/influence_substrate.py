@@ -1753,6 +1753,47 @@ class A163_ManifoldReintegrationOperator(nn.Module):
 
 
 # ---------------------------------------------
+# A164 — Fusion Drift-Compensation Kernel (FDCK)
+# ---------------------------------------------
+# A164 eliminates residual drift after fusion, harmonic correction, and manifold
+# reintegration by isolating and attenuating drift vectors before normalization.
+# ---------------------------------------------
+class A164_FusionDriftCompensationKernel(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # drift isolation and attenuation matrices
+        self.D1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.D2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # compensation gain
+        self.lam = 0.10
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # normalized projection
+        xn = x / (torch.norm(x, dim=-1, keepdim=True) + 1e-12)
+
+        # drift vector
+        d = x - xn
+
+        # drift components
+        d1 = d @ self.D1
+        d2 = self.act(d @ self.D2)
+
+        # combined drift compensation tensor
+        c = d1 + d2
+
+        # reintegration with compensation
+        y = x - self.lam * c
+
+        # final normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):

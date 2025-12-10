@@ -85,6 +85,7 @@ try:
         A161_FusionResidualStabilizer,
         A162_SubstrateHarmonicCorrectionLayer,
         A163_ManifoldReintegrationOperator,
+        A164_FusionDriftCompensationKernel,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -123,6 +124,7 @@ except (ImportError, RuntimeError) as e:
     A161_FusionResidualStabilizer = None
     A162_SubstrateHarmonicCorrectionLayer = None
     A163_ManifoldReintegrationOperator = None
+    A164_FusionDriftCompensationKernel = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -1342,6 +1344,18 @@ class NeuralBridge:
         else:
             self.a163 = None
         # -----------------------------------------------------
+        # A164 — Fusion Drift-Compensation Kernel (FDCK)
+        # -----------------------------------------------------
+        # A164 eliminates residual micro-drift after fusion and corrections.
+        if SUBSTRATE_AVAILABLE and A164_FusionDriftCompensationKernel is not None:
+            try:
+                self.a164 = A164_FusionDriftCompensationKernel(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A164_FusionDriftCompensationKernel initialization failed: {e}")
+                self.a164 = None
+        else:
+            self.a164 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -1423,7 +1437,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → A155 → A156 → A157 → A158 → A159 → A160 → A161 → A162 → A163 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → A155 → A156 → A157 → A158 → A159 → A160 → A161 → A162 → A163 → A164 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -1460,13 +1474,14 @@ class NeuralBridge:
         32. A161 Fusion Residual Stabilizer (post-fusion residual control)
         33. A162 Substrate Harmonic Correction Layer (post-fusion harmonic correction)
         34. A163 Manifold Reintegration Operator (post-harmonic manifold reintegration)
-        35. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        35. A164 Fusion Drift-Compensation Kernel (post-fusion drift removal)
+        36. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, A155, A156, A157, A158, A159, A160, A161, A162, A163, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, A155, A156, A157, A158, A159, A160, A161, A162, A163, A164, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -2046,6 +2061,17 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A163 manifold reintegration forward pass failed: {e}")
                 # Continue with unmodified tensor if A163 fails
+
+        # -----------------------------------------------------
+        # A164 — Fusion Drift-Compensation Kernel (FDCK)
+        # -----------------------------------------------------
+        # A164 removes residual micro-drift post reintegration.
+        if self.a164 is not None:
+            try:
+                x = self.a164(x)
+            except Exception as e:
+                print(f"⚠️ A164 fusion drift compensation forward pass failed: {e}")
+                # Continue with unmodified tensor if A164 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
