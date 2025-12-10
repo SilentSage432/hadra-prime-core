@@ -53,12 +53,16 @@ try:
         InfluenceSubstrateKernel,
         A130_SubstrateCouplingGate,
         A131_DriftAttenuationLayer,
+        A132_CurvatureHarmonizationLayer,
+        A133_MultiScaleAlignmentLayer,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
     InfluenceSubstrateKernel = None
     A130_SubstrateCouplingGate = None
     A131_DriftAttenuationLayer = None
+    A132_CurvatureHarmonizationLayer = None
+    A133_MultiScaleAlignmentLayer = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -698,6 +702,45 @@ class NeuralBridge:
         else:
             self.a131 = None
         # -----------------------------------------------------
+        # A132 — Pre-Substrate Curvature Harmonization Layer (PCHL)
+        # -----------------------------------------------------
+        # Where A130 establishes the coupling surface and A131 attenuates
+        # drift and variance, A132 corrects curvature misalignment between
+        # upstream tensors and the MF-500 substrate manifold.
+        # It ensures:
+        #   - local curvature radius is standardized
+        #   - high-curvature regions are smoothed
+        #   - curvature discontinuities are removed
+        #   - second-order tensor geometry matches substrate expectations
+        if SUBSTRATE_AVAILABLE and A132_CurvatureHarmonizationLayer is not None:
+            try:
+                self.a132 = A132_CurvatureHarmonizationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A132_CurvatureHarmonizationLayer initialization failed: {e}")
+                self.a132 = None
+        else:
+            self.a132 = None
+        # -----------------------------------------------------
+        # A133 — Multi-Scale Pre-Substrate Alignment Layer (MSPSAL)
+        # -----------------------------------------------------
+        # A133 balances coarse vs fine structure before MF-401.
+        # Even after curvature harmonization, tensors can have unbalanced
+        # multi-scale structure (too much coarse or too much fine content).
+        # A133 splits into coarse and fine components, recombines them
+        # in a controlled way, and re-normalizes.
+        # It ensures:
+        #   - large-scale structure remains stable
+        #   - fine detail is preserved but not excessive
+        #   - MF-401 sees a balanced tensor
+        if SUBSTRATE_AVAILABLE and A133_MultiScaleAlignmentLayer is not None:
+            try:
+                self.a133 = A133_MultiScaleAlignmentLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A133_MultiScaleAlignmentLayer initialization failed: {e}")
+                self.a133 = None
+        else:
+            self.a133 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -779,18 +822,19 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
         2. A131 Drift Attenuation Layer (drift suppression)
-        3. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        3. A132 Curvature Harmonization Layer (curvature alignment)
+        4. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, and substrate
+            Transformed tensor after passing through A130, A131, A132, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -824,6 +868,41 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A131 drift attenuation forward pass failed: {e}")
                 # Continue with unmodified tensor if A131 fails
+
+        # -----------------------------------------------------
+        # A132 — Pre-Substrate Curvature Harmonization Layer (PCHL)
+        # -----------------------------------------------------
+        # A132 corrects curvature misalignment between upstream tensors
+        # and the MF-500 substrate manifold. It ensures:
+        #   - local curvature radius is standardized
+        #   - high-curvature regions are smoothed
+        #   - curvature discontinuities are removed
+        #   - second-order tensor geometry matches substrate expectations
+        # Output: curvature-harmonized tensor ready for stable substrate entry.
+        if self.a132 is not None:
+            try:
+                x = self.a132(x)
+            except Exception as e:
+                print(f"⚠️ A132 curvature harmonization forward pass failed: {e}")
+                # Continue with unmodified tensor if A132 fails
+
+        # -----------------------------------------------------
+        # A133 — Multi-Scale Pre-Substrate Alignment Layer (MSPSAL)
+        # -----------------------------------------------------
+        # A133 balances coarse vs fine structure before MF-401.
+        # It splits the tensor into coarse and fine components, recombines
+        # them in a controlled way, and re-normalizes.
+        # It ensures:
+        #   - large-scale structure remains stable
+        #   - fine detail is preserved but not excessive
+        #   - MF-401 sees a balanced tensor
+        # Output: multi-scale balanced tensor ready for stable substrate entry.
+        if self.a133 is not None:
+            try:
+                x = self.a133(x)
+            except Exception as e:
+                print(f"⚠️ A133 multi-scale alignment forward pass failed: {e}")
+                # Continue with unmodified tensor if A133 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass

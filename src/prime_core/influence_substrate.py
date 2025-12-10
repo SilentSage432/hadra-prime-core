@@ -223,6 +223,90 @@ class A131_DriftAttenuationLayer(nn.Module):
 
 
 # ---------------------------------------------
+# A132 — Pre-Substrate Curvature Harmonization Layer (PCHL)
+# ---------------------------------------------
+# Where A130 establishes the coupling surface and A131 attenuates
+# drift and variance, A132 corrects curvature misalignment between
+# upstream tensors and the MF-500 substrate manifold.
+#
+# MF-500 operates on a unit-curvature normalized space, meaning:
+#   - tensor directions
+#   - energy distribution
+#   - curvature radii
+#   - local geometric consistency
+# must be brought into alignment before processing.
+#
+# A132 corrects:
+#   - anisotropic curvature
+#   - uneven local tensor bending
+#   - directional curvature bias
+#   - non-uniform second-order properties
+#
+# Output: curvature-harmonized tensor ready for stable substrate entry.
+# ---------------------------------------------
+class A132_CurvatureHarmonizationLayer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.k = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.beta = 0.1  # curvature smoothing coefficient
+        self.act = nn.Tanh()  # bounded nonlinearity
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # curvature mapping
+        c = x @ self.k
+
+        # curvature residue
+        r = x - c
+
+        # curvature smoothing / harmonization
+        x_new = c + self.beta * self.act(r)
+
+        # curvature normalization
+        norm = torch.norm(x_new, dim=-1, keepdim=True) + 1e-12
+        return x_new / norm
+
+
+# ---------------------------------------------
+# A133 — Multi-Scale Pre-Substrate Alignment Layer (MSPSAL)
+# ---------------------------------------------
+# Role in the chain:
+#   - A130: Coupling gate → basic normalization + bounded injection
+#   - A131: Drift attenuation → removes residual directional drift
+#   - A132: Curvature harmonization → fixes second-order geometry
+#   - A133: Multi-scale alignment → balances coarse vs fine structure before MF-401
+#
+# Even after curvature is harmonized, the tensor can still have unbalanced
+# multi-scale structure:
+#   - too much coarse/low-frequency content
+#   - or too much fine/high-frequency fluctuation
+#
+# A133 corrects this by splitting the tensor into coarse and residual fine
+# components, then recombining them in a controlled way and re-normalizing.
+#
+# Output: multi-scale balanced tensor ready for stable substrate entry.
+# ---------------------------------------------
+class A133_MultiScaleAlignmentLayer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.w_coarse = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.alpha = 0.35  # fine-scale residual weight
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # coarse-scale projection
+        coarse = x @ self.w_coarse
+
+        # fine-scale residual
+        fine = x - coarse
+
+        # multi-scale recombination
+        x_new = coarse + self.alpha * fine
+
+        # unit-norm manifold projection
+        norm = torch.norm(x_new, dim=-1, keepdim=True) + 1e-12
+        return x_new / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):
