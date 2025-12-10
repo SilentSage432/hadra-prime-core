@@ -550,6 +550,14 @@ class NeuralBridge:
             )
         except Exception:
             self.mf416_hmcl = None
+        # MF-417 — Manifold Propagation Dynamics Layer (MPDL)
+        try:
+            self.mf417_mpdl = self.ManifoldPropagationDynamicsLayer(
+                substrate_dim=self.dim,
+                prop_dim=4
+            )
+        except Exception:
+            self.mf417_mpdl = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -30937,6 +30945,186 @@ class NeuralBridge:
                     return F.normalize(IM_out, dim=-1)
                 except Exception:
                     return IM_out
+
+    class ManifoldPropagationDynamicsLayer(nn.Module):
+        """
+        MF-417 — Manifold Propagation Dynamics Layer (MPDL)
+
+        Begins the Manifold Propagation Arc by introducing directional propagation rules that
+        allow harmonic-manifold fields to flow across the manifold indices. This layer consumes
+        the manifold-coupled harmonic field (HM_out) from MF-416 and generates a directionally
+        propagated manifold field, enabling directional flow, propagation step integration,
+        manifold-index alignment, flow-manifold fusion, and stabilized projection.
+
+        Core Computational Components:
+        1. Directional Manifold Gradient Extraction: computes directional flow along manifold
+           indices using forward and backward gradients, forming a propagation gradient stack.
+        2. Propagation Tensor: uses a learned rank-3 tensor to govern how gradient directions
+           propagate across the manifold, yielding multi-channel manifold-propagation components.
+        3. Manifold Flow Field Construction: fuses original harmonic-manifold signal, propagation
+           components, and a learned propagation bias vector via learned coefficients (α, β, γ).
+        4. Propagation-Stabilizing Limiter: applies a limiter to avoid divergence during
+           iterative propagation.
+        5. Substrate-Aligned Manifold Propagation Output: projects the final result into a
+           substrate-aligned manifold propagation signal for MF-418.
+
+        Outcome:
+        MF-417 outputs MP_out, which encodes directional manifold propagation, propagation tensor
+        interactions, stabilized propagation dynamics, manifold-gradient fusion, and substrate-aligned
+        output. This completes the first propagation stage of the harmonic-manifold signal, laying
+        the groundwork for higher-order propagation and manifold coherence phases.
+        """
+
+        def __init__(self, substrate_dim, prop_dim=4):
+            super().__init__()
+            self.prop_dim = prop_dim
+
+            # Propagation tensor (rank-3)
+            # Shape: [prop_dim, prop_dim, substrate_dim]
+            self.T_prop = nn.Parameter(
+                torch.randn(prop_dim, prop_dim, substrate_dim) * 0.01
+            )
+
+            # Gradient stack projection (2 gradients -> prop_dim)
+            self.grad_proj = nn.Parameter(
+                torch.randn(prop_dim, 2, substrate_dim) * 0.01
+            )
+
+            # Propagation bias
+            self.b_prop = nn.Parameter(
+                torch.randn(substrate_dim) * 0.01
+            )
+
+            # Fusion coefficients
+            self.alpha = nn.Parameter(torch.tensor(0.55))
+            self.beta = nn.Parameter(torch.tensor(0.30))
+            self.gamma = nn.Parameter(torch.tensor(0.15))
+
+            # Final alignment projection
+            self.W_align = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def forward(self, HM_out):
+            """
+            HM_out: manifold-coupled harmonic tensor from MF-416, shape [batch, dim]
+            """
+            if torch is None or HM_out is None:
+                return HM_out
+
+            # Ensure HM_out is a tensor
+            if not isinstance(HM_out, torch.Tensor):
+                try:
+                    HM_out = torch.tensor(HM_out, dtype=torch.float32)
+                except Exception:
+                    return HM_out
+
+            # Ensure proper shape
+            if HM_out.dim() == 1:
+                HM_out = HM_out.unsqueeze(0)
+
+            try:
+                import torch.nn.functional as F
+
+                batch, dim = HM_out.shape
+                substrate_dim = dim
+
+                # Ensure dimensions match
+                if dim != self.W_align.shape[0]:
+                    if dim < self.W_align.shape[0]:
+                        padding = torch.zeros(
+                            (batch, self.W_align.shape[0] - dim),
+                            dtype=HM_out.dtype,
+                            device=HM_out.device if hasattr(HM_out, 'device') else None
+                        )
+                        HM_out = torch.cat([HM_out, padding], dim=-1)
+                        dim = self.W_align.shape[0]
+                    else:
+                        HM_out = HM_out[..., :self.W_align.shape[0]]
+                        dim = self.W_align.shape[0]
+
+                # 1. Directional manifold gradients
+                if dim > 1:
+                    G1_raw = HM_out[:, 1:] - HM_out[:, :-1]  # forward
+                    G1 = F.pad(G1_raw, (0, 1), mode="replicate")
+
+                    G2_raw = HM_out[:, :-1] - HM_out[:, 1:]  # backward
+                    G2 = F.pad(G2_raw, (1, 0), mode="replicate")
+                else:
+                    G1 = torch.zeros_like(HM_out)
+                    G2 = torch.zeros_like(HM_out)
+
+                # Ensure gradients match dimension
+                if G1.shape[-1] != dim:
+                    if G1.shape[-1] < dim:
+                        padding = torch.zeros(
+                            G1.shape[:-1] + (dim - G1.shape[-1],),
+                            dtype=G1.dtype,
+                            device=G1.device if hasattr(G1, 'device') else None
+                        )
+                        G1 = torch.cat([G1, padding], dim=-1)
+                    else:
+                        G1 = G1[..., :dim]
+                if G2.shape[-1] != dim:
+                    if G2.shape[-1] < dim:
+                        padding = torch.zeros(
+                            G2.shape[:-1] + (dim - G2.shape[-1],),
+                            dtype=G2.dtype,
+                            device=G2.device if hasattr(G2, 'device') else None
+                        )
+                        G2 = torch.cat([G2, padding], dim=-1)
+                    else:
+                        G2 = G2[..., :dim]
+
+                # Stack gradients for propagation: [batch, 2, dim]
+                G_stack = torch.stack([G1, G2], dim=1)
+
+                # Project to prop_dim using learned projection
+                # G_stack: [batch, 2, dim]
+                # grad_proj: [prop_dim, 2, dim]
+                # Result: [batch, prop_dim, dim]
+                G_projected = torch.zeros(batch, self.prop_dim, dim, dtype=G_stack.dtype,
+                                         device=G_stack.device if hasattr(G_stack, 'device') else None)
+                for i in range(self.prop_dim):
+                    for j in range(2):
+                        G_projected[:, i] += self.grad_proj[i, j] * G_stack[:, j]
+
+                # 2. Propagation tensor interaction
+                P_list = []
+                for i in range(self.prop_dim):
+                    interaction = torch.zeros_like(HM_out)
+                    for j in range(self.prop_dim):
+                        # T_prop[i, j] is shape [substrate_dim]
+                        # G_projected[:, j] is shape [batch, dim]
+                        tensor_ij = self.T_prop[i, j].unsqueeze(0)  # [1, substrate_dim]
+                        interaction += G_projected[:, j] * tensor_ij  # [batch, dim]
+                    P_list.append(interaction)
+
+                P = torch.stack(P_list, dim=0).sum(dim=0)  # [batch, dim]
+
+                # 3. Propagation fusion
+                b_prop_expanded = self.b_prop.unsqueeze(0).expand(batch, -1)  # [batch, dim]
+                F_combined = (
+                    self.alpha * HM_out
+                    + self.beta * P
+                    + self.gamma * b_prop_expanded
+                )
+
+                # 4. Stabilizing limiter
+                F_reg = F_combined / (1 + torch.abs(F_combined))
+
+                # 5. Final projection
+                MP_out = torch.matmul(F_reg, self.W_align)
+                MP_out = F.normalize(MP_out, dim=-1)
+
+                return MP_out
+            except Exception:
+                # If propagation fails, return normalized input
+                try:
+                    import torch.nn.functional as F
+                    return F.normalize(HM_out, dim=-1)
+                except Exception:
+                    return HM_out
 
     def integrate_A301(self):
         """
