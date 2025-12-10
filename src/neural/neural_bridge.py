@@ -67,6 +67,9 @@ try:
         A143_MultiFieldFusionHarmonizer,
         A144_CrossFieldManifoldAlignment,
         A145_ManifoldCurvatureCouplingOperator,
+        A146_CurvatureModulationBridge,
+        A147_CurvatureFlowStabilizer,
+        A148_IntrinsicManifoldReinforcementField,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -87,6 +90,9 @@ except (ImportError, RuntimeError) as e:
     A143_MultiFieldFusionHarmonizer = None
     A144_CrossFieldManifoldAlignment = None
     A145_ManifoldCurvatureCouplingOperator = None
+    A146_CurvatureModulationBridge = None
+    A147_CurvatureFlowStabilizer = None
+    A148_IntrinsicManifoldReinforcementField = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -1086,6 +1092,46 @@ class NeuralBridge:
         else:
             self.a145 = None
         # -----------------------------------------------------
+        # A146 — Curvature–Modulation Bridge Operator (CMBO)
+        # -----------------------------------------------------
+        # A146 bridges curvature responses (post A145) with modulation fields introduced
+        # in A141–A143. It creates a curvature–modulation interaction field while keeping
+        # manifold stability via bounded activation and normalization.
+        if SUBSTRATE_AVAILABLE and A146_CurvatureModulationBridge is not None:
+            try:
+                self.a146 = A146_CurvatureModulationBridge(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A146_CurvatureModulationBridge initialization failed: {e}")
+                self.a146 = None
+        else:
+            self.a146 = None
+        # -----------------------------------------------------
+        # A147 — Curvature-Flow Stabilizer (CFS)
+        # -----------------------------------------------------
+        # A147 stabilizes curvature-induced flow dynamics produced by curvature coupling
+        # (A145) and curvature–modulation bridging (A146), maintaining drift control.
+        if SUBSTRATE_AVAILABLE and A147_CurvatureFlowStabilizer is not None:
+            try:
+                self.a147 = A147_CurvatureFlowStabilizer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A147_CurvatureFlowStabilizer initialization failed: {e}")
+                self.a147 = None
+        else:
+            self.a147 = None
+        # -----------------------------------------------------
+        # A148 — Intrinsic Manifold Reinforcement Field (IMRF)
+        # -----------------------------------------------------
+        # A148 imprints intrinsic manifold invariants onto the tensor, reinforcing
+        # curvature-flow stability and preparing for cross-curvature fusion.
+        if SUBSTRATE_AVAILABLE and A148_IntrinsicManifoldReinforcementField is not None:
+            try:
+                self.a148 = A148_IntrinsicManifoldReinforcementField(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A148_IntrinsicManifoldReinforcementField initialization failed: {e}")
+                self.a148 = None
+        else:
+            self.a148 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -1167,7 +1213,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -1186,13 +1232,16 @@ class NeuralBridge:
         14. A143 Multi-Field Fusion Harmonizer (multi-field harmonization)
         15. A144 Cross-Field Manifold Alignment (manifold alignment to substrate geometry)
         16. A145 Manifold Curvature Coupling Operator (curvature coupling)
-        17. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        17. A146 Curvature–Modulation Bridge Operator (curvature–modulation bridge)
+        18. A147 Curvature-Flow Stabilizer (curvature-flow stabilization)
+        19. A148 Intrinsic Manifold Reinforcement Field (intrinsic manifold reinforcement)
+        20. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -1570,6 +1619,43 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A145 manifold curvature coupling forward pass failed: {e}")
                 # Continue with unmodified tensor if A145 fails
+
+        # -----------------------------------------------------
+        # A146 — Curvature–Modulation Bridge Operator (CMBO)
+        # -----------------------------------------------------
+        # A146 bridges curvature responses (post A145) with modulation fields introduced
+        # in A141–A143. It fuses curvature channels and modulation channels through a
+        # learned bridge, then normalizes to maintain manifold stability.
+        if self.a146 is not None:
+            try:
+                x = self.a146(x)
+            except Exception as e:
+                print(f"⚠️ A146 curvature–modulation bridge forward pass failed: {e}")
+                # Continue with unmodified tensor if A146 fails
+
+        # -----------------------------------------------------
+        # A147 — Curvature-Flow Stabilizer (CFS)
+        # -----------------------------------------------------
+        # A147 stabilizes curvature-induced flow dynamics produced by curvature coupling
+        # (A145) and curvature–modulation bridging (A146), enforcing drift-controlled flow.
+        if self.a147 is not None:
+            try:
+                x = self.a147(x)
+            except Exception as e:
+                print(f"⚠️ A147 curvature-flow stabilizer forward pass failed: {e}")
+                # Continue with unmodified tensor if A147 fails
+
+        # -----------------------------------------------------
+        # A148 — Intrinsic Manifold Reinforcement Field (IMRF)
+        # -----------------------------------------------------
+        # A148 constructs an intrinsic reinforcement field to align the tensor with
+        # substrate manifold invariants, reinforcing curvature-flow stability.
+        if self.a148 is not None:
+            try:
+                x = self.a148(x)
+            except Exception as e:
+                print(f"⚠️ A148 intrinsic manifold reinforcement forward pass failed: {e}")
+                # Continue with unmodified tensor if A148 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
