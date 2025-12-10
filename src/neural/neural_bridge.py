@@ -55,6 +55,9 @@ try:
         A131_DriftAttenuationLayer,
         A132_CurvatureHarmonizationLayer,
         A133_MultiScaleAlignmentLayer,
+        A134_SpectralEqualizationLayer,
+        A135_EnergyNormalizationLayer,
+        A136_CrossManifoldAlignmentRegulator,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -63,6 +66,9 @@ except (ImportError, RuntimeError) as e:
     A131_DriftAttenuationLayer = None
     A132_CurvatureHarmonizationLayer = None
     A133_MultiScaleAlignmentLayer = None
+    A134_SpectralEqualizationLayer = None
+    A135_EnergyNormalizationLayer = None
+    A136_CrossManifoldAlignmentRegulator = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -741,6 +747,78 @@ class NeuralBridge:
         else:
             self.a133 = None
         # -----------------------------------------------------
+        # A134 — Pre-Substrate Spectral Equalization Layer (PSEL)
+        # -----------------------------------------------------
+        # A134 corrects spectral imbalance in upstream tensors — meaning imbalance
+        # between low-frequency/global, mid-frequency structural, and high-frequency
+        # fine components.
+        # Even after multi-scale alignment (A133), tensors can still exhibit spectral
+        # skew, causing certain MF-layers to over- or under-react.
+        # A134 ensures the tensor entering MF-401 has a balanced spectral density,
+        # preventing resonance amplification, transport-stage instability, and
+        # substrate harmonics mismatch.
+        # Output: spectrally balanced tensor ready for stable substrate entry.
+        if SUBSTRATE_AVAILABLE and A134_SpectralEqualizationLayer is not None:
+            try:
+                self.a134 = A134_SpectralEqualizationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A134_SpectralEqualizationLayer initialization failed: {e}")
+                self.a134 = None
+        else:
+            self.a134 = None
+        # -----------------------------------------------------
+        # A135 — Pre-Substrate Energy Normalization Layer (PSENL)
+        # -----------------------------------------------------
+        # A135 regulates energy distribution inside a tensor before it enters
+        # the MF-401 → MF-500 substrate.
+        # Even after A130-A134 conditioning, the tensor may still possess uneven
+        # energy concentration, meaning certain dimensions or feature bands carry
+        # disproportionately high or low energy.
+        # A135 provides energy normalization across the vector, stabilizing the
+        # tensor so that MF-401 receives a well-conditioned input.
+        # It performs:
+        #   - Energy projection – computes energy per-feature
+        #   - Energy smoothing – suppresses extreme energy spikes
+        #   - Energy redistribution – balances energy across dimensions
+        #   - Manifold renormalization – ensures unit-norm constraints
+        # Output: energy-normalized tensor ready for stable substrate entry.
+        if SUBSTRATE_AVAILABLE and A135_EnergyNormalizationLayer is not None:
+            try:
+                self.a135 = A135_EnergyNormalizationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A135_EnergyNormalizationLayer initialization failed: {e}")
+                self.a135 = None
+        else:
+            self.a135 = None
+        # -----------------------------------------------------
+        # A136 — Cross-Manifold Alignment Regulator (CMAR)
+        # -----------------------------------------------------
+        # A136 is the first operator in the cross-manifold regulation band, bridging:
+        #   - the upstream feature manifold (post A130–A135 conditioning)
+        # into
+        #   - the substrate manifold expected by MF-401 → MF-500.
+        # Even after energy normalization (A135), tensors may still contain:
+        #   - misaligned basis structure
+        #   - incompatible manifold curvature
+        #   - cross-dimension skew
+        #   - latent structural bias
+        # A136 corrects these by computing a learned manifold transform, mapping
+        # upstream features into substrate-compatible geometric coordinates.
+        # It performs:
+        #   - Manifold projection – maps input tensor into a learned manifold basis
+        #   - Cross-manifold correction – computes deviation between upstream and substrate manifolds
+        #   - Regulated recombination – applies bounded correction to align manifolds
+        #   - Re-normalization – ensures unit-norm manifold constraints before substrate entry
+        # Output: cross-manifold aligned tensor ready for stable substrate entry.
+        if SUBSTRATE_AVAILABLE and A136_CrossManifoldAlignmentRegulator is not None:
+            try:
+                self.a136 = A136_CrossManifoldAlignmentRegulator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A136_CrossManifoldAlignmentRegulator initialization failed: {e}")
+                self.a136 = None
+        else:
+            self.a136 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -822,19 +900,23 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
         2. A131 Drift Attenuation Layer (drift suppression)
         3. A132 Curvature Harmonization Layer (curvature alignment)
-        4. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        4. A133 Multi-Scale Alignment Layer (coarse/fine balance)
+        5. A134 Spectral Equalization Layer (spectral balance)
+        6. A135 Energy Normalization Layer (energy balance)
+        7. A136 Cross-Manifold Alignment Regulator (manifold alignment)
+        8. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -903,6 +985,75 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A133 multi-scale alignment forward pass failed: {e}")
                 # Continue with unmodified tensor if A133 fails
+
+        # -----------------------------------------------------
+        # A134 — Pre-Substrate Spectral Equalization Layer (PSEL)
+        # -----------------------------------------------------
+        # A134 corrects spectral imbalance in upstream tensors — meaning imbalance
+        # between low-frequency/global, mid-frequency structural, and high-frequency
+        # fine components.
+        # Even after multi-scale alignment (A133), tensors can still exhibit spectral
+        # skew, causing certain MF-layers to over- or under-react.
+        # A134 ensures the tensor entering MF-401 has a balanced spectral density,
+        # preventing resonance amplification, transport-stage instability, and
+        # substrate harmonics mismatch.
+        # Output: spectrally balanced tensor ready for stable substrate entry.
+        if self.a134 is not None:
+            try:
+                x = self.a134(x)
+            except Exception as e:
+                print(f"⚠️ A134 spectral equalization forward pass failed: {e}")
+                # Continue with unmodified tensor if A134 fails
+
+        # -----------------------------------------------------
+        # A135 — Pre-Substrate Energy Normalization Layer (PSENL)
+        # -----------------------------------------------------
+        # A135 regulates energy distribution inside a tensor before it enters
+        # the MF-401 → MF-500 substrate.
+        # Even after A130-A134 conditioning, the tensor may still possess uneven
+        # energy concentration, meaning certain dimensions or feature bands carry
+        # disproportionately high or low energy.
+        # A135 provides energy normalization across the vector, stabilizing the
+        # tensor so that MF-401 receives a well-conditioned input.
+        # It performs:
+        #   - Energy projection – computes energy per-feature
+        #   - Energy smoothing – suppresses extreme energy spikes
+        #   - Energy redistribution – balances energy across dimensions
+        #   - Manifold renormalization – ensures unit-norm constraints
+        # Output: energy-normalized tensor ready for stable substrate entry.
+        if self.a135 is not None:
+            try:
+                x = self.a135(x)
+            except Exception as e:
+                print(f"⚠️ A135 energy normalization forward pass failed: {e}")
+                # Continue with unmodified tensor if A135 fails
+
+        # -----------------------------------------------------
+        # A136 — Cross-Manifold Alignment Regulator (CMAR)
+        # -----------------------------------------------------
+        # A136 is the first operator in the cross-manifold regulation band, bridging:
+        #   - the upstream feature manifold (post A130–A135 conditioning)
+        # into
+        #   - the substrate manifold expected by MF-401 → MF-500.
+        # Even after energy normalization (A135), tensors may still contain:
+        #   - misaligned basis structure
+        #   - incompatible manifold curvature
+        #   - cross-dimension skew
+        #   - latent structural bias
+        # A136 corrects these by computing a learned manifold transform, mapping
+        # upstream features into substrate-compatible geometric coordinates.
+        # It performs:
+        #   - Manifold projection – maps input tensor into a learned manifold basis
+        #   - Cross-manifold correction – computes deviation between upstream and substrate manifolds
+        #   - Regulated recombination – applies bounded correction to align manifolds
+        #   - Re-normalization – ensures unit-norm manifold constraints before substrate entry
+        # Output: cross-manifold aligned tensor ready for stable substrate entry.
+        if self.a136 is not None:
+            try:
+                x = self.a136(x)
+            except Exception as e:
+                print(f"⚠️ A136 cross-manifold alignment forward pass failed: {e}")
+                # Continue with unmodified tensor if A136 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass

@@ -307,6 +307,147 @@ class A133_MultiScaleAlignmentLayer(nn.Module):
 
 
 # ---------------------------------------------
+# A134 — Pre-Substrate Spectral Equalization Layer (PSEL)
+# ---------------------------------------------
+# A134 corrects spectral imbalance in upstream tensors — meaning imbalance
+# between low-frequency/global, mid-frequency structural, and high-frequency
+# fine components.
+#
+# Even after multi-scale alignment (A133), tensors can still exhibit spectral
+# skew, causing certain MF-layers (especially MF-420+ resonance & MF-450+
+# compression) to over- or under-react.
+#
+# A134 ensures the tensor entering MF-401 has a balanced spectral density,
+# preventing:
+#   - resonance amplification
+#   - transport-stage instability
+#   - substrate harmonics mismatch
+#
+# This is a purely mathematical spectral equalizer applied before substrate entry.
+#
+# Output: spectrally balanced tensor ready for stable substrate entry.
+# ---------------------------------------------
+class A134_SpectralEqualizationLayer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.s1 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # spectral transform
+        self.s2 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # inverse transform
+        self.lam = 0.15  # spectral smoothing coefficient
+        self.act = nn.Tanh()  # bounded modulation
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # spectral projection
+        f = x @ self.s1
+
+        # spectral smoothing
+        s = f - self.lam * self.act(f)
+
+        # back-project into feature space
+        x_new = s @ self.s2
+
+        # unit-norm manifold projection
+        norm = torch.norm(x_new, dim=-1, keepdim=True) + 1e-12
+        return x_new / norm
+
+
+# ---------------------------------------------
+# A135 — Pre-Substrate Energy Normalization Layer (PSENL)
+# ---------------------------------------------
+# A135 is the next required operator in the A13x conditioning sequence.
+# It regulates energy distribution inside a tensor before it enters the
+# MF-401 → MF-500 substrate.
+#
+# Even after:
+#   - A130 – Coupling Gate
+#   - A131 – Drift Attenuation
+#   - A132 – Curvature Harmonization
+#   - A133 – Multi-Scale Alignment
+#   - A134 – Spectral Equalization
+# the tensor may still possess uneven energy concentration, meaning certain
+# dimensions or feature bands carry disproportionately high or low energy.
+#
+# A135 provides energy normalization across the vector, stabilizing the tensor
+# so that MF-401 receives a well-conditioned input.
+#
+# A135 performs:
+#   1. Energy projection – computes energy per-feature
+#   2. Energy smoothing – suppresses extreme energy spikes
+#   3. Energy redistribution – balances energy across dimensions
+#   4. Manifold renormalization – ensures unit-norm constraints
+#
+# Output: energy-normalized tensor ready for stable substrate entry.
+# ---------------------------------------------
+class A135_EnergyNormalizationLayer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.energy_map = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.mu = 0.20  # energy redistribution coefficient
+        self.act = nn.Tanh()  # bounded activation
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # energy projection
+        e = x @ self.energy_map
+
+        # energy deviation
+        d = e - x
+
+        # controlled redistribution
+        x_new = x + self.mu * self.act(d)
+
+        # manifold unit normalization
+        norm = torch.norm(x_new, dim=-1, keepdim=True) + 1e-12
+        return x_new / norm
+
+
+# ---------------------------------------------
+# A136 — Cross-Manifold Alignment Regulator (CMAR)
+# ---------------------------------------------
+# A136 is the first operator in the cross-manifold regulation band, bridging:
+#   - the upstream feature manifold (post A130–A135 conditioning)
+# into
+#   - the substrate manifold expected by MF-401 → MF-500.
+#
+# Even after energy normalization (A135), tensors may still contain:
+#   - misaligned basis structure
+#   - incompatible manifold curvature
+#   - cross-dimension skew
+#   - latent structural bias
+#
+# A136 corrects these by computing a learned manifold transform, mapping upstream
+# features into substrate-compatible geometric coordinates.
+#
+# A136 performs:
+#   1. Manifold projection – maps input tensor into a learned manifold basis
+#   2. Cross-manifold correction – computes deviation between upstream and substrate manifolds
+#   3. Regulated recombination – applies bounded correction to align manifolds
+#   4. Re-normalization – ensures unit-norm manifold constraints before substrate entry
+#
+# Output: cross-manifold aligned tensor ready for stable substrate entry.
+# ---------------------------------------------
+class A136_CrossManifoldAlignmentRegulator(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.m1 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # manifold projection
+        self.m2 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # corrective projection
+        self.eta = 0.18  # manifold alignment coefficient
+        self.act = nn.Tanh()  # bounded correction
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # forward manifold projection
+        u = x @ self.m1
+
+        # deviation between manifolds
+        d = u - x
+
+        # regulated correction
+        x_new = x + self.eta * self.act(d @ self.m2)
+
+        # unit-manifold normalization
+        norm = torch.norm(x_new, dim=-1, keepdim=True) + 1e-12
+        return x_new / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):

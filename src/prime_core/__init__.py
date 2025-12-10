@@ -7,6 +7,9 @@ from .influence_substrate import (
     A131_DriftAttenuationLayer,
     A132_CurvatureHarmonizationLayer,
     A133_MultiScaleAlignmentLayer,
+    A134_SpectralEqualizationLayer,
+    A135_EnergyNormalizationLayer,
+    A136_CrossManifoldAlignmentRegulator,
     MFPhaseBase,
     normalize_tensor,
 )
@@ -17,6 +20,9 @@ __all__ = [
     'A131_DriftAttenuationLayer',
     'A132_CurvatureHarmonizationLayer',
     'A133_MultiScaleAlignmentLayer',
+    'A134_SpectralEqualizationLayer',
+    'A135_EnergyNormalizationLayer',
+    'A136_CrossManifoldAlignmentRegulator',
     'MFPhaseBase',
     'normalize_tensor',
 ]
