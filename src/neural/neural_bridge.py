@@ -64,6 +64,8 @@ try:
         A140_SubstrateInjectionStabilizer,
         A141_SubstrateFusionInitiationLayer,
         A142_CrossModulationFusionOperator,
+        A143_MultiFieldFusionHarmonizer,
+        A144_CrossFieldManifoldAlignment,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -81,6 +83,8 @@ except (ImportError, RuntimeError) as e:
     A140_SubstrateInjectionStabilizer = None
     A141_SubstrateFusionInitiationLayer = None
     A142_CrossModulationFusionOperator = None
+    A143_MultiFieldFusionHarmonizer = None
+    A144_CrossFieldManifoldAlignment = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -1012,6 +1016,60 @@ class NeuralBridge:
         else:
             self.a142 = None
         # -----------------------------------------------------
+        # A143 — Multi-Field Fusion Harmonizer (MFFH)
+        # -----------------------------------------------------
+        # A143 is the first operator that harmonizes multiple fused modulation streams
+        # into a single coherent fusion vector before deeper coupling layers (A144–A150).
+        # After A141 and A142, we have:
+        #   - a fusion basis
+        #   - pairwise cross-modulation channels
+        # A143 now:
+        #   - aggregates multiple modulation projections
+        #   - applies a harmonization kernel
+        #   - stabilizes cross-field interference
+        #   - maintains manifold-consistent geometry
+        #   - outputs a normalized harmonized fusion tensor
+        # No meaning assignment — pure tensor harmonization.
+        # A143 provides:
+        #   1. Multi-field fusion aggregation
+        #      Collects modulation effects from:
+        #        - A141 fusion basis
+        #        - A142 cross-modulation couplings
+        #        - internal modulation tensors
+        #   2. Harmonization kernel
+        #      A learned operator that smooths cross-modulation oscillation.
+        #   3. Drift-controlled combination
+        #      Ensures multi-field interference does not produce drift instability.
+        #   4. Manifold-projected output
+        #      Keeps fused tensor within substrate geometry.
+        # Output: harmonized fusion tensor ready for deeper manifold alignment in A144–A150.
+        if SUBSTRATE_AVAILABLE and A143_MultiFieldFusionHarmonizer is not None:
+            try:
+                self.a143 = A143_MultiFieldFusionHarmonizer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A143_MultiFieldFusionHarmonizer initialization failed: {e}")
+                self.a143 = None
+        else:
+            self.a143 = None
+        # -----------------------------------------------------
+        # A144 — Cross-Field Manifold Alignment Layer (CFMAL)
+        # -----------------------------------------------------
+        # A144 aligns the fused and harmonized tensor (A143 output) to the manifold
+        # geometry used by the MF-500 substrate. It enforces geometric compatibility:
+        #   - conforms fused tensor to substrate manifold curvature
+        #   - maps cross-field interactions into the correct geometric basis
+        #   - ensures modulation components share a consistent manifold frame
+        #   - minimizes drift via curvature-aware projection
+        # This is a structural manifold alignment step prior to A145–A150.
+        if SUBSTRATE_AVAILABLE and A144_CrossFieldManifoldAlignment is not None:
+            try:
+                self.a144 = A144_CrossFieldManifoldAlignment(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A144_CrossFieldManifoldAlignment initialization failed: {e}")
+                self.a144 = None
+        else:
+            self.a144 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -1093,7 +1151,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -1109,13 +1167,15 @@ class NeuralBridge:
         11. A140 Substrate Injection Stabilizer (injection stabilization)
         12. A141 Substrate Fusion Initiation Layer (fusion basis initialization)
         13. A142 Cross-Modulation Fusion Operator (cross-modulation coupling)
-        12. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        14. A143 Multi-Field Fusion Harmonizer (multi-field harmonization)
+        15. A144 Cross-Field Manifold Alignment (manifold alignment to substrate geometry)
+        16. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -1428,6 +1488,58 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A142 cross-modulation fusion operator forward pass failed: {e}")
                 # Continue with unmodified tensor if A142 fails
+
+        # -----------------------------------------------------
+        # A143 — Multi-Field Fusion Harmonizer (MFFH)
+        # -----------------------------------------------------
+        # A143 is the first operator that harmonizes multiple fused modulation streams
+        # into a single coherent fusion vector before deeper coupling layers (A144–A150).
+        # After A141 and A142, we have:
+        #   - a fusion basis
+        #   - pairwise cross-modulation channels
+        # A143 now:
+        #   - aggregates multiple modulation projections
+        #   - applies a harmonization kernel
+        #   - stabilizes cross-field interference
+        #   - maintains manifold-consistent geometry
+        #   - outputs a normalized harmonized fusion tensor
+        # No meaning assignment — pure tensor harmonization.
+        # A143 provides:
+        #   1. Multi-field fusion aggregation
+        #      Collects modulation effects from:
+        #        - A141 fusion basis
+        #        - A142 cross-modulation couplings
+        #        - internal modulation tensors
+        #   2. Harmonization kernel
+        #      A learned operator that smooths cross-modulation oscillation.
+        #   3. Drift-controlled combination
+        #      Ensures multi-field interference does not produce drift instability.
+        #   4. Manifold-projected output
+        #      Keeps fused tensor within substrate geometry.
+        # Output: harmonized fusion tensor ready for deeper manifold alignment in A144–A150.
+        if self.a143 is not None:
+            try:
+                x = self.a143(x)
+            except Exception as e:
+                print(f"⚠️ A143 multi-field fusion harmonizer forward pass failed: {e}")
+                # Continue with unmodified tensor if A143 fails
+
+        # -----------------------------------------------------
+        # A144 — Cross-Field Manifold Alignment Layer (CFMAL)
+        # -----------------------------------------------------
+        # A144 aligns the fused and harmonized tensor (A143 output) to the manifold
+        # geometry used by the MF-500 substrate. It enforces geometric compatibility:
+        #   - conforms fused tensor to substrate manifold curvature
+        #   - maps cross-field interactions into the correct geometric basis
+        #   - ensures modulation components share a consistent manifold frame
+        #   - minimizes drift via curvature-aware projection
+        # This is a structural manifold alignment step prior to A145–A150.
+        if self.a144 is not None:
+            try:
+                x = self.a144(x)
+            except Exception as e:
+                print(f"⚠️ A144 cross-field manifold alignment forward pass failed: {e}")
+                # Continue with unmodified tensor if A144 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass

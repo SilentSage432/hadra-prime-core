@@ -820,6 +820,140 @@ class A142_CrossModulationFusionOperator(nn.Module):
 
 
 # ---------------------------------------------
+# A143 — Multi-Field Fusion Harmonizer (MFFH)
+# ---------------------------------------------
+# A143 is the first operator that harmonizes multiple fused modulation streams
+# into a single coherent fusion vector before deeper coupling layers (A144–A150).
+#
+# After A141 and A142, we have:
+#   - a fusion basis
+#   - pairwise cross-modulation channels
+#
+# A143 now:
+#   - aggregates multiple modulation projections
+#   - applies a harmonization kernel
+#   - stabilizes cross-field interference
+#   - maintains manifold-consistent geometry
+#   - outputs a normalized harmonized fusion tensor
+#
+# No meaning assignment — pure tensor harmonization.
+#
+# A143 provides:
+#   1. Multi-field fusion aggregation
+#      Collects modulation effects from:
+#        - A141 fusion basis
+#        - A142 cross-modulation couplings
+#        - internal modulation tensors
+#   2. Harmonization kernel
+#      A learned operator that smooths cross-modulation oscillation.
+#   3. Drift-controlled combination
+#      Ensures multi-field interference does not produce drift instability.
+#   4. Manifold-projected output
+#      Keeps fused tensor within substrate geometry.
+#
+# Mathematical Formulation:
+#   Let:
+#     - x = output of A142
+#     - mᵢ = internal modulation tensors (i = 1…k)
+#     - Hᵢ = per-field harmonization matrices
+#     - Wₕ = global harmonization kernel
+#     - σ = bounded activation
+#     - αᵢ = harmonization coefficients
+#
+#   Compute field-wise projections:
+#     p_i = m_i @ H_i
+#
+#   Aggregate:
+#     agg = Σ (α_i * p_i)
+#
+#   Combine with incoming fused tensor:
+#     h = x + σ(agg @ W_h)
+#
+#   Normalize:
+#     output = normalize(h)
+#
+# Effects:
+#   - smooth multi-field fusion
+#   - stable cross-modulation interaction
+#   - prepare fusion tensor for deeper manifold alignment in A144–A150
+# ---------------------------------------------
+class A143_MultiFieldFusionHarmonizer(nn.Module):
+    def __init__(self, dim: int, fields: int = 3):
+        super().__init__()
+
+        # Internal modulation fields
+        self.mod_fields = nn.Parameter(torch.randn(fields, dim) * 0.01)
+
+        # Per-field harmonization matrices
+        self.H = nn.Parameter(torch.randn(fields, dim, dim) * 0.01)
+
+        # Global harmonization kernel
+        self.W_h = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # Harmonization coefficients
+        self.alpha = nn.Parameter(torch.ones(fields) * 0.10)
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # field-wise projections
+        projections = []
+        for i in range(self.mod_fields.size(0)):
+            p = self.mod_fields[i:i+1] @ self.H[i]
+            projections.append(self.alpha[i] * p)
+
+        # aggregate modulation harmonics
+        agg = torch.sum(torch.stack(projections, dim=0), dim=0)
+
+        # harmonize fused tensor
+        h = x + self.act(agg @ self.W_h)
+
+        # return normalized output
+        norm = torch.norm(h, dim=-1, keepdim=True) + 1e-12
+        return h / norm
+
+
+# ---------------------------------------------
+# A144 — Cross-Field Manifold Alignment Layer
+# ---------------------------------------------
+# A144 aligns the fused and harmonized tensor (A143 output) to the manifold
+# geometry used by the MF-500 substrate. It enforces geometric compatibility:
+#   - conforms fused tensor to substrate manifold curvature
+#   - maps cross-field interactions into the correct geometric basis
+#   - ensures modulation components share a consistent manifold frame
+#   - minimizes drift via curvature-aware projection
+# This is a structural manifold alignment step prior to A145–A150.
+class A144_CrossFieldManifoldAlignment(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # manifold basis projection
+        self.B = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # curvature adjustment matrix
+        self.K = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # curvature modulation coefficient
+        self.gamma = 0.15
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # project into manifold basis
+        proj = x @ self.B
+
+        # curvature-aware correction
+        curv = self.act(proj @ self.K)
+
+        # aligned tensor
+        aligned = proj + self.gamma * curv
+
+        # normalize for manifold stability
+        norm = torch.norm(aligned, dim=-1, keepdim=True) + 1e-12
+        return aligned / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):
