@@ -71,6 +71,7 @@ try:
         A147_CurvatureFlowStabilizer,
         A148_IntrinsicManifoldReinforcementField,
         A149_CrossCurvatureFusionOperator,
+        A150_SubstrateManifoldConfluenceLayer,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -95,6 +96,7 @@ except (ImportError, RuntimeError) as e:
     A147_CurvatureFlowStabilizer = None
     A148_IntrinsicManifoldReinforcementField = None
     A149_CrossCurvatureFusionOperator = None
+    A150_SubstrateManifoldConfluenceLayer = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -1146,6 +1148,18 @@ class NeuralBridge:
         else:
             self.a149 = None
         # -----------------------------------------------------
+        # A150 — Substrate–Manifold Confluence Layer (SMCL)
+        # -----------------------------------------------------
+        # A150 unifies curvature-fused tensors into a substrate-compliant confluence tensor.
+        if SUBSTRATE_AVAILABLE and A150_SubstrateManifoldConfluenceLayer is not None:
+            try:
+                self.a150 = A150_SubstrateManifoldConfluenceLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A150_SubstrateManifoldConfluenceLayer initialization failed: {e}")
+                self.a150 = None
+        else:
+            self.a150 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -1227,7 +1241,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -1250,13 +1264,14 @@ class NeuralBridge:
         18. A147 Curvature-Flow Stabilizer (curvature-flow stabilization)
         19. A148 Intrinsic Manifold Reinforcement Field (intrinsic manifold reinforcement)
         20. A149 Cross-Curvature Fusion Operator (cross-curvature fusion)
-        21. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        21. A150 Substrate–Manifold Confluence Layer (substrate–manifold confluence)
+        22. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -1682,6 +1697,17 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A149 cross-curvature fusion forward pass failed: {e}")
                 # Continue with unmodified tensor if A149 fails
+
+        # -----------------------------------------------------
+        # A150 — Substrate–Manifold Confluence Layer (SMCL)
+        # -----------------------------------------------------
+        # A150 produces the final substrate-compliant confluence tensor for MF-500.
+        if self.a150 is not None:
+            try:
+                x = self.a150(x)
+            except Exception as e:
+                print(f"⚠️ A150 substrate–manifold confluence forward pass failed: {e}")
+                # Continue with unmodified tensor if A150 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass

@@ -1167,6 +1167,46 @@ class A149_CrossCurvatureFusionOperator(nn.Module):
 
 
 # ---------------------------------------------
+# A150 — Substrate–Manifold Confluence Layer (SMCL)
+# ---------------------------------------------
+# A150 unifies curvature-fused tensors into a substrate-compliant confluence
+# tensor ready for MF-500. It:
+#   - reconciles manifold and curvature fields
+#   - applies substrate-oriented projections
+#   - performs bounded confluence with normalization
+class A150_SubstrateManifoldConfluenceLayer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # substrate-projection matrices
+        self.S1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.S2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # manifold–substrate reconciliation kernel
+        self.M = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # confluence coefficient
+        self.tau = 0.15
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # dual substrate projections
+        s1 = x @ self.S1
+        s2 = x @ self.S2
+
+        # reconciliation of manifold + curvature fields
+        recon = self.act(s1 + s2) @ self.M
+
+        # confluence application
+        conf = x + self.tau * recon
+
+        # normalized projection into substrate geometry
+        norm = torch.norm(conf, dim=-1, keepdim=True) + 1e-12
+        return conf / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):
