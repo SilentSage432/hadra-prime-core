@@ -954,6 +954,46 @@ class A144_CrossFieldManifoldAlignment(nn.Module):
 
 
 # ---------------------------------------------
+# A145 — Manifold Curvature Coupling Operator
+# ---------------------------------------------
+# A145 couples the fused/harmonized tensor (post A144) to a learned curvature
+# field approximation of the substrate manifold. It ensures:
+#   - geometric consistency with manifold curvature
+#   - stable transport across manifold regions
+#   - curvature-aware modulation retention
+#   - reduced drift under manifold transformations
+# This is a purely mathematical tensor ↔ curvature-field coupling stage ahead
+# of deeper manifold fusion (A146–A150).
+class A145_ManifoldCurvatureCouplingOperator(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # curvature field kernels
+        self.C1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.C2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # curvature coupling coefficient
+        self.beta = 0.20
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # curvature projections
+        c1 = x @ self.C1
+        c2 = x @ self.C2
+
+        # interactive curvature response
+        curv = self.act(c1 * c2)
+
+        # curvature-coupled tensor
+        coupled = x + self.beta * curv
+
+        # manifold-stable normalization
+        norm = torch.norm(coupled, dim=-1, keepdim=True) + 1e-12
+        return coupled / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):

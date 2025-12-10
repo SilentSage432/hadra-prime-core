@@ -66,6 +66,7 @@ try:
         A142_CrossModulationFusionOperator,
         A143_MultiFieldFusionHarmonizer,
         A144_CrossFieldManifoldAlignment,
+        A145_ManifoldCurvatureCouplingOperator,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -85,6 +86,7 @@ except (ImportError, RuntimeError) as e:
     A142_CrossModulationFusionOperator = None
     A143_MultiFieldFusionHarmonizer = None
     A144_CrossFieldManifoldAlignment = None
+    A145_ManifoldCurvatureCouplingOperator = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -1070,6 +1072,20 @@ class NeuralBridge:
         else:
             self.a144 = None
         # -----------------------------------------------------
+        # A145 — Manifold Curvature Coupling Operator (MCCO)
+        # -----------------------------------------------------
+        # A145 couples the fused/harmonized tensor (post A144) to a learned curvature
+        # field approximation of the substrate manifold. It enforces curvature-aware
+        # geometric consistency and minimizes drift before deeper manifold fusion (A146–A150).
+        if SUBSTRATE_AVAILABLE and A145_ManifoldCurvatureCouplingOperator is not None:
+            try:
+                self.a145 = A145_ManifoldCurvatureCouplingOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A145_ManifoldCurvatureCouplingOperator initialization failed: {e}")
+                self.a145 = None
+        else:
+            self.a145 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -1151,7 +1167,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -1169,13 +1185,14 @@ class NeuralBridge:
         13. A142 Cross-Modulation Fusion Operator (cross-modulation coupling)
         14. A143 Multi-Field Fusion Harmonizer (multi-field harmonization)
         15. A144 Cross-Field Manifold Alignment (manifold alignment to substrate geometry)
-        16. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        16. A145 Manifold Curvature Coupling Operator (curvature coupling)
+        17. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -1540,6 +1557,19 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A144 cross-field manifold alignment forward pass failed: {e}")
                 # Continue with unmodified tensor if A144 fails
+
+        # -----------------------------------------------------
+        # A145 — Manifold Curvature Coupling Operator (MCCO)
+        # -----------------------------------------------------
+        # A145 couples the fused/harmonized tensor (post A144) to a learned curvature
+        # field approximation of the substrate manifold. It enforces curvature-aware
+        # geometric consistency and minimizes drift before deeper manifold fusion (A146–A150).
+        if self.a145 is not None:
+            try:
+                x = self.a145(x)
+            except Exception as e:
+                print(f"⚠️ A145 manifold curvature coupling forward pass failed: {e}")
+                # Continue with unmodified tensor if A145 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
