@@ -637,6 +637,11 @@ class NeuralBridge:
             self.mf433 = self.MF433_HarmonicPropagationSynthesis(dim=self.dim)
         except Exception:
             self.mf433 = None
+        # MF-434 — Harmonic–Coherence Manifold Coupling Layer
+        try:
+            self.mf434 = self.MF434_HarmonicCoherenceManifoldCoupling(dim=self.dim)
+        except Exception:
+            self.mf434 = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -32742,6 +32747,132 @@ class NeuralBridge:
                 return output
             except Exception:
                 # If synthesis fails, return original propagation tensor
+                return x
+
+    class MF434_HarmonicCoherenceManifoldCoupling(nn.Module):
+        """
+        MF-434 — Harmonic–Coherence Manifold Coupling Layer
+
+        Introduces the kernel that couples:
+        - harmonic–propagation synthesis output from MF-433
+        - residual coherence structures (implicit in x)
+        - manifold curvature signatures from earlier manifold-aligned phases
+
+        The objective is to create a harmonic–coherence manifold coupling field, enabling the system to:
+        - align harmonic structures with coherence gradients
+        - sync harmonic behavior with manifold curvature
+        - prepare for global harmonic manifold synthesis in MF-435
+
+        MF-434 is a three-field coupling kernel—harmonic, coherence, and manifold geometry.
+
+        Core Computational Components:
+        1. Extract coherence gradient: C = x - x.roll(1) — identifies coherence deviation across bands
+        2. Extract manifold curvature approximation: M = x - 2x.roll(1) + x.roll(2) — same curvature
+           frame used earlier, now combined in a new structural context
+        3. Harmonic–coherence–manifold coupling: Compute learned coupling tensor
+           K = tanh(W_h H + W_c C + W_m M) where W_h, W_c, W_m are learned projections
+        4. Coupled output: x' = x + K ⊙ (H + C + M) — injects unified correction into propagation flow
+        """
+
+        def __init__(self, dim: int):
+            super().__init__()
+            self.h_proj = nn.Linear(dim, dim, bias=False)
+            self.c_proj = nn.Linear(dim, dim, bias=False)
+            self.m_proj = nn.Linear(dim, dim, bias=False)
+            self.activation = nn.Tanh()
+
+        def forward(self, x, harmonic):
+            """
+            x: propagation tensor (with coherence and manifold structure), shape [batch, dim]
+            harmonic: harmonic–propagation tensor from MF-433, shape [batch, dim]
+            Returns: harmonic–coherence–manifold coupled tensor, shape [batch, dim]
+            """
+            if torch is None or x is None:
+                return x
+
+            # If harmonic is None, return x unchanged
+            if harmonic is None:
+                return x
+
+            # Ensure x is a tensor
+            if not isinstance(x, torch.Tensor):
+                try:
+                    x = torch.tensor(x, dtype=torch.float32)
+                except Exception:
+                    return None
+
+            # Ensure harmonic is a tensor
+            if not isinstance(harmonic, torch.Tensor):
+                try:
+                    harmonic = torch.tensor(harmonic, dtype=torch.float32)
+                except Exception:
+                    return x
+
+            # Ensure proper shapes
+            if x.dim() == 1:
+                x = x.unsqueeze(0)
+            if harmonic.dim() == 1:
+                harmonic = harmonic.unsqueeze(0)
+
+            try:
+                batch_x, dim_x = x.shape
+                batch_h, dim_h = harmonic.shape
+
+                # Ensure dimensions match
+                if dim_x != dim_h:
+                    # Align dimensions if needed
+                    if dim_h < dim_x:
+                        padding = torch.zeros(
+                            (batch_h, dim_x - dim_h),
+                            dtype=harmonic.dtype,
+                            device=harmonic.device if hasattr(harmonic, 'device') else None
+                        )
+                        harmonic = torch.cat([harmonic, padding], dim=-1)
+                    else:
+                        harmonic = harmonic[..., :dim_x]
+                    dim = dim_x
+                else:
+                    dim = dim_x
+
+                # Ensure batch dimensions match
+                batch = max(batch_x, batch_h)
+                if batch_x != batch_h:
+                    if batch_x < batch:
+                        x = x.expand(batch, -1)
+                    if batch_h < batch:
+                        harmonic = harmonic.expand(batch, -1)
+
+                # Ensure projection dimensions match
+                if dim != self.h_proj.in_features:
+                    # Create new projections with correct dimension
+                    device = x.device if hasattr(x, 'device') else None
+                    self.h_proj = nn.Linear(dim, dim, bias=False)
+                    self.c_proj = nn.Linear(dim, dim, bias=False)
+                    self.m_proj = nn.Linear(dim, dim, bias=False)
+                    if device is not None:
+                        self.h_proj = self.h_proj.to(device)
+                        self.c_proj = self.c_proj.to(device)
+                        self.m_proj = self.m_proj.to(device)
+
+                # Coherence gradient: C = x - x.roll(1)
+                coherence = x - x.roll(shifts=1, dims=-1)
+
+                # Manifold curvature: M = x - 2x.roll(1) + x.roll(2)
+                curvature = x - 2 * x.roll(shifts=1, dims=-1) + x.roll(shifts=2, dims=-1)
+
+                # Coupling coefficients: K = tanh(W_h H + W_c C + W_m M)
+                coupling = self.activation(
+                    self.h_proj(harmonic) +
+                    self.c_proj(coherence) +
+                    self.m_proj(curvature)
+                )
+
+                # Apply unified coupling: x' = x + K ⊙ (H + C + M)
+                output = x + coupling * (harmonic + coherence + curvature)
+
+                return output
+            except Exception:
+                # If coupling fails, return original input
                 return x
 
     def integrate_A301(self):
