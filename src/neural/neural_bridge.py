@@ -612,6 +612,11 @@ class NeuralBridge:
             self.mf427 = self.MF427_MultiBandManifoldAlignment(dim=self.dim)
         except Exception:
             self.mf427 = None
+        # MF-428 — Unified Manifold-Synthesis Modulation Layer
+        try:
+            self.mf428 = self.MF428_ManifoldSynthesisModulation(dim=self.dim)
+        except Exception:
+            self.mf428 = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -32283,6 +32288,79 @@ class NeuralBridge:
                 return output
             except Exception:
                 # If alignment fails, return original input
+                return x
+
+    class MF428_ManifoldSynthesisModulation(nn.Module):
+        """
+        MF-428 — Unified Manifold-Synthesis Modulation Layer
+
+        Takes the multi-band manifold-aligned tensor from MF-427 and produces a unified synthesis
+        modulation field that compresses manifold curvature responses into a single, harmonized
+        modulation vector.
+
+        This phase accomplishes:
+        - manifold-band unification
+        - synthesis of curvature-adjusted responses
+        - creation of a global modulation tensor
+        - preparation for resonance-phase-manifold closure (MF-429–MF-430)
+
+        MF-428 is where multi-band manifold geometry → unified modulation field.
+
+        Core Computational Components:
+        1. Manifold-synthesis projection: compresses multi-band curvature signals into a unified
+           representation via learnable synthesis projection matrix.
+        2. Nonlinear modulation mapping: applies smooth nonlinear transform (tanh) to stabilize the
+           synthesis field, bounding the modulation spectrum and avoiding over-amplification.
+        3. Unified modulation application: modulation tensor is applied multiplicatively to yield
+           a propagation tensor enhanced by unified manifold-synthesis information.
+        """
+
+        def __init__(self, dim: int):
+            super().__init__()
+            self.synthesis_proj = nn.Linear(dim, dim, bias=False)
+            self.activation = nn.Tanh()
+
+        def forward(self, x):
+            """
+            x: multi-band manifold-aligned propagation tensor from MF-427, shape [batch, dim]
+            """
+            if torch is None or x is None:
+                return x
+
+            # Ensure x is a tensor
+            if not isinstance(x, torch.Tensor):
+                try:
+                    x = torch.tensor(x, dtype=torch.float32)
+                except Exception:
+                    return None
+
+            # Ensure proper shape
+            if x.dim() == 1:
+                x = x.unsqueeze(0)
+
+            try:
+                batch, dim = x.shape
+
+                # Ensure projection dimension matches
+                if dim != self.synthesis_proj.in_features:
+                    # Create new projection with correct dimension
+                    device = x.device if hasattr(x, 'device') else None
+                    self.synthesis_proj = nn.Linear(dim, dim, bias=False)
+                    if device is not None:
+                        self.synthesis_proj = self.synthesis_proj.to(device)
+
+                # Unified manifold synthesis projection
+                synth = self.synthesis_proj(x)
+
+                # Nonlinear stabilization
+                modulation = self.activation(synth)
+
+                # Apply unified modulation
+                output = x + modulation * x
+
+                return output
+            except Exception:
+                # If synthesis fails, return original input
                 return x
 
     def integrate_A301(self):
