@@ -558,6 +558,14 @@ class NeuralBridge:
             )
         except Exception:
             self.mf417_mpdl = None
+        # MF-418 — Multi-Step Manifold Propagation Integration Layer (MS-MPIL)
+        try:
+            self.mf418_msmpil = self.MultiStepManifoldPropagationIntegrationLayer(
+                substrate_dim=self.dim,
+                steps=4
+            )
+        except Exception:
+            self.mf418_msmpil = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -31125,6 +31133,175 @@ class NeuralBridge:
                     return F.normalize(HM_out, dim=-1)
                 except Exception:
                     return HM_out
+
+    class MultiStepManifoldPropagationIntegrationLayer(nn.Module):
+        """
+        MF-418 — Multi-Step Manifold Propagation Integration Layer (MS-MPIL)
+
+        Introduces multi-step propagation integration, allowing manifold-propagation dynamics to
+        accumulate across several internal propagation steps within a single forward pass. This
+        layer consumes the directional manifold-propagation output (MP_out) from MF-417 and
+        constructs an integrated multi-step propagation tensor, enabling iterative manifold-flow
+        propagation, multi-step accumulation, controlled step weighting, propagation stability
+        constraints, and substrate-aligned integrated output.
+
+        Core Computational Components:
+        1. Step-Wise Propagation Loop: applies K propagation-update steps using finite
+           directional shifts (forward and backward), simulating manifold-wise propagation
+           across multiple internal steps.
+        2. Step Accumulation Field: accumulates per-step propagation states using learned
+           step weights, encoding multi-step propagation influence.
+        3. Regulated Fusion: fuses the original propagation field, step-accumulated field, and
+           propagation-integration bias via learned coefficients (α, β, γ).
+        4. Stabilization + Substrate Projection: applies a limiter and final projection to
+           produce the integrated propagation tensor for MF-419.
+
+        Outcome:
+        MF-418 outputs MS_out, which encodes multi-step directional propagation, accumulated
+        manifold-flow influence, regulated propagation fusion, and substrate-aligned propagation
+        output. This completes the initial multi-step propagation arc, preparing the system for
+        propagation coherence phases where integrated flows are aligned to manifold consistency
+        constraints.
+        """
+
+        def __init__(self, substrate_dim, steps=4):
+            super().__init__()
+            self.steps = steps
+
+            # Step propagation matrix
+            self.W_step = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+            # Step weighting vector
+            self.step_weight = nn.Parameter(
+                torch.randn(steps) * 0.01
+            )
+
+            # Integration bias
+            self.b_int = nn.Parameter(
+                torch.randn(substrate_dim) * 0.01
+            )
+
+            # Fusion coefficients
+            self.alpha = nn.Parameter(torch.tensor(0.45))
+            self.beta = nn.Parameter(torch.tensor(0.40))
+            self.gamma = nn.Parameter(torch.tensor(0.15))
+
+            # Final alignment projection
+            self.W_align = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def forward(self, MP_out):
+            """
+            MP_out: manifold propagation tensor from MF-417, shape [batch, dim]
+            """
+            if torch is None or MP_out is None:
+                return MP_out
+
+            # Ensure MP_out is a tensor
+            if not isinstance(MP_out, torch.Tensor):
+                try:
+                    MP_out = torch.tensor(MP_out, dtype=torch.float32)
+                except Exception:
+                    return MP_out
+
+            # Ensure proper shape
+            if MP_out.dim() == 1:
+                MP_out = MP_out.unsqueeze(0)
+
+            try:
+                import torch.nn.functional as F
+
+                batch, dim = MP_out.shape
+                substrate_dim = dim
+
+                # Ensure dimensions match
+                if dim != self.W_align.shape[0]:
+                    if dim < self.W_align.shape[0]:
+                        padding = torch.zeros(
+                            (batch, self.W_align.shape[0] - dim),
+                            dtype=MP_out.dtype,
+                            device=MP_out.device if hasattr(MP_out, 'device') else None
+                        )
+                        MP_out = torch.cat([MP_out, padding], dim=-1)
+                        dim = self.W_align.shape[0]
+                    else:
+                        MP_out = MP_out[..., :self.W_align.shape[0]]
+                        dim = self.W_align.shape[0]
+
+                # 1. Multi-step propagation loop
+                states = []
+                state = MP_out
+
+                for k in range(self.steps):
+                    # Forward/backward shifts
+                    if dim > 1:
+                        forward = F.pad(state[:, 1:], (0, 1), mode="replicate")
+                        backward = F.pad(state[:, :-1], (1, 0), mode="replicate")
+                    else:
+                        forward = state
+                        backward = state
+
+                    # Ensure shifts match dimension
+                    if forward.shape[-1] != dim:
+                        if forward.shape[-1] < dim:
+                            padding = torch.zeros(
+                                forward.shape[:-1] + (dim - forward.shape[-1],),
+                                dtype=forward.dtype,
+                                device=forward.device if hasattr(forward, 'device') else None
+                            )
+                            forward = torch.cat([forward, padding], dim=-1)
+                        else:
+                            forward = forward[..., :dim]
+                    if backward.shape[-1] != dim:
+                        if backward.shape[-1] < dim:
+                            padding = torch.zeros(
+                                backward.shape[:-1] + (dim - backward.shape[-1],),
+                                dtype=backward.dtype,
+                                device=backward.device if hasattr(backward, 'device') else None
+                            )
+                            backward = torch.cat([backward, padding], dim=-1)
+                        else:
+                            backward = backward[..., :dim]
+
+                    # Propagation update
+                    delta = forward - backward
+                    update = torch.matmul(delta, self.W_step)
+
+                    state = state + update
+                    states.append(state)
+
+                # 2. Step accumulation field
+                A = torch.zeros_like(MP_out)
+                for k, st in enumerate(states):
+                    if k < len(self.step_weight):
+                        A += self.step_weight[k] * st
+                A = F.normalize(A, dim=-1)
+
+                # 3. Fusion
+                b_int_expanded = self.b_int.unsqueeze(0).expand(batch, -1)  # [batch, dim]
+                F_combined = (
+                    self.alpha * MP_out
+                    + self.beta * A
+                    + self.gamma * b_int_expanded
+                )
+
+                # 4. Stabilization + projection
+                F_reg = F_combined / (1 + torch.abs(F_combined))
+
+                MS_out = torch.matmul(F_reg, self.W_align)
+                MS_out = F.normalize(MS_out, dim=-1)
+
+                return MS_out
+            except Exception:
+                # If integration fails, return normalized input
+                try:
+                    import torch.nn.functional as F
+                    return F.normalize(MP_out, dim=-1)
+                except Exception:
+                    return MP_out
 
     def integrate_A301(self):
         """
