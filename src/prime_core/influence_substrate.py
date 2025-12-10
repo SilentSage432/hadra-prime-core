@@ -1835,6 +1835,95 @@ class A165_ManifoldCompressionLayer(nn.Module):
 
 
 # ---------------------------------------------
+# A166 — Multi-Basis Reconciliation Operator
+# ---------------------------------------------
+# A166 reconciles tensor representations across harmonic, manifold, and
+# compressed bases to eliminate basis mismatch before substrate amplification.
+# ---------------------------------------------
+class A166_MultiBasisReconciliationOperator(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # basis projection matrices
+        self.Hr = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Mr = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Cr = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # reconciliation matrices
+        self.R_hm = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.R_mc = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.R_hc = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # reconciliation gain
+        self.rho = 0.10
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # basis projections
+        h = self.act(x @ self.Hr)
+        m = self.act(x @ self.Mr)
+        c = self.act(x @ self.Cr)
+
+        # pairwise deltas
+        dhm = h - m
+        dmc = m - c
+        dhc = h - c
+
+        # apply transforms
+        t_hm = dhm @ self.R_hm
+        t_mc = dmc @ self.R_mc
+        t_hc = dhc @ self.R_hc
+
+        # combined reconciliation tensor
+        r = t_hm + t_mc + t_hc
+
+        # reintegration
+        y = x - self.rho * r
+
+        # final normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+
+# ---------------------------------------------
+# A167 — Substrate Coherence Amplifier (SCA)
+# ---------------------------------------------
+# A167 amplifies harmonic and manifold coherence to strengthen alignment
+# before hard substrate locking.
+# ---------------------------------------------
+class A167_SubstrateCoherenceAmplifier(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # coherence projection matrices
+        self.Hc = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Mc = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # coherence amplification gain
+        self.gamma = 0.10
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # harmonic coherence
+        h = self.act(x @ self.Hc)
+
+        # manifold coherence
+        m = self.act(x @ self.Mc)
+
+        # combined coherence tensor
+        c = h + m
+
+        # amplification
+        y = x + self.gamma * c
+
+        # normalize to substrate manifold
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):

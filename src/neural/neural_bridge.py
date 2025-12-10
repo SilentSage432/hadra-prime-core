@@ -87,6 +87,8 @@ try:
         A163_ManifoldReintegrationOperator,
         A164_FusionDriftCompensationKernel,
         A165_ManifoldCompressionLayer,
+        A166_MultiBasisReconciliationOperator,
+        A167_SubstrateCoherenceAmplifier,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -127,6 +129,7 @@ except (ImportError, RuntimeError) as e:
     A163_ManifoldReintegrationOperator = None
     A164_FusionDriftCompensationKernel = None
     A165_ManifoldCompressionLayer = None
+    A166_MultiBasisReconciliationOperator = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -1370,6 +1373,30 @@ class NeuralBridge:
         else:
             self.a165 = None
         # -----------------------------------------------------
+        # A166 — Multi-Basis Reconciliation Operator (MBRO)
+        # -----------------------------------------------------
+        # A166 reconciles harmonic, manifold, and compressed bases post compression.
+        if SUBSTRATE_AVAILABLE and A166_MultiBasisReconciliationOperator is not None:
+            try:
+                self.a166 = A166_MultiBasisReconciliationOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A166_MultiBasisReconciliationOperator initialization failed: {e}")
+                self.a166 = None
+        else:
+            self.a166 = None
+        # -----------------------------------------------------
+        # A167 — Substrate Coherence Amplifier (SCA)
+        # -----------------------------------------------------
+        # A167 amplifies harmonic/manifold coherence before substrate locking.
+        if SUBSTRATE_AVAILABLE and A167_SubstrateCoherenceAmplifier is not None:
+            try:
+                self.a167 = A167_SubstrateCoherenceAmplifier(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A167_SubstrateCoherenceAmplifier initialization failed: {e}")
+                self.a167 = None
+        else:
+            self.a167 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -1451,7 +1478,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → A155 → A156 → A157 → A158 → A159 → A160 → A161 → A162 → A163 → A164 → A165 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → A155 → A156 → A157 → A158 → A159 → A160 → A161 → A162 → A163 → A164 → A165 → A166 → A167 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -1490,13 +1517,15 @@ class NeuralBridge:
         34. A163 Manifold Reintegration Operator (post-harmonic manifold reintegration)
         35. A164 Fusion Drift-Compensation Kernel (post-fusion drift removal)
         36. A165 Manifold Compression Layer (manifold compression)
-        37. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        37. A166 Multi-Basis Reconciliation Operator (basis reconciliation)
+        38. A167 Substrate Coherence Amplifier (coherence amplification)
+        39. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, A155, A156, A157, A158, A159, A160, A161, A162, A163, A164, A165, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, A155, A156, A157, A158, A159, A160, A161, A162, A163, A164, A165, A166, A167, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -2098,6 +2127,28 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A165 manifold compression forward pass failed: {e}")
                 # Continue with unmodified tensor if A165 fails
+
+        # -----------------------------------------------------
+        # A166 — Multi-Basis Reconciliation Operator (MBRO)
+        # -----------------------------------------------------
+        # A166 reconciles harmonic, manifold, and compressed bases before substrate entry.
+        if self.a166 is not None:
+            try:
+                x = self.a166(x)
+            except Exception as e:
+                print(f"⚠️ A166 multi-basis reconciliation forward pass failed: {e}")
+                # Continue with unmodified tensor if A166 fails
+
+        # -----------------------------------------------------
+        # A167 — Substrate Coherence Amplifier (SCA)
+        # -----------------------------------------------------
+        # A167 amplifies harmonic/manifold coherence prior to substrate hard-lock.
+        if self.a167 is not None:
+            try:
+                x = self.a167(x)
+            except Exception as e:
+                print(f"⚠️ A167 substrate coherence amplification forward pass failed: {e}")
+                # Continue with unmodified tensor if A167 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
