@@ -642,6 +642,16 @@ class NeuralBridge:
             self.mf434 = self.MF434_HarmonicCoherenceManifoldCoupling(dim=self.dim)
         except Exception:
             self.mf434 = None
+        # MF-435 — Unified Harmonic Manifold Synthesis Layer
+        try:
+            self.mf435 = self.MF435_UnifiedHarmonicManifoldSynthesis(dim=self.dim)
+        except Exception:
+            self.mf435 = None
+        # MF-436 — Harmonic-Cascade Stability Buffer Layer
+        try:
+            self.mf436 = self.MF436_HarmonicCascadeStabilityBuffer(dim=self.dim, damping_init=0.05)
+        except Exception:
+            self.mf436 = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -32874,6 +32884,238 @@ class NeuralBridge:
             except Exception:
                 # If coupling fails, return original input
                 return x
+
+    class MF435_UnifiedHarmonicManifoldSynthesis(nn.Module):
+        """
+        MF-435 — Unified Harmonic Manifold Synthesis Layer
+
+        Closure phase of the harmonic–manifold integration arc (MF-432 → MF-435).
+
+        Its purpose is to synthesize:
+        - harmonic modulation features (MF-432)
+        - harmonic–propagation synthesis (MF-433)
+        - harmonic–coherence–manifold coupling (MF-434)
+
+        into a single unified harmonic manifold tensor.
+
+        This tensor becomes a higher-order modulation substrate for subsequent MF-440+ layers.
+
+        MF-435 does not collapse fields or reduce dimensionality; it creates a structurally consistent
+        composite tensor aligned across harmonic frequencies, coherence gradients, and manifold curvature.
+
+        Core Computational Components:
+        1. Construct the harmonic–manifold composite field: U = H + S + C
+           - H = harmonic tensor (MF-432)
+           - S = harmonic–propagation tensor (MF-433)
+           - C = harmonic–coherence–manifold tensor (MF-434 output)
+        2. Synthesis projection: M = tanh(W_u U) where W_u is a manifold-synthesis projection
+        3. Unified harmonic manifold output: x' = C + M
+           - The MF-434 output serves as the base signal, and the synthesis field modulates it
+        """
+
+        def __init__(self, dim: int):
+            super().__init__()
+            self.synthesis_proj = nn.Linear(dim, dim, bias=False)
+            self.activation = nn.Tanh()
+
+        def forward(self, harmonic, synth, coupled):
+            """
+            harmonic: harmonic modulation field from MF-432, shape [batch, dim]
+            synth: harmonic–propagation synthesis tensor from MF-433, shape [batch, dim]
+            coupled: harmonic–coherence–manifold tensor from MF-434, shape [batch, dim]
+            Returns: unified harmonic manifold tensor, shape [batch, dim]
+            """
+            if torch is None:
+                return coupled if coupled is not None else synth
+
+            # Handle None inputs gracefully
+            if harmonic is None:
+                harmonic = synth if synth is not None else coupled
+            if synth is None:
+                synth = coupled if coupled is not None else harmonic
+            if coupled is None:
+                coupled = synth if synth is not None else harmonic
+
+            # Ensure all inputs are tensors
+            if not isinstance(harmonic, torch.Tensor):
+                try:
+                    harmonic = torch.tensor(harmonic, dtype=torch.float32)
+                except Exception:
+                    harmonic = synth if isinstance(synth, torch.Tensor) else coupled
+            if not isinstance(synth, torch.Tensor):
+                try:
+                    synth = torch.tensor(synth, dtype=torch.float32)
+                except Exception:
+                    synth = harmonic if isinstance(harmonic, torch.Tensor) else coupled
+            if not isinstance(coupled, torch.Tensor):
+                try:
+                    coupled = torch.tensor(coupled, dtype=torch.float32)
+                except Exception:
+                    coupled = harmonic if isinstance(harmonic, torch.Tensor) else synth
+
+            # Ensure proper shapes
+            if harmonic.dim() == 1:
+                harmonic = harmonic.unsqueeze(0)
+            if synth.dim() == 1:
+                synth = synth.unsqueeze(0)
+            if coupled.dim() == 1:
+                coupled = coupled.unsqueeze(0)
+
+            try:
+                batch_h, dim_h = harmonic.shape
+                batch_s, dim_s = synth.shape
+                batch_c, dim_c = coupled.shape
+
+                # Determine target dimensions
+                dim = max(dim_h, dim_s, dim_c)
+                batch = max(batch_h, batch_s, batch_c)
+
+                # Align dimensions
+                if dim_h != dim:
+                    if dim_h < dim:
+                        padding = torch.zeros(
+                            (batch_h, dim - dim_h),
+                            dtype=harmonic.dtype,
+                            device=harmonic.device if hasattr(harmonic, 'device') else None
+                        )
+                        harmonic = torch.cat([harmonic, padding], dim=-1)
+                    else:
+                        harmonic = harmonic[..., :dim]
+                if dim_s != dim:
+                    if dim_s < dim:
+                        padding = torch.zeros(
+                            (batch_s, dim - dim_s),
+                            dtype=synth.dtype,
+                            device=synth.device if hasattr(synth, 'device') else None
+                        )
+                        synth = torch.cat([synth, padding], dim=-1)
+                    else:
+                        synth = synth[..., :dim]
+                if dim_c != dim:
+                    if dim_c < dim:
+                        padding = torch.zeros(
+                            (batch_c, dim - dim_c),
+                            dtype=coupled.dtype,
+                            device=coupled.device if hasattr(coupled, 'device') else None
+                        )
+                        coupled = torch.cat([coupled, padding], dim=-1)
+                    else:
+                        coupled = coupled[..., :dim]
+
+                # Align batch dimensions
+                if batch_h != batch:
+                    harmonic = harmonic.expand(batch, -1) if batch_h < batch else harmonic[:batch]
+                if batch_s != batch:
+                    synth = synth.expand(batch, -1) if batch_s < batch else synth[:batch]
+                if batch_c != batch:
+                    coupled = coupled.expand(batch, -1) if batch_c < batch else coupled[:batch]
+
+                # Ensure projection dimension matches
+                if dim != self.synthesis_proj.in_features:
+                    device = coupled.device if hasattr(coupled, 'device') else None
+                    self.synthesis_proj = nn.Linear(dim, dim, bias=False)
+                    if device is not None:
+                        self.synthesis_proj = self.synthesis_proj.to(device)
+
+                # Multi-source harmonic-manifold composite: U = H + S + C
+                composite = harmonic + synth + coupled
+
+                # Synthesis projection: M = tanh(W_u U)
+                unified = self.activation(self.synthesis_proj(composite))
+
+                # Final unified harmonic manifold tensor: x' = C + M
+                output = coupled + unified
+
+                return output
+            except Exception:
+                # If synthesis fails, return the coupled tensor (MF-434 output) as fallback
+                return coupled if coupled is not None else (synth if synth is not None else harmonic)
+
+    class MF436_HarmonicCascadeStabilityBuffer(nn.Module):
+        """
+        MF-436 — Harmonic-Cascade Stability Buffer Layer
+
+        Introduces a buffering substrate that stabilizes multi-tier harmonic cascades produced by
+        MF-432 → MF-435, ensuring they do not create runaway amplification or destructive interference
+        during cross-manifold influence propagation.
+
+        This layer is strictly ML-mechanical: tensor-level behavior regulation.
+
+        Functional Role:
+        - Inserts a Stability Buffer between the Harmonic Manifold Coupler (MF-424 → MF-427) and the
+          Propagative Influence Stack (MF-428 → MF-435)
+        - Ensures controlled amplitude flow, stable gradient surfaces across harmonic channels
+        - Prevents resonance spike cascades
+        - Preserves influence-manifold coherence
+
+        This is essential before the MF-440 series, which introduces multi-channel active rebalancing.
+
+        Core Mechanism:
+        buffered = cascade - α * (cascade_gradient * damping_mask)
+        Where:
+        - cascade = harmonic cascade tensor from MF-435
+        - cascade_gradient = local gradient of harmonic propagation
+        - damping_mask = learned suppression map
+        - α = stability coefficient (learned or constant small scalar)
+        """
+
+        def __init__(self, dim: int, damping_init: float = 0.05):
+            super().__init__()
+            self.dim = dim
+
+            # Learned damping mask: prevents runaway amplification
+            self.damping_mask = nn.Parameter(torch.ones(dim) * damping_init)
+
+            # Stability coefficient regulates gradient influence
+            self.alpha = nn.Parameter(torch.tensor(0.1))
+
+        def forward(self, cascade):
+            """
+            cascade: harmonic cascade tensor from MF-435, shape [batch, dim]
+            Returns: stabilized harmonic cascade tensor, shape [batch, dim]
+            """
+            if torch is None or cascade is None:
+                return cascade
+
+            # Ensure cascade is a tensor
+            if not isinstance(cascade, torch.Tensor):
+                try:
+                    cascade = torch.tensor(cascade, dtype=torch.float32)
+                except Exception:
+                    return None
+
+            # Ensure proper shape
+            if cascade.dim() == 1:
+                cascade = cascade.unsqueeze(0)
+
+            try:
+                batch, dim = cascade.shape
+
+                # Ensure damping mask dimension matches
+                if dim != self.damping_mask.shape[0]:
+                    # Create new damping mask with correct dimension
+                    device = cascade.device if hasattr(cascade, 'device') else None
+                    self.damping_mask = nn.Parameter(torch.ones(dim, device=device) * self.damping_mask.mean().item())
+                    if device is not None:
+                        self.damping_mask = self.damping_mask.to(device)
+
+                # Local gradient approximation (simple finite diff surrogate)
+                # For batch dimension: compute gradient along batch axis
+                if batch > 1:
+                    grad = cascade[1:] - cascade[:-1]
+                    # Extend last gradient to match batch size
+                    grad = torch.cat([grad, grad[-1:].clone()], dim=0)
+                else:
+                    # For single batch, use feature-wise gradient approximation
+                    grad = cascade - cascade.roll(shifts=1, dims=-1)
+
+                # Apply damping: buffered = cascade - α * (grad * damping_mask)
+                dampened = cascade - self.alpha * (grad * self.damping_mask)
+
+                return dampened
+            except Exception:
+                # If buffering fails, return original cascade
+                return cascade
 
     def integrate_A301(self):
         """
