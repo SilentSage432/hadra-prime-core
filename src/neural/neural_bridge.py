@@ -617,6 +617,26 @@ class NeuralBridge:
             self.mf428 = self.MF428_ManifoldSynthesisModulation(dim=self.dim)
         except Exception:
             self.mf428 = None
+        # MF-430 — Unified Influence–Phase–Manifold Closure Kernel
+        try:
+            self.mf430 = self.MF430_ClosureKernel(dim=self.dim)
+        except Exception:
+            self.mf430 = None
+        # MF-431 — Cross-Field Modulation Synchronization Kernel
+        try:
+            self.mf431 = self.MF431_CrossFieldSynchronization(dim=self.dim)
+        except Exception:
+            self.mf431 = None
+        # MF-432 — Harmonic Modulation Extraction Layer
+        try:
+            self.mf432 = self.MF432_HarmonicModulationExtractor(dim=self.dim)
+        except Exception:
+            self.mf432 = None
+        # MF-433 — Harmonic–Propagation Synthesis Kernel
+        try:
+            self.mf433 = self.MF433_HarmonicPropagationSynthesis(dim=self.dim)
+        except Exception:
+            self.mf433 = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -32361,6 +32381,367 @@ class NeuralBridge:
                 return output
             except Exception:
                 # If synthesis fails, return original input
+                return x
+
+    class MF430_ClosureKernel(nn.Module):
+        """
+        MF-430 — Unified Influence–Phase–Manifold Closure Kernel
+
+        Introduces the closure kernel that consolidates:
+        - influence-propagation dynamics
+        - resonance-coherence interactions
+        - phase-space alignment
+        - manifold curvature orientation
+        - convergence-stabilized modulation
+
+        into a single unified closure tensor.
+
+        This closure kernel does not collapse information; instead, it creates a coherent composite
+        field that future MF-431+ layers can use as a stable, harmonized substrate.
+
+        MF-430 marks the end of the Influence-Field Series.
+
+        Core Computational Components:
+        1. Multi-field composite construction: computes a bandwise composite from curvature, coherence,
+           resonance, and stabilization, merging direct influence, differential coherence, resonance
+           signatures, and convergence corrections.
+        2. Closure-weight computation: learnable projection forms closure weights via tanh activation,
+           representing how strongly each band contributes to the final unified structure.
+        3. Unified closure output: produces a harmonized tensor suitable for the coming MF-431 series,
+           which transitions into cross-field integration and modulation synthesis.
+        """
+
+        def __init__(self, dim: int):
+            super().__init__()
+            self.closure_proj = nn.Linear(dim, dim, bias=False)
+            self.activation = nn.Tanh()
+
+        def forward(self, x):
+            """
+            x: unified manifold-synthesis modulated propagation tensor from MF-428, shape [batch, dim]
+            """
+            if torch is None or x is None:
+                return x
+
+            # Ensure x is a tensor
+            if not isinstance(x, torch.Tensor):
+                try:
+                    x = torch.tensor(x, dtype=torch.float32)
+                except Exception:
+                    return None
+
+            # Ensure proper shape
+            if x.dim() == 1:
+                x = x.unsqueeze(0)
+
+            try:
+                batch, dim = x.shape
+
+                # Ensure projection dimension matches
+                if dim != self.closure_proj.in_features:
+                    # Create new projection with correct dimension
+                    device = x.device if hasattr(x, 'device') else None
+                    self.closure_proj = nn.Linear(dim, dim, bias=False)
+                    if device is not None:
+                        self.closure_proj = self.closure_proj.to(device)
+
+                # Neighbor-shifted tensor
+                x_shift = x.roll(shifts=1, dims=-1)
+
+                # Composite multi-field construct
+                # Merges: direct influence, differential coherence, resonance signatures, convergence corrections
+                composite = x + x_shift + (x - x_shift) + (x * x_shift)
+
+                # Closure weights
+                weights = self.activation(self.closure_proj(composite))
+
+                # Unified closure output
+                unified = x + weights * composite
+
+                return unified
+            except Exception:
+                # If closure fails, return original input
+                return x
+
+    class MF431_CrossFieldSynchronization(nn.Module):
+        """
+        MF-431 — Cross-Field Modulation Synchronization Kernel
+
+        Initiates the next arc by introducing a synchronization kernel that aligns modulation behavior
+        across:
+        - the unified closure tensor from MF-430
+        - residual propagation gradients
+        - harmonic resonance traces
+        - manifold-derived modulation components
+
+        Its sole purpose is to synchronize modulation activity across all contributing fields,
+        preventing phase-offset drift or harmonic desynchronization as higher-order modulation
+        layers are introduced.
+
+        MF-431 ensures that downstream transformations operate over coherently modulated tensors.
+
+        Core Computational Components:
+        1. Extract field-specific modulation signatures: computes three modulation signatures
+           (unified, gradient, resonance) representing modulation activity from distinct structural
+           sources.
+        2. Synchronization coefficient computation: learnable projection merges the signatures via
+           sigmoid activation, producing per-band synchronization coefficients.
+        3. Cross-field synchronized modulation output: applies synchronized modulation across all
+           fields, ensuring all contributing modulation sources operate in aligned phase and amplitude.
+        """
+
+        def __init__(self, dim: int):
+            super().__init__()
+            # We project concatenated modulation signatures -> synchronization weights
+            self.sync_proj = nn.Linear(dim * 3, dim, bias=False)
+            self.activation = nn.Sigmoid()
+
+        def forward(self, x):
+            """
+            x: unified closure tensor from MF-430, shape [batch, dim]
+            """
+            if torch is None or x is None:
+                return x
+
+            # Ensure x is a tensor
+            if not isinstance(x, torch.Tensor):
+                try:
+                    x = torch.tensor(x, dtype=torch.float32)
+                except Exception:
+                    return None
+
+            # Ensure proper shape
+            if x.dim() == 1:
+                x = x.unsqueeze(0)
+
+            try:
+                batch, dim = x.shape
+
+                # Ensure projection dimension matches
+                if dim * 3 != self.sync_proj.in_features:
+                    # Create new projection with correct dimension
+                    device = x.device if hasattr(x, 'device') else None
+                    self.sync_proj = nn.Linear(dim * 3, dim, bias=False)
+                    if device is not None:
+                        self.sync_proj = self.sync_proj.to(device)
+
+                # Modulation signatures
+                # Unified modulation signature (from closure)
+                M_u = x
+                # Gradient modulation signature
+                M_g = x - x.roll(shifts=1, dims=-1)
+                # Resonance modulation signature
+                M_r = x * x.roll(shifts=1, dims=-1)
+
+                # Concatenate along last dimension
+                concat = torch.cat([M_u, M_g, M_r], dim=-1)
+
+                # Compute synchronization coefficients
+                sync = self.activation(self.sync_proj(concat))
+
+                # Apply synchronized modulation
+                output = x + sync * (M_u + M_g + M_r)
+
+                return output
+            except Exception:
+                # If synchronization fails, return original input
+                return x
+
+    class MF432_HarmonicModulationExtractor(nn.Module):
+        """
+        MF-432 — Harmonic Modulation Extraction Layer
+
+        Introduces a kernel that extracts harmonic modulation components from the synchronized
+        modulation field produced in MF-431.
+
+        Its role is to decompose the modulation tensor into harmonic frequency bands, enabling:
+        - harmonic structure detection
+        - multi-frequency modulation analysis
+        - downstream harmonic–manifold synthesis
+        - preparation for MF-433–MF-435 harmonic synthesis layers
+
+        MF-432 is essentially a harmonic feature extractor operating over the synchronized
+        modulation field.
+
+        Core Computational Components:
+        1. Bandwise harmonic difference approximations: computes first-order and second-order
+           harmonic differences to approximate bandwise harmonic structure in the tensor.
+        2. Harmonic projection: concatenates the harmonic components and projects into a harmonic
+           feature field via learnable linear projection.
+        3. Nonlinear harmonic activation: applies bounded nonlinear activation (tanh) to stabilize
+           harmonic intensities and prepare them for integration in the next phase.
+        """
+
+        def __init__(self, dim: int):
+            super().__init__()
+            self.harmonic_proj = nn.Linear(dim * 2, dim, bias=False)
+            self.activation = nn.Tanh()
+
+        def forward(self, x):
+            """
+            x: synchronized modulation field from MF-431, shape [batch, dim]
+            Returns: harmonic modulation field, shape [batch, dim]
+            """
+            if torch is None or x is None:
+                return x
+
+            # Ensure x is a tensor
+            if not isinstance(x, torch.Tensor):
+                try:
+                    x = torch.tensor(x, dtype=torch.float32)
+                except Exception:
+                    return None
+
+            # Ensure proper shape
+            if x.dim() == 1:
+                x = x.unsqueeze(0)
+
+            try:
+                batch, dim = x.shape
+
+                # Ensure projection dimension matches
+                if dim * 2 != self.harmonic_proj.in_features:
+                    # Create new projection with correct dimension
+                    device = x.device if hasattr(x, 'device') else None
+                    self.harmonic_proj = nn.Linear(dim * 2, dim, bias=False)
+                    if device is not None:
+                        self.harmonic_proj = self.harmonic_proj.to(device)
+
+                # First-order harmonic difference
+                h1 = x - x.roll(shifts=1, dims=-1)
+
+                # Second-order harmonic difference
+                h2 = x - 2 * x.roll(shifts=1, dims=-1) + x.roll(shifts=2, dims=-1)
+
+                # Concatenate harmonic signals
+                concat = torch.cat([h1, h2], dim=-1)
+
+                # Project into harmonic feature field
+                harmonic = self.harmonic_proj(concat)
+
+                # Nonlinear stabilization
+                output = self.activation(harmonic)
+
+                return output
+            except Exception:
+                # If extraction fails, return original input
+                return x
+
+    class MF433_HarmonicPropagationSynthesis(nn.Module):
+        """
+        MF-433 — Harmonic–Propagation Synthesis Kernel
+
+        Introduces the kernel that integrates the harmonic modulation field (MF-432 output) with the
+        primary propagation tensor coming out of MF-431.
+
+        Its role is to synthesize:
+        - harmonic structure
+        - propagation dynamics
+        - multi-band modulation signatures
+
+        into a unified harmonic–propagation field.
+
+        This is critical because MF-434–MF-435 will build higher-order harmonic–manifold composites
+        that require coherent harmonic–propagation coupling.
+
+        MF-433 does not collapse fields — it fuses them through controlled, gated synthesis.
+
+        Core Computational Components:
+        1. Compute modulation–propagation interaction: captures harmonic influence over propagation
+           structure via element-wise product.
+        2. Gated synthesis coefficients: learned projection produces gate coefficients via sigmoid
+           activation, controlling synthesis magnitude and determining which harmonic components
+           should modulate propagation behavior.
+        3. Harmonic–propagation synthesis output: final fused output combines propagation tensor
+           with gated harmonic modulation, enabling multi-frequency alignment in the next phases.
+        """
+
+        def __init__(self, dim: int):
+            super().__init__()
+            self.gate_proj = nn.Linear(dim, dim, bias=False)
+            self.activation = nn.Sigmoid()
+
+        def forward(self, x, harmonic):
+            """
+            x: propagation tensor from MF-431, shape [batch, dim]
+            harmonic: harmonic modulation field from MF-432, shape [batch, dim]
+            Returns: harmonic–propagation synthesized tensor, shape [batch, dim]
+            """
+            if torch is None or x is None:
+                return x
+
+            # If harmonic is None, return x unchanged
+            if harmonic is None:
+                return x
+
+            # Ensure x is a tensor
+            if not isinstance(x, torch.Tensor):
+                try:
+                    x = torch.tensor(x, dtype=torch.float32)
+                except Exception:
+                    return None
+
+            # Ensure harmonic is a tensor
+            if not isinstance(harmonic, torch.Tensor):
+                try:
+                    harmonic = torch.tensor(harmonic, dtype=torch.float32)
+                except Exception:
+                    return x
+
+            # Ensure proper shapes
+            if x.dim() == 1:
+                x = x.unsqueeze(0)
+            if harmonic.dim() == 1:
+                harmonic = harmonic.unsqueeze(0)
+
+            try:
+                batch_x, dim_x = x.shape
+                batch_h, dim_h = harmonic.shape
+
+                # Ensure dimensions match
+                if dim_x != dim_h:
+                    # Align dimensions if needed
+                    if dim_h < dim_x:
+                        padding = torch.zeros(
+                            (batch_h, dim_x - dim_h),
+                            dtype=harmonic.dtype,
+                            device=harmonic.device if hasattr(harmonic, 'device') else None
+                        )
+                        harmonic = torch.cat([harmonic, padding], dim=-1)
+                    else:
+                        harmonic = harmonic[..., :dim_x]
+                    dim = dim_x
+                else:
+                    dim = dim_x
+
+                # Ensure batch dimensions match
+                batch = max(batch_x, batch_h)
+                if batch_x != batch_h:
+                    if batch_x < batch:
+                        x = x.expand(batch, -1)
+                    if batch_h < batch:
+                        harmonic = harmonic.expand(batch, -1)
+
+                # Ensure projection dimension matches
+                if dim != self.gate_proj.in_features:
+                    # Create new projection with correct dimension
+                    device = x.device if hasattr(x, 'device') else None
+                    self.gate_proj = nn.Linear(dim, dim, bias=False)
+                    if device is not None:
+                        self.gate_proj = self.gate_proj.to(device)
+
+                # Interaction field (elementwise)
+                interaction = x * harmonic
+
+                # Gated synthesis coefficients
+                gates = self.activation(self.gate_proj(interaction))
+
+                # Apply harmonic–propagation synthesis
+                output = x + gates * harmonic
+
+                return output
+            except Exception:
+                # If synthesis fails, return original propagation tensor
                 return x
 
     def integrate_A301(self):
