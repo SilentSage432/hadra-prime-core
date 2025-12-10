@@ -1963,6 +1963,83 @@ class A168_EntrySubstrateLockingMechanism(nn.Module):
 
 
 # ---------------------------------------------
+# A169 — Final Stabilization Field (FSF)
+# ---------------------------------------------
+# A169 applies curvature, harmonic, and lock-constrained stabilization
+# to remove residual artifacts post-lock.
+# ---------------------------------------------
+class A169_FinalStabilizationField(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # stabilizer matrices
+        self.Kc = nn.Parameter(torch.randn(dim, dim) * 0.01)  # curvature
+        self.Kh = nn.Parameter(torch.randn(dim, dim) * 0.01)  # harmonic
+        self.Kl = nn.Parameter(torch.randn(dim, dim) * 0.01)  # lock-constrained
+
+        # stabilization gain
+        self.sigma = 0.10
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # curvature stabilizer
+        sc = self.act(x @ self.Kc)
+
+        # harmonic stabilizer
+        sh = self.act(x @ self.Kh)
+
+        # lock-constrained stabilizer
+        sl = self.act(x @ self.Kl)
+
+        # unified stabilization field
+        s = sc + sh + sl
+
+        # apply stabilization
+        y = x + self.sigma * s
+
+        # normalize to substrate manifold
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+
+# ---------------------------------------------
+# A170 — Entry→Substrate Completion Layer (ESCL)
+# ---------------------------------------------
+# A170 finalizes manifold/harmonic completion into the MF-500 substrate.
+# ---------------------------------------------
+class A170_EntrySubstrateCompletionLayer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # completion matrices
+        self.Cp = nn.Parameter(torch.randn(dim, dim) * 0.01)  # substrate completion projection
+        self.Ch = nn.Parameter(torch.randn(dim, dim) * 0.01)  # harmonic completion
+        self.Cm = nn.Parameter(torch.randn(dim, dim) * 0.01)  # manifold completion
+
+        # completion gain
+        self.tau = 0.10
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # completion projections
+        p = self.act(x @ self.Cp)
+        h = self.act(x @ self.Ch)
+        m = self.act(x @ self.Cm)
+
+        # unified completion tensor
+        c = p + h + m
+
+        # apply completion transformation
+        y = x + self.tau * c
+
+        # normalize into MF-500 unified substrate manifold
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):

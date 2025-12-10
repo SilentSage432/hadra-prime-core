@@ -90,6 +90,8 @@ try:
         A166_MultiBasisReconciliationOperator,
         A167_SubstrateCoherenceAmplifier,
         A168_EntrySubstrateLockingMechanism,
+        A169_FinalStabilizationField,
+        A170_EntrySubstrateCompletionLayer,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -155,6 +157,30 @@ except Exception:
             def __init__(self, *args, **kwargs):
                 pass
     nn = _TorchFallbackNN()
+
+# ============================================
+# S100 — Runtime Substrate Entry Field (RSEF)
+# ============================================
+class S100_RuntimeSubstrateEntryField(nn.Module):
+    """
+    Runtime entry lens that stabilizes tensors before substrate runtime flow.
+    ML-mechanistic only: normalization, projection, drift compensation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        self.R1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.R2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.sigma = 0.10
+        self.act = nn.Tanh()
+
+    def forward(self, x):
+        r1 = self.act(x @ self.R1)
+        r2 = self.act(x @ self.R2)
+        s = r1 + r2
+        y = x - self.sigma * s
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
 
 class NeuralBridge:
 
@@ -1410,6 +1436,42 @@ class NeuralBridge:
         else:
             self.a168 = None
         # -----------------------------------------------------
+        # A169 — Final Stabilization Field (FSF)
+        # -----------------------------------------------------
+        # A169 removes residual post-lock artifacts to finalize stabilization.
+        if SUBSTRATE_AVAILABLE and A169_FinalStabilizationField is not None:
+            try:
+                self.a169 = A169_FinalStabilizationField(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A169_FinalStabilizationField initialization failed: {e}")
+                self.a169 = None
+        else:
+            self.a169 = None
+        # -----------------------------------------------------
+        # A170 — Entry→Substrate Completion Layer (ESCL)
+        # -----------------------------------------------------
+        # A170 finalizes manifold/harmonic completion into MF-500 substrate.
+        if SUBSTRATE_AVAILABLE and A170_EntrySubstrateCompletionLayer is not None:
+            try:
+                self.a170 = A170_EntrySubstrateCompletionLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A170_EntrySubstrateCompletionLayer initialization failed: {e}")
+                self.a170 = None
+        else:
+            self.a170 = None
+        # -----------------------------------------------------
+        # S100 — Runtime Substrate Entry Field (RSEF)
+        # -----------------------------------------------------
+        # First runtime operator: stabilizes runtime entry, neutralizes amplitude.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s100 = S100_RuntimeSubstrateEntryField(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S100_RuntimeSubstrateEntryField initialization failed: {e}")
+                self.s100 = None
+        else:
+            self.s100 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -1491,7 +1553,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → A155 → A156 → A157 → A158 → A159 → A160 → A161 → A162 → A163 → A164 → A165 → A166 → A167 → A168 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → A155 → A156 → A157 → A158 → A159 → A160 → A161 → A162 → A163 → A164 → A165 → A166 → A167 → A168 → A169 → A170 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -1533,13 +1595,15 @@ class NeuralBridge:
         37. A166 Multi-Basis Reconciliation Operator (basis reconciliation)
         38. A167 Substrate Coherence Amplifier (coherence amplification)
         39. A168 Entry–Substrate Locking Mechanism (hard substrate lock)
-        40. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        40. A169 Final Stabilization Field (post-lock stabilization)
+        41. A170 Entry→Substrate Completion Layer (final completion)
+        42. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, A155, A156, A157, A158, A159, A160, A161, A162, A163, A164, A165, A166, A167, A168, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, A155, A156, A157, A158, A159, A160, A161, A162, A163, A164, A165, A166, A167, A168, A169, A170, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -2174,6 +2238,39 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A168 entry–substrate locking forward pass failed: {e}")
                 # Continue with unmodified tensor if A168 fails
+
+        # -----------------------------------------------------
+        # A169 — Final Stabilization Field (FSF)
+        # -----------------------------------------------------
+        # A169 removes residual post-lock curvature/harmonic/manifold artifacts.
+        if self.a169 is not None:
+            try:
+                x = self.a169(x)
+            except Exception as e:
+                print(f"⚠️ A169 final stabilization forward pass failed: {e}")
+                # Continue with unmodified tensor if A169 fails
+
+        # -----------------------------------------------------
+        # A170 — Entry→Substrate Completion Layer (ESCL)
+        # -----------------------------------------------------
+        # A170 applies the final completion tensor before MF substrate entry.
+        if self.a170 is not None:
+            try:
+                x = self.a170(x)
+            except Exception as e:
+                print(f"⚠️ A170 entry→substrate completion forward pass failed: {e}")
+                # Continue with unmodified tensor if A170 fails
+
+        # -----------------------------------------------------
+        # S100 — Runtime Substrate Entry Field (RSEF)
+        # -----------------------------------------------------
+        # Runtime entry normalization and drift compensation before substrate flow.
+        if self.s100 is not None:
+            try:
+                x = self.s100(x)
+            except Exception as e:
+                print(f"⚠️ S100 runtime substrate entry forward pass failed: {e}")
+                # Continue with unmodified tensor if S100 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
