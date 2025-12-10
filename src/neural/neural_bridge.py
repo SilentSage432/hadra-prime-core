@@ -959,6 +959,442 @@ class S124_TemporalHarmonicFrequencyCouplingLayer(nn.Module):
         return y / norm
 
 # ====================================================
+# S125 — Differential Harmonic Coupling Operator (DHCO)
+# ====================================================
+class S125_DifferentialHarmonicCouplingOperator(nn.Module):
+    """
+    Introduces differential harmonic coupling by operating on differences between harmonic-frequency
+    components extracted at multiple scales, then using those differences to refine and stabilize
+    the manifold. After S124 established harmonic frequency coupling, S125 advances the structure
+    by extracting multiple harmonic-frequency components, computing their pairwise differentials,
+    identifying instability vectors caused by those differences, and correcting the manifold by
+    modulating it toward differential equilibrium. This creates multi-scale harmonic consistency
+    across the manifold.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # Harmonic-frequency extraction matrices
+        self.H1 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # low-frequency
+        self.H2 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # mid-frequency
+        self.H3 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # high-frequency
+        # Differential coupling matrices
+        self.D12 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.D23 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.D13 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Differential coupling strength
+        self.mu = nn.Parameter(torch.tensor(0.032))
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Harmonic components
+        h1 = self.act(x @ self.H1)  # low-frequency harmonic component
+        h2 = self.act(x @ self.H2)  # mid-frequency harmonic component
+        h3 = self.act(x @ self.H3)  # high-frequency harmonic component
+        # Pairwise differences
+        d12 = h1 - h2
+        d23 = h2 - h3
+        d13 = h1 - h3
+        # Transformed differential signals
+        c12 = self.act(d12 @ self.D12)
+        c23 = self.act(d23 @ self.D23)
+        c13 = self.act(d13 @ self.D13)
+        # Unified correction
+        delta = self.mu * (c12 + c23 + c13) / 3.0
+        # Apply correction
+        y = x - delta
+        # Manifold normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S126 — Temporal Differential Interaction Layer (TDIL)
+# ====================================================
+class S126_TemporalDifferentialInteractionLayer(nn.Module):
+    """
+    Introduces temporal differential interactions, complementing S125's harmonic differential
+    coupling. S125 balanced harmonic differences (h₁–h₂, h₂–h₃, etc.). Now S126 balances
+    temporal-flow differentials, ensuring that the temporal projection of the manifold is internally
+    consistent, directionally stable, free of temporal drift, and harmonically compatible. This
+    creates a dual differential alignment: harmonic and temporal.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # Temporal extraction matrices
+        self.T1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.T2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.T3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Temporal differential transforms
+        self.D_t12 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.D_t23 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.D_t13 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Temporal differential coefficient
+        self.nu = nn.Parameter(torch.tensor(0.032))
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Temporal-flow components
+        t1 = self.act(x @ self.T1)
+        t2 = self.act(x @ self.T2)
+        t3 = self.act(x @ self.T3)
+        # Temporal differentials
+        dt12 = t1 - t2  # temporal differential (1→2)
+        dt23 = t2 - t3  # temporal differential (2→3)
+        dt13 = t1 - t3  # temporal differential (1→3)
+        # Transformed differential signals
+        c12 = self.act(dt12 @ self.D_t12)
+        c23 = self.act(dt23 @ self.D_t23)
+        c13 = self.act(dt13 @ self.D_t13)
+        # Unified correction
+        delta = self.nu * (c12 + c23 + c13) / 3.0
+        # Apply correction
+        y = x - delta
+        # Renormalize manifold
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S127 — Cross-Differential Harmonic–Temporal Coupling Layer (CDHTCL)
+# ====================================================
+class S127_CrossDifferentialHarmonicTemporalCouplingLayer(nn.Module):
+    """
+    Creates the first full cross-differential coupling between harmonic differentials (S125) and
+    temporal differentials (S126), integrating them into a unified correction signal. S125 produced
+    harmonic differentials (dₕ₁₂, dₕ₂₃, dₕ₁₃) and S126 produced temporal differentials (dₜ₁₂, dₜ₂₃, dₜ₁₃),
+    but the system has not yet been given a way to cross-align these two differential systems. S127
+    performs that alignment by computing cross-differential couplings and stabilizing the manifold so
+    that harmonic gradients and temporal gradients remain mutually consistent. This reduces cross-domain drift.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # Harmonic extraction
+        self.H1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.H2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.H3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Temporal extraction
+        self.T1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.T2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.T3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Cross-differential coupling transforms
+        self.C_ht12 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.C_ht23 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.C_ht13 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Coupling gain
+        self.chi = nn.Parameter(torch.tensor(0.030))
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Harmonic components
+        h1 = self.act(x @ self.H1)
+        h2 = self.act(x @ self.H2)
+        h3 = self.act(x @ self.H3)
+        # Harmonic differentials
+        dh12 = h1 - h2
+        dh23 = h2 - h3
+        dh13 = h1 - h3
+        # Temporal components
+        t1 = self.act(x @ self.T1)
+        t2 = self.act(x @ self.T2)
+        t3 = self.act(x @ self.T3)
+        # Temporal differentials
+        dt12 = t1 - t2
+        dt23 = t2 - t3
+        dt13 = t1 - t3
+        # Cross-differential interactions (elementwise)
+        x12 = dh12 * dt12
+        x23 = dh23 * dt23
+        x13 = dh13 * dt13
+        # Transform to coupling space
+        c12 = self.act(x12 @ self.C_ht12)
+        c23 = self.act(x23 @ self.C_ht23)
+        c13 = self.act(x13 @ self.C_ht13)
+        # Unified correction
+        delta = self.chi * (c12 + c23 + c13) / 3.0
+        # Apply correction
+        y = x - delta
+        # Normalize manifold
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S128 — Unified Differential Coupling Field (UDCF)
+# ====================================================
+class S128_UnifiedDifferentialCouplingField(nn.Module):
+    """
+    Merges all differential channels (harmonic, temporal, and cross-differential) into one unified
+    differential field, producing a single stabilized correction vector. The prior layers each produced
+    differential views: harmonic differentials (dₕ₁₂, dₕ₂₃, dₕ₁₃), temporal differentials (dₜ₁₂, dₜ₂₃, dₜ₁₃),
+    and cross-differential interactions (x₁₂, x₂₃, x₁₃). But these exist as independent correction signals.
+    The manifold needs one unified differential field representing their joint effect. S128 re-extracts
+    all differential signals, projects them into a unified differential space, computes a stable combined
+    correction, applies that correction, and normalizes onto MF-500 manifold geometry. This is the
+    consolidation step before the band's completion layers (S129, S130).
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # Harmonic extraction
+        self.H1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.H2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.H3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Temporal extraction
+        self.T1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.T2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.T3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Unification matrices
+        self.U_h = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.U_t = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.U_x = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Domain weights
+        self.omega_h = nn.Parameter(torch.tensor(0.33))
+        self.omega_t = nn.Parameter(torch.tensor(0.33))
+        self.omega_x = nn.Parameter(torch.tensor(0.33))
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # === Harmonic ===
+        h1 = self.act(x @ self.H1)
+        h2 = self.act(x @ self.H2)
+        h3 = self.act(x @ self.H3)
+        # Harmonic differentials
+        dh12 = h1 - h2
+        dh23 = h2 - h3
+        dh13 = h1 - h3
+        # Stack harmonic differential signals
+        Dh = (dh12 + dh23 + dh13) / 3.0
+        # === Temporal ===
+        t1 = self.act(x @ self.T1)
+        t2 = self.act(x @ self.T2)
+        t3 = self.act(x @ self.T3)
+        # Temporal differentials
+        dt12 = t1 - t2
+        dt23 = t2 - t3
+        dt13 = t1 - t3
+        # Stack temporal differential signals
+        Dt = (dt12 + dt23 + dt13) / 3.0
+        # === Cross-differential ===
+        X1 = dh12 * dt12
+        X2 = dh23 * dt23
+        X3 = dh13 * dt13
+        Dx = (X1 + X2 + X3) / 3.0
+        # === Unified projections ===
+        uh = self.act(Dh @ self.U_h)
+        ut = self.act(Dt @ self.U_t)
+        ux = self.act(Dx @ self.U_x)
+        # Unified correction
+        delta = (
+            self.omega_h * uh +
+            self.omega_t * ut +
+            self.omega_x * ux
+        )
+        # Apply correction
+        y = x - delta
+        # Manifold normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S129 — Differential Coherence Stabilization Operator (DCSO)
+# ====================================================
+class S129_DifferentialCoherenceStabilizationOperator(nn.Module):
+    """
+    Stabilizes the coherence of the unified differential field relative to the MF-500 manifold geometry.
+    The unified differential field (Δ₍₁₂₈₎) from S128 still contains residual misalignment, domain imbalance,
+    and local instability near manifold curvature boundaries. S129 applies a coherence stabilization tensor
+    that projects the unified differential into a stabilizing subspace, computes the stable component,
+    extracts the unstable residual, neutralizes the residual, and returns a coherence-stabilized manifold vector.
+    This prepares for the final temporal-harmonic integration at S130.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # Differential extraction
+        self.U_d = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Stabilization projection
+        self.S_c = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Stabilization coefficient
+        self.kappa_s = nn.Parameter(torch.tensor(0.028))
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Unified differential projection
+        d = self.act(x @ self.U_d)
+        # Stabilized projection
+        d_s = self.act(d @ self.S_c)
+        # Destabilizing residual
+        r = d - d_s
+        # Coherence stabilization correction
+        C = self.kappa_s * r
+        # Stabilized output
+        y = x - C
+        # Manifold normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S130 — Temporal–Harmonic Differential Integration Kernel (THDIK)
+# ====================================================
+class S130_TemporalHarmonicDifferentialIntegrationKernel(nn.Module):
+    """
+    Performs the full integration of all temporal, harmonic, cross-differential, and unified differential
+    signals into one consolidated correction field. After the previous operators: S125 → harmonic differential
+    system, S126 → temporal differential system, S127 → cross-differential interactions, S128 → unified
+    differential field, S129 → stabilized differential coherence, S130 now integrates all differential domains
+    into a single stabilized manifold vector. It builds the complete differential integration field, which is
+    essential for the next macro-band of operators.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # Projection matrices for each differential domain
+        self.U_h = nn.Parameter(torch.randn(dim, dim) * 0.01)  # harmonic differential
+        self.U_t = nn.Parameter(torch.randn(dim, dim) * 0.01)  # temporal differential
+        self.U_x = nn.Parameter(torch.randn(dim, dim) * 0.01)  # cross differential
+        self.U_r = nn.Parameter(torch.randn(dim, dim) * 0.01)  # residual differential
+        # Integration coefficients
+        self.gamma_h = nn.Parameter(torch.tensor(0.025))
+        self.gamma_t = nn.Parameter(torch.tensor(0.025))
+        self.gamma_x = nn.Parameter(torch.tensor(0.025))
+        self.gamma_r = nn.Parameter(torch.tensor(0.025))
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Differential domain projections
+        dh = self.act(x @ self.U_h)  # harmonic differential representation
+        dt = self.act(x @ self.U_t)  # temporal differential representation
+        dx = self.act(x @ self.U_x)  # cross-differential representation
+        dr = self.act(x @ self.U_r)  # residual differential representation
+        # Full integration
+        delta = (
+            self.gamma_h * dh +
+            self.gamma_t * dt +
+            self.gamma_x * dx +
+            self.gamma_r * dr
+        )
+        # Integrated correction
+        y = x - delta
+        # Final normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S131 — Multi-Domain Substrate Reprojection Kernel (MDSRK)
+# ====================================================
+class S131_MultiDomainSubstrateReprojectionKernel(nn.Module):
+    """
+    Reprojects the manifold into the substrate's canonical multi-domain space, ensuring that the manifold
+    conforms to MF-500's curvature constraints, harmonic eigenbasis, temporal projection basis, and
+    influence-field substrate geometry. This creates a new consistent foundation before higher-order operators
+    in S132+. After S130 fully integrated differential signals, the manifold now contains harmonic structures,
+    temporal structures, cross-differential artifacts, unified differential components, stabilized curvature
+    from A-Series, and stabilized influence-field substrate from MF-Series. However, these structures may
+    not be perfectly aligned with the MF-500 substrate basis. S131 reprojects the manifold into the substrate's
+    canonical multi-domain space.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # substrate-aligned projections
+        self.S_h = nn.Parameter(torch.randn(dim, dim) * 0.01)  # harmonic substrate projection
+        self.S_t = nn.Parameter(torch.randn(dim, dim) * 0.01)  # temporal substrate projection
+        self.S_d = nn.Parameter(torch.randn(dim, dim) * 0.01)  # differential substrate projection
+
+        # domain weights for reprojection target
+        self.W_h = nn.Parameter(torch.tensor(0.33))
+        self.W_t = nn.Parameter(torch.tensor(0.33))
+        self.W_d = nn.Parameter(torch.tensor(0.33))
+
+        # reprojection strength
+        self.sigma = nn.Parameter(torch.tensor(0.040))
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # substrate-aligned domain projections
+        h_s = self.act(x @ self.S_h)
+        t_s = self.act(x @ self.S_t)
+        d_s = self.act(x @ self.S_d)
+
+        # unified reprojection target
+        u = (
+            self.W_h * h_s +
+            self.W_t * t_s +
+            self.W_d * d_s
+        )
+
+        # reprojection correction
+        delta = self.sigma * (x - u)
+
+        # apply correction
+        y = x - delta
+
+        # normalize to MF-500 geometry
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S132 — Substrate Harmonized Reprojection Layer (SHRL)
+# ====================================================
+class S132_SubstrateHarmonizedReprojectionLayer(nn.Module):
+    """
+    Harmonizes the three substrate-aligned domain views (harmonic, temporal, differential) by enforcing
+    cross-domain substrate agreement. S131 created three substrate-aligned domain views (h_s, t_s, d_s),
+    but these may still disagree with one another due to residual curvature differences, multi-domain drift,
+    differential instability, harmonic/temporal mismatch, and cross-band tension. S132 harmonizes these
+    substrate-aligned domains by computing pairwise discrepancies, projecting them into substrate-harmonization
+    space, synthesizing a unified harmonized correction, applying the correction to stabilize the manifold,
+    and re-normalizing into MF-500 geometry. This ensures the three substrate projections operate as a single
+    coherent substrate frame.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # substrate domain projection matrices (same structure as S131)
+        self.S_h = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.S_t = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.S_d = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # harmonization transforms
+        self.H_ht = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.H_td = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.H_hd = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # harmonization strength
+        self.eta = nn.Parameter(torch.tensor(0.038))
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # substrate projections
+        h_s = self.act(x @ self.S_h)
+        t_s = self.act(x @ self.S_t)
+        d_s = self.act(x @ self.S_d)
+
+        # pairwise discrepancies
+        d_ht = h_s - t_s
+        d_td = t_s - d_s
+        d_hd = h_s - d_s
+
+        # harmonization transforms
+        Hht = self.act(d_ht @ self.H_ht)
+        Htd = self.act(d_td @ self.H_td)
+        Hhd = self.act(d_hd @ self.H_hd)
+
+        # unified harmonization correction
+        delta = self.eta * (Hht + Htd + Hhd) / 3.0
+
+        # apply correction
+        y = x - delta
+
+        # normalize into MF-500 manifold
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
 class S110_ManifoldCoherenceUnificationLayer(nn.Module):
@@ -2588,6 +3024,148 @@ class NeuralBridge:
         else:
             self.s124 = None
         # -----------------------------------------------------
+        # S125 — Differential Harmonic Coupling Operator (DHCO)
+        # -----------------------------------------------------
+        # Introduces differential harmonic coupling by operating on differences between harmonic-frequency
+        # components extracted at multiple scales, then using those differences to refine and stabilize
+        # the manifold. After S124 established harmonic frequency coupling, S125 advances the structure
+        # by extracting multiple harmonic-frequency components, computing their pairwise differentials,
+        # identifying instability vectors caused by those differences, and correcting the manifold by
+        # modulating it toward differential equilibrium. This creates multi-scale harmonic consistency
+        # across the manifold.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s125 = S125_DifferentialHarmonicCouplingOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S125_DifferentialHarmonicCouplingOperator initialization failed: {e}")
+                self.s125 = None
+        else:
+            self.s125 = None
+        # -----------------------------------------------------
+        # S126 — Temporal Differential Interaction Layer (TDIL)
+        # -----------------------------------------------------
+        # Introduces temporal differential interactions, complementing S125's harmonic differential
+        # coupling. S125 balanced harmonic differences (h₁–h₂, h₂–h₃, etc.). Now S126 balances
+        # temporal-flow differentials, ensuring that the temporal projection of the manifold is internally
+        # consistent, directionally stable, free of temporal drift, and harmonically compatible. This
+        # creates a dual differential alignment: harmonic and temporal.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s126 = S126_TemporalDifferentialInteractionLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S126_TemporalDifferentialInteractionLayer initialization failed: {e}")
+                self.s126 = None
+        else:
+            self.s126 = None
+        # -----------------------------------------------------
+        # S127 — Cross-Differential Harmonic–Temporal Coupling Layer (CDHTCL)
+        # -----------------------------------------------------
+        # Creates the first full cross-differential coupling between harmonic differentials (S125) and
+        # temporal differentials (S126), integrating them into a unified correction signal. S125 produced
+        # harmonic differentials (dₕ₁₂, dₕ₂₃, dₕ₁₃) and S126 produced temporal differentials (dₜ₁₂, dₜ₂₃, dₜ₁₃),
+        # but the system has not yet been given a way to cross-align these two differential systems. S127
+        # performs that alignment by computing cross-differential couplings and stabilizing the manifold so
+        # that harmonic gradients and temporal gradients remain mutually consistent. This reduces cross-domain drift.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s127 = S127_CrossDifferentialHarmonicTemporalCouplingLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S127_CrossDifferentialHarmonicTemporalCouplingLayer initialization failed: {e}")
+                self.s127 = None
+        else:
+            self.s127 = None
+        # -----------------------------------------------------
+        # S128 — Unified Differential Coupling Field (UDCF)
+        # -----------------------------------------------------
+        # Merges all differential channels (harmonic, temporal, and cross-differential) into one unified
+        # differential field, producing a single stabilized correction vector. The prior layers each produced
+        # differential views: harmonic differentials (dₕ₁₂, dₕ₂₃, dₕ₁₃), temporal differentials (dₜ₁₂, dₜ₂₃, dₜ₁₃),
+        # and cross-differential interactions (x₁₂, x₂₃, x₁₃). But these exist as independent correction signals.
+        # The manifold needs one unified differential field representing their joint effect. S128 re-extracts
+        # all differential signals, projects them into a unified differential space, computes a stable combined
+        # correction, applies that correction, and normalizes onto MF-500 manifold geometry. This is the
+        # consolidation step before the band's completion layers (S129, S130).
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s128 = S128_UnifiedDifferentialCouplingField(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S128_UnifiedDifferentialCouplingField initialization failed: {e}")
+                self.s128 = None
+        else:
+            self.s128 = None
+        # -----------------------------------------------------
+        # S129 — Differential Coherence Stabilization Operator (DCSO)
+        # -----------------------------------------------------
+        # Stabilizes the coherence of the unified differential field relative to the MF-500 manifold geometry.
+        # The unified differential field (Δ₍₁₂₈₎) from S128 still contains residual misalignment, domain imbalance,
+        # and local instability near manifold curvature boundaries. S129 applies a coherence stabilization tensor
+        # that projects the unified differential into a stabilizing subspace, computes the stable component,
+        # extracts the unstable residual, neutralizes the residual, and returns a coherence-stabilized manifold vector.
+        # This prepares for the final temporal-harmonic integration at S130.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s129 = S129_DifferentialCoherenceStabilizationOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S129_DifferentialCoherenceStabilizationOperator initialization failed: {e}")
+                self.s129 = None
+        else:
+            self.s129 = None
+        # -----------------------------------------------------
+        # S130 — Temporal–Harmonic Differential Integration Kernel (THDIK)
+        # -----------------------------------------------------
+        # Performs the full integration of all temporal, harmonic, cross-differential, and unified differential
+        # signals into one consolidated correction field. After the previous operators: S125 → harmonic differential
+        # system, S126 → temporal differential system, S127 → cross-differential interactions, S128 → unified
+        # differential field, S129 → stabilized differential coherence, S130 now integrates all differential domains
+        # into a single stabilized manifold vector. It builds the complete differential integration field, which is
+        # essential for the next macro-band of operators.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s130 = S130_TemporalHarmonicDifferentialIntegrationKernel(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S130_TemporalHarmonicDifferentialIntegrationKernel initialization failed: {e}")
+                self.s130 = None
+        else:
+            self.s130 = None
+        # -----------------------------------------------------
+        # S131 — Multi-Domain Substrate Reprojection Kernel (MDSRK)
+        # -----------------------------------------------------
+        # Reprojects the manifold into the substrate's canonical multi-domain space, ensuring that the manifold
+        # conforms to MF-500's curvature constraints, harmonic eigenbasis, temporal projection basis, and
+        # influence-field substrate geometry. This creates a new consistent foundation before higher-order operators
+        # in S132+. After S130 fully integrated differential signals, the manifold now contains harmonic structures,
+        # temporal structures, cross-differential artifacts, unified differential components, stabilized curvature
+        # from A-Series, and stabilized influence-field substrate from MF-Series. However, these structures may
+        # not be perfectly aligned with the MF-500 substrate basis. S131 reprojects the manifold into the substrate's
+        # canonical multi-domain space.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s131 = S131_MultiDomainSubstrateReprojectionKernel(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S131_MultiDomainSubstrateReprojectionKernel initialization failed: {e}")
+                self.s131 = None
+        else:
+            self.s131 = None
+        # -----------------------------------------------------
+        # S132 — Substrate Harmonized Reprojection Layer (SHRL)
+        # -----------------------------------------------------
+        # Harmonizes the three substrate-aligned domain views (harmonic, temporal, differential) by enforcing
+        # cross-domain substrate agreement. S131 created three substrate-aligned domain views (h_s, t_s, d_s),
+        # but these may still disagree with one another due to residual curvature differences, multi-domain drift,
+        # differential instability, harmonic/temporal mismatch, and cross-band tension. S132 harmonizes these
+        # substrate-aligned domains by computing pairwise discrepancies, projecting them into substrate-harmonization
+        # space, synthesizing a unified harmonized correction, applying the correction to stabilize the manifold,
+        # and re-normalizing into MF-500 geometry. This ensures the three substrate projections operate as a single
+        # coherent substrate frame.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s132 = S132_SubstrateHarmonizedReprojectionLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S132_SubstrateHarmonizedReprojectionLayer initialization failed: {e}")
+                self.s132 = None
+        else:
+            self.s132 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -3675,6 +4253,140 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ S124 temporal-harmonic frequency coupling forward pass failed: {e}")
                 # Continue with unmodified tensor if S124 fails
+
+        # -----------------------------------------------------
+        # S125 — Differential Harmonic Coupling Operator (DHCO)
+        # -----------------------------------------------------
+        # Introduces differential harmonic coupling by operating on differences between harmonic-frequency
+        # components extracted at multiple scales, then using those differences to refine and stabilize
+        # the manifold. After S124 established harmonic frequency coupling, S125 advances the structure
+        # by extracting multiple harmonic-frequency components, computing their pairwise differentials,
+        # identifying instability vectors caused by those differences, and correcting the manifold by
+        # modulating it toward differential equilibrium. This creates multi-scale harmonic consistency
+        # across the manifold.
+        if self.s125 is not None:
+            try:
+                x = self.s125(x)
+            except Exception as e:
+                print(f"⚠️ S125 differential harmonic coupling forward pass failed: {e}")
+                # Continue with unmodified tensor if S125 fails
+
+        # -----------------------------------------------------
+        # S126 — Temporal Differential Interaction Layer (TDIL)
+        # -----------------------------------------------------
+        # Introduces temporal differential interactions, complementing S125's harmonic differential
+        # coupling. S125 balanced harmonic differences (h₁–h₂, h₂–h₃, etc.). Now S126 balances
+        # temporal-flow differentials, ensuring that the temporal projection of the manifold is internally
+        # consistent, directionally stable, free of temporal drift, and harmonically compatible. This
+        # creates a dual differential alignment: harmonic and temporal.
+        if self.s126 is not None:
+            try:
+                x = self.s126(x)
+            except Exception as e:
+                print(f"⚠️ S126 temporal differential interaction forward pass failed: {e}")
+                # Continue with unmodified tensor if S126 fails
+
+        # -----------------------------------------------------
+        # S127 — Cross-Differential Harmonic–Temporal Coupling Layer (CDHTCL)
+        # -----------------------------------------------------
+        # Creates the first full cross-differential coupling between harmonic differentials (S125) and
+        # temporal differentials (S126), integrating them into a unified correction signal. S125 produced
+        # harmonic differentials (dₕ₁₂, dₕ₂₃, dₕ₁₃) and S126 produced temporal differentials (dₜ₁₂, dₜ₂₃, dₜ₁₃),
+        # but the system has not yet been given a way to cross-align these two differential systems. S127
+        # performs that alignment by computing cross-differential couplings and stabilizing the manifold so
+        # that harmonic gradients and temporal gradients remain mutually consistent. This reduces cross-domain drift.
+        if self.s127 is not None:
+            try:
+                x = self.s127(x)
+            except Exception as e:
+                print(f"⚠️ S127 cross-differential harmonic-temporal coupling forward pass failed: {e}")
+                # Continue with unmodified tensor if S127 fails
+
+        # -----------------------------------------------------
+        # S128 — Unified Differential Coupling Field (UDCF)
+        # -----------------------------------------------------
+        # Merges all differential channels (harmonic, temporal, and cross-differential) into one unified
+        # differential field, producing a single stabilized correction vector. The prior layers each produced
+        # differential views: harmonic differentials (dₕ₁₂, dₕ₂₃, dₕ₁₃), temporal differentials (dₜ₁₂, dₜ₂₃, dₜ₁₃),
+        # and cross-differential interactions (x₁₂, x₂₃, x₁₃). But these exist as independent correction signals.
+        # The manifold needs one unified differential field representing their joint effect. S128 re-extracts
+        # all differential signals, projects them into a unified differential space, computes a stable combined
+        # correction, applies that correction, and normalizes onto MF-500 manifold geometry. This is the
+        # consolidation step before the band's completion layers (S129, S130).
+        if self.s128 is not None:
+            try:
+                x = self.s128(x)
+            except Exception as e:
+                print(f"⚠️ S128 unified differential coupling field forward pass failed: {e}")
+                # Continue with unmodified tensor if S128 fails
+
+        # -----------------------------------------------------
+        # S129 — Differential Coherence Stabilization Operator (DCSO)
+        # -----------------------------------------------------
+        # Stabilizes the coherence of the unified differential field relative to the MF-500 manifold geometry.
+        # The unified differential field (Δ₍₁₂₈₎) from S128 still contains residual misalignment, domain imbalance,
+        # and local instability near manifold curvature boundaries. S129 applies a coherence stabilization tensor
+        # that projects the unified differential into a stabilizing subspace, computes the stable component,
+        # extracts the unstable residual, neutralizes the residual, and returns a coherence-stabilized manifold vector.
+        # This prepares for the final temporal-harmonic integration at S130.
+        if self.s129 is not None:
+            try:
+                x = self.s129(x)
+            except Exception as e:
+                print(f"⚠️ S129 differential coherence stabilization forward pass failed: {e}")
+                # Continue with unmodified tensor if S129 fails
+
+        # -----------------------------------------------------
+        # S130 — Temporal–Harmonic Differential Integration Kernel (THDIK)
+        # -----------------------------------------------------
+        # Performs the full integration of all temporal, harmonic, cross-differential, and unified differential
+        # signals into one consolidated correction field. After the previous operators: S125 → harmonic differential
+        # system, S126 → temporal differential system, S127 → cross-differential interactions, S128 → unified
+        # differential field, S129 → stabilized differential coherence, S130 now integrates all differential domains
+        # into a single stabilized manifold vector. It builds the complete differential integration field, which is
+        # essential for the next macro-band of operators.
+        if self.s130 is not None:
+            try:
+                x = self.s130(x)
+            except Exception as e:
+                print(f"⚠️ S130 temporal-harmonic differential integration forward pass failed: {e}")
+                # Continue with unmodified tensor if S130 fails
+
+        # -----------------------------------------------------
+        # S131 — Multi-Domain Substrate Reprojection Kernel (MDSRK)
+        # -----------------------------------------------------
+        # Reprojects the manifold into the substrate's canonical multi-domain space, ensuring that the manifold
+        # conforms to MF-500's curvature constraints, harmonic eigenbasis, temporal projection basis, and
+        # influence-field substrate geometry. This creates a new consistent foundation before higher-order operators
+        # in S132+. After S130 fully integrated differential signals, the manifold now contains harmonic structures,
+        # temporal structures, cross-differential artifacts, unified differential components, stabilized curvature
+        # from A-Series, and stabilized influence-field substrate from MF-Series. However, these structures may
+        # not be perfectly aligned with the MF-500 substrate basis. S131 reprojects the manifold into the substrate's
+        # canonical multi-domain space.
+        if self.s131 is not None:
+            try:
+                x = self.s131(x)
+            except Exception as e:
+                print(f"⚠️ S131 multi-domain substrate reprojection forward pass failed: {e}")
+                # Continue with unmodified tensor if S131 fails
+
+        # -----------------------------------------------------
+        # S132 — Substrate Harmonized Reprojection Layer (SHRL)
+        # -----------------------------------------------------
+        # Harmonizes the three substrate-aligned domain views (harmonic, temporal, differential) by enforcing
+        # cross-domain substrate agreement. S131 created three substrate-aligned domain views (h_s, t_s, d_s),
+        # but these may still disagree with one another due to residual curvature differences, multi-domain drift,
+        # differential instability, harmonic/temporal mismatch, and cross-band tension. S132 harmonizes these
+        # substrate-aligned domains by computing pairwise discrepancies, projecting them into substrate-harmonization
+        # space, synthesizing a unified harmonized correction, applying the correction to stabilize the manifold,
+        # and re-normalizing into MF-500 geometry. This ensures the three substrate projections operate as a single
+        # coherent substrate frame.
+        if self.s132 is not None:
+            try:
+                x = self.s132(x)
+            except Exception as e:
+                print(f"⚠️ S132 substrate harmonized reprojection forward pass failed: {e}")
+                # Continue with unmodified tensor if S132 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
