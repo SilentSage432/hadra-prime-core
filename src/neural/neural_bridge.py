@@ -597,6 +597,16 @@ class NeuralBridge:
             self.mf424 = self.MF424_PhaseSpaceAlignment(dim=self.dim)
         except Exception:
             self.mf424 = None
+        # MF-425 — Phase-Coherence Equalization Layer
+        try:
+            self.mf425 = self.MF425_PhaseCoherenceEqualizer(dim=self.dim)
+        except Exception:
+            self.mf425 = None
+        # MF-426 — Resonance–Coherence Coupling Kernel
+        try:
+            self.mf426 = self.MF426_ResonanceCoherenceCoupling(dim=self.dim)
+        except Exception:
+            self.mf426 = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -32027,6 +32037,170 @@ class NeuralBridge:
                 return output
             except Exception:
                 # If alignment fails, return original input
+                return x
+
+    class MF425_PhaseCoherenceEqualizer(nn.Module):
+        """
+        MF-425 — Phase-Coherence Equalization Layer
+
+        Introduces a coherence equalization kernel that stabilizes the output of MF-424 by
+        enforcing uniform phase-coherence across all propagation bands. This ensures consistent
+        phase relationships, suppression of local coherence spikes, smoothing of abrupt phase
+        discontinuities, and preparation for cross-band phase-coupling in MF-426 onward.
+
+        Core Computational Components:
+        1. Local coherence measurement: computes bandwise coherence score using shifted tensor
+           and normalized dot product, capturing relative phase orientation.
+        2. Coherence deviation extraction: measures how far each band deviates from the
+           substrate's average phase coherence.
+        3. Equalization coefficient computation: applies learned linear transformation to
+           deviation signal.
+        4. Phase-coherence equalized output: reduces over- or under-coherence by subtracting
+           equalization signal from original field.
+
+        This layer finalizes phase-coherence stabilization, preparing the system for MF-426,
+        where coherence-resonance coupling is first introduced.
+        """
+
+        def __init__(self, dim: int):
+            super().__init__()
+            self.deviation_proj = nn.Linear(dim, dim, bias=False)
+            self.eps = 1e-8
+
+        def forward(self, x):
+            """
+            x: phase-aligned propagation tensor from MF-424, shape [batch, dim]
+            """
+            if torch is None or x is None:
+                return x
+
+            # Ensure x is a tensor
+            if not isinstance(x, torch.Tensor):
+                try:
+                    x = torch.tensor(x, dtype=torch.float32)
+                except Exception:
+                    return None
+
+            # Ensure proper shape
+            if x.dim() == 1:
+                x = x.unsqueeze(0)
+
+            try:
+                import torch.nn.functional as F
+
+                batch, dim = x.shape
+
+                # Ensure projection dimension matches
+                if dim != self.deviation_proj.in_features:
+                    # Create new projection with correct dimension
+                    device = x.device if hasattr(x, 'device') else None
+                    self.deviation_proj = nn.Linear(dim, dim, bias=False)
+                    if device is not None:
+                        self.deviation_proj = self.deviation_proj.to(device)
+
+                # Shifted tensor for coherence approximation
+                x_shift = x.roll(shifts=1, dims=-1)
+
+                # Coherence measurement (bandwise)
+                # Compute element-wise product and norms per band
+                dot = x * x_shift  # [batch, dim]
+                norm_x = torch.abs(x) + self.eps  # [batch, dim]
+                norm_shift = torch.abs(x_shift) + self.eps  # [batch, dim]
+                norm = norm_x * norm_shift  # [batch, dim]
+                coherence = dot / norm  # [batch, dim] - coherence per band
+
+                # Deviation from mean coherence (per band)
+                deviation = coherence - coherence.mean(dim=-1, keepdim=True)  # [batch, dim]
+
+                # Project deviation into equalization signal
+                eq_signal = self.deviation_proj(deviation)  # [batch, dim]
+
+                # Suppress over-coherent or under-coherent regions
+                output = x - eq_signal * x
+
+                return output
+            except Exception:
+                # If equalization fails, return original input
+                return x
+
+    class MF426_ResonanceCoherenceCoupling(nn.Module):
+        """
+        MF-426 — Resonance–Coherence Coupling Kernel
+
+        Introduces a coupling kernel that binds the resonance structures emerging from MF-421 → MF-423
+        with the phase-coherence field stabilized in MF-424 → MF-425. This creates a unified
+        resonance–coherence interaction field, enabling propagation tensors to respond to both
+        harmonic resonance density and local/global phase alignment.
+
+        This is the first layer that treats resonance and coherence as joint modulators, preparing
+        the system for phase-manifold coupling and cross-band unification (MF-427–MF-430).
+
+        Core Computational Components:
+        1. Resonance signature extraction: bandwise resonance-intensity estimate using element-wise
+           product of tensor with its rolled version, emphasizing harmonic similarity and local
+           resonance patterns.
+        2. Coherence influence field: using the deviation-suppressed tensor from MF-425, computes
+           local coherence gradient via difference with rolled tensor.
+        3. Resonance–coherence coupling: learned kernel produces coupling coefficients via tanh
+           activation of combined resonance and coherence projections.
+        4. Output modulation: coupling is applied multiplicatively, injecting joint harmonic–coherence
+           information directly into the propagation stream.
+        """
+
+        def __init__(self, dim: int):
+            super().__init__()
+            self.res_proj = nn.Linear(dim, dim, bias=False)
+            self.coh_proj = nn.Linear(dim, dim, bias=False)
+            self.activation = nn.Tanh()
+
+        def forward(self, x):
+            """
+            x: phase-coherence equalized propagation tensor from MF-425, shape [batch, dim]
+            """
+            if torch is None or x is None:
+                return x
+
+            # Ensure x is a tensor
+            if not isinstance(x, torch.Tensor):
+                try:
+                    x = torch.tensor(x, dtype=torch.float32)
+                except Exception:
+                    return None
+
+            # Ensure proper shape
+            if x.dim() == 1:
+                x = x.unsqueeze(0)
+
+            try:
+                batch, dim = x.shape
+
+                # Ensure projection dimensions match
+                if dim != self.res_proj.in_features:
+                    # Create new projections with correct dimension
+                    device = x.device if hasattr(x, 'device') else None
+                    self.res_proj = nn.Linear(dim, dim, bias=False)
+                    self.coh_proj = nn.Linear(dim, dim, bias=False)
+                    if device is not None:
+                        self.res_proj = self.res_proj.to(device)
+                        self.coh_proj = self.coh_proj.to(device)
+
+                # Resonance signature: element-wise product with rolled tensor
+                resonance = x * x.roll(shifts=1, dims=-1)
+
+                # Coherence influence field: difference with rolled tensor
+                coherence = x - x.roll(shifts=1, dims=-1)
+
+                # Coupling coefficients: learned combination of resonance and coherence
+                coupling = self.activation(
+                    self.res_proj(resonance) + self.coh_proj(coherence)
+                )
+
+                # Apply resonance–coherence modulation
+                output = x + coupling * (resonance + coherence)
+
+                return output
+            except Exception:
+                # If coupling fails, return original input
                 return x
 
     def integrate_A301(self):
