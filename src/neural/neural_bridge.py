@@ -624,6 +624,99 @@ class S116_MixedOrderCurvatureEqualizationLayer(nn.Module):
         return y / norm
 
 # ====================================================
+# S117 — Curvature Coherence Blending Operator (CCBO)
+# ====================================================
+class S117_CurvatureCoherenceBlendingOperator(nn.Module):
+    """
+    Blends curvature components from multiple curvature orders into a single, stable curvature-coherent manifold representation.
+    Unifies curvature signals from S111-S116 into a coherent curvature vector without introducing semantics, memory, or cognition.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # Blending projection matrices
+        self.B1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.B2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.B3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.B4 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Blending coefficients
+        self.beta1 = nn.Parameter(torch.tensor(0.025))
+        self.beta2 = nn.Parameter(torch.tensor(0.025))
+        self.beta3 = nn.Parameter(torch.tensor(0.025))
+        self.beta4 = nn.Parameter(torch.tensor(0.025))
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Curvature views
+        v1 = self.act(x @ self.B1)
+        v2 = self.act(x @ self.B2)
+        v3 = self.act(x @ self.B3)
+        v4 = self.act(x @ self.B4)
+        # Coherence average
+        v_avg = (v1 + v2 + v3 + v4) / 4.0
+        # Deviations
+        d1 = v1 - v_avg
+        d2 = v2 - v_avg
+        d3 = v3 - v_avg
+        d4 = v4 - v_avg
+        # Weighted correction
+        delta = (
+            self.beta1 * d1 +
+            self.beta2 * d2 +
+            self.beta3 * d3 +
+            self.beta4 * d4
+        )
+        # Apply correction
+        y = x - delta
+        # Manifold normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S118 — Manifold Coherence Reinforcement Layer (MCRL)
+# ====================================================
+class S118_ManifoldCoherenceReinforcementLayer(nn.Module):
+    """
+    Reinforces the curvature-coherent manifold established by S117 by injecting local, mid-range, and global coherence constraints.
+    Strengthens coherence at multiple structural scales without introducing semantics, memory, or cognition.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # Multi-scale coherence projection matrices
+        self.C_local = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.C_mid = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.C_global = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Reinforcement coefficients
+        self.gamma_local = nn.Parameter(torch.tensor(0.015))
+        self.gamma_mid = nn.Parameter(torch.tensor(0.015))
+        self.gamma_global = nn.Parameter(torch.tensor(0.015))
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Compute multi-scale coherence views
+        cl = self.act(x @ self.C_local)
+        cm = self.act(x @ self.C_mid)
+        cg = self.act(x @ self.C_global)
+        # Reference coherence
+        c_ref = (cl + cm + cg) / 3.0
+        # Deviations
+        dl = cl - c_ref
+        dm = cm - c_ref
+        dg = cg - c_ref
+        # Reinforcement correction
+        delta = (
+            self.gamma_local * dl +
+            self.gamma_mid * dm +
+            self.gamma_global * dg
+        )
+        # Apply correction
+        y = x - delta
+        # Manifold normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
 class S110_ManifoldCoherenceUnificationLayer(nn.Module):
@@ -2133,6 +2226,30 @@ class NeuralBridge:
         else:
             self.s116 = None
         # -----------------------------------------------------
+        # S117 — Curvature Coherence Blending Operator (CCBO)
+        # -----------------------------------------------------
+        # Blends curvature components from multiple curvature orders into a single, stable curvature-coherent manifold representation.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s117 = S117_CurvatureCoherenceBlendingOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S117_CurvatureCoherenceBlendingOperator initialization failed: {e}")
+                self.s117 = None
+        else:
+            self.s117 = None
+        # -----------------------------------------------------
+        # S118 — Manifold Coherence Reinforcement Layer (MCRL)
+        # -----------------------------------------------------
+        # Reinforces the curvature-coherent manifold established by S117 by injecting local, mid-range, and global coherence constraints.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s118 = S118_ManifoldCoherenceReinforcementLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S118_ManifoldCoherenceReinforcementLayer initialization failed: {e}")
+                self.s118 = None
+        else:
+            self.s118 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -3108,6 +3225,28 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ S116 mixed-order curvature equalization forward pass failed: {e}")
                 # Continue with unmodified tensor if S116 fails
+
+        # -----------------------------------------------------
+        # S117 — Curvature Coherence Blending Operator (CCBO)
+        # -----------------------------------------------------
+        # Blends curvature components from multiple curvature orders into a single, stable curvature-coherent manifold representation.
+        if self.s117 is not None:
+            try:
+                x = self.s117(x)
+            except Exception as e:
+                print(f"⚠️ S117 curvature coherence blending forward pass failed: {e}")
+                # Continue with unmodified tensor if S117 fails
+
+        # -----------------------------------------------------
+        # S118 — Manifold Coherence Reinforcement Layer (MCRL)
+        # -----------------------------------------------------
+        # Reinforces the curvature-coherent manifold established by S117 by injecting local, mid-range, and global coherence constraints.
+        if self.s118 is not None:
+            try:
+                x = self.s118(x)
+            except Exception as e:
+                print(f"⚠️ S118 manifold coherence reinforcement forward pass failed: {e}")
+                # Continue with unmodified tensor if S118 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
