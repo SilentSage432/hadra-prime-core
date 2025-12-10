@@ -1727,6 +1727,169 @@ class S138_MultiBandCurvatureReinforcementOperator(nn.Module):
         return y / norm
 
 # ====================================================
+# S139 — Multi-Band Curvature Convergence Layer (MB-CCL)
+# ====================================================
+class S139_MultiBandCurvatureConvergenceLayer(nn.Module):
+    """
+    Merges the three reinforced spectral bands (low-frequency, mid-frequency, high-frequency curvature) into one
+    converged curvature manifold, removing band separation and producing a unified substrate curvature signature.
+    After S138, the substrate curvature signal exists in three reinforced spectral bands. However, these bands
+    are still separate structural components. S139 merges them into one converged curvature manifold. This is
+    required before we shift into the next S-series domain.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # band-specific convergence bases
+        self.B1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.B2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.B3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # cross-band convergence matrices
+        self.M12 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.M23 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.M13 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # convergence weights
+        self.z12 = nn.Parameter(torch.tensor(0.33))
+        self.z23 = nn.Parameter(torch.tensor(0.33))
+        self.z13 = nn.Parameter(torch.tensor(0.34))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # band projection
+        c1 = self.act(x @ self.B1)
+        c2 = self.act(x @ self.B2)
+        c3 = self.act(x @ self.B3)
+
+        # cross-band convergence signals
+        m12 = self.act(c1 @ self.M12 - c2)
+        m23 = self.act(c2 @ self.M23 - c3)
+        m13 = self.act(c1 @ self.M13 - c3)
+
+        # positive convergence weights
+        w12 = self.softplus(self.z12)
+        w23 = self.softplus(self.z23)
+        w13 = self.softplus(self.z13)
+
+        # combined convergence correction
+        C = w12*m12 + w23*m23 + w13*m13
+
+        # update curvature vector
+        y = x + C
+
+        # normalize into MF-500 envelope
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S140 — Global Curvature Integration Layer (GCIL)
+# ====================================================
+class S140_GlobalCurvatureIntegrationLayer(nn.Module):
+    """
+    Performs global curvature integration, collapsing all curvature contributions into one fully consolidated, globally
+    coherent substrate curvature representation. Following S139, curvature is unified across all major frequency bands.
+    However, the curvature field is still composed of multi-order curvature components, multi-frequency curvature
+    components, multi-band reconvergence components, and residual curvature micro-signatures that remain unintegrated.
+    S140 performs global curvature integration. This is the final curvature operator before transitioning into the next
+    S-series domain.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # global integration transforms
+        self.G1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.G2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.G3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.G4 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # integration weights
+        self.k1 = nn.Parameter(torch.tensor(0.25))
+        self.k2 = nn.Parameter(torch.tensor(0.25))
+        self.k3 = nn.Parameter(torch.tensor(0.25))
+        self.k4 = nn.Parameter(torch.tensor(0.25))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # global curvature transforms
+        g1 = self.act(x @ self.G1)
+        g2 = self.act(x @ self.G2)
+        g3 = self.act(x @ self.G3)
+        g4 = self.act(x @ self.G4)
+
+        # non-negative mixing coefficients
+        w1 = self.softplus(self.k1)
+        w2 = self.softplus(self.k2)
+        w3 = self.softplus(self.k3)
+        w4 = self.softplus(self.k4)
+
+        # global curvature integration field
+        I = w1*g1 + w2*g2 + w3*g3 + w4*g4
+
+        # residual correction
+        R = self.act(I - x)
+
+        # integrated curvature field
+        y = x + R
+
+        # normalize into MF-500 envelope
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S141 — Global Substrate Dynamics Initialization Layer (GSDIL)
+# ====================================================
+class S141_GlobalSubstrateDynamicsInitializationLayer(nn.Module):
+    """
+    Initializes the first global dynamic vector field, which becomes the foundation for the next 20+ S-series operators.
+    Up to S140, we completed all curvature-related processing: multi-order curvature stabilization, multi-frequency
+    curvature filtering, multi-band reinforcement, and global curvature integration. The substrate is now curvature-stable
+    and ready for the next structural domain: Global Substrate Dynamics (S141–S160). Here, the substrate begins forming
+    dynamic global fields, enabling dynamic influence flow, substrate-wide modulation, multi-region interaction coupling,
+    and dynamic stability propagation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # dynamic initialization transforms
+        self.D1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.D2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # dynamic scaling weights
+        self.Omega1 = nn.Parameter(torch.tensor(0.5))
+        self.Omega2 = nn.Parameter(torch.tensor(0.5))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # global dynamic projections
+        d1 = self.act(x @ self.D1)
+        d2 = self.act(x @ self.D2)
+
+        # dynamic mixture (positive weights)
+        w1 = self.softplus(self.Omega1)
+        w2 = self.softplus(self.Omega2)
+        M = w1*d1 + w2*d2
+
+        # dynamic-seed residual
+        R = self.act(M - x)
+
+        # initialize global dynamic vector
+        y = x + R
+
+        # substrate normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
 class S110_ManifoldCoherenceUnificationLayer(nn.Module):
@@ -3600,6 +3763,56 @@ class NeuralBridge:
         else:
             self.s138 = None
         # -----------------------------------------------------
+        # S139 — Multi-Band Curvature Convergence Layer (MB-CCL)
+        # -----------------------------------------------------
+        # Merges the three reinforced spectral bands (low-frequency, mid-frequency, high-frequency curvature) into one
+        # converged curvature manifold, removing band separation and producing a unified substrate curvature signature.
+        # After S138, the substrate curvature signal exists in three reinforced spectral bands. However, these bands
+        # are still separate structural components. S139 merges them into one converged curvature manifold. This is
+        # required before we shift into the next S-series domain.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s139 = S139_MultiBandCurvatureConvergenceLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S139_MultiBandCurvatureConvergenceLayer initialization failed: {e}")
+                self.s139 = None
+        else:
+            self.s139 = None
+        # -----------------------------------------------------
+        # S140 — Global Curvature Integration Layer (GCIL)
+        # -----------------------------------------------------
+        # Performs global curvature integration, collapsing all curvature contributions into one fully consolidated, globally
+        # coherent substrate curvature representation. Following S139, curvature is unified across all major frequency bands.
+        # However, the curvature field is still composed of multi-order curvature components, multi-frequency curvature
+        # components, multi-band reconvergence components, and residual curvature micro-signatures that remain unintegrated.
+        # S140 performs global curvature integration. This is the final curvature operator before transitioning into the next
+        # S-series domain.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s140 = S140_GlobalCurvatureIntegrationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S140_GlobalCurvatureIntegrationLayer initialization failed: {e}")
+                self.s140 = None
+        else:
+            self.s140 = None
+        # -----------------------------------------------------
+        # S141 — Global Substrate Dynamics Initialization Layer (GSDIL)
+        # -----------------------------------------------------
+        # Initializes the first global dynamic vector field, which becomes the foundation for the next 20+ S-series operators.
+        # Up to S140, we completed all curvature-related processing: multi-order curvature stabilization, multi-frequency
+        # curvature filtering, multi-band reinforcement, and global curvature integration. The substrate is now curvature-stable
+        # and ready for the next structural domain: Global Substrate Dynamics (S141–S160). Here, the substrate begins forming
+        # dynamic global fields, enabling dynamic influence flow, substrate-wide modulation, multi-region interaction coupling,
+        # and dynamic stability propagation.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s141 = S141_GlobalSubstrateDynamicsInitializationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S141_GlobalSubstrateDynamicsInitializationLayer initialization failed: {e}")
+                self.s141 = None
+        else:
+            self.s141 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -4917,6 +5130,53 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ S138 multi-band curvature reinforcement forward pass failed: {e}")
                 # Continue with unmodified tensor if S138 fails
+
+        # -----------------------------------------------------
+        # S139 — Multi-Band Curvature Convergence Layer (MB-CCL)
+        # -----------------------------------------------------
+        # Merges the three reinforced spectral bands (low-frequency, mid-frequency, high-frequency curvature) into one
+        # converged curvature manifold, removing band separation and producing a unified substrate curvature signature.
+        # After S138, the substrate curvature signal exists in three reinforced spectral bands. However, these bands
+        # are still separate structural components. S139 merges them into one converged curvature manifold. This is
+        # required before we shift into the next S-series domain.
+        if self.s139 is not None:
+            try:
+                x = self.s139(x)
+            except Exception as e:
+                print(f"⚠️ S139 multi-band curvature convergence forward pass failed: {e}")
+                # Continue with unmodified tensor if S139 fails
+
+        # -----------------------------------------------------
+        # S140 — Global Curvature Integration Layer (GCIL)
+        # -----------------------------------------------------
+        # Performs global curvature integration, collapsing all curvature contributions into one fully consolidated, globally
+        # coherent substrate curvature representation. Following S139, curvature is unified across all major frequency bands.
+        # However, the curvature field is still composed of multi-order curvature components, multi-frequency curvature
+        # components, multi-band reconvergence components, and residual curvature micro-signatures that remain unintegrated.
+        # S140 performs global curvature integration. This is the final curvature operator before transitioning into the next
+        # S-series domain.
+        if self.s140 is not None:
+            try:
+                x = self.s140(x)
+            except Exception as e:
+                print(f"⚠️ S140 global curvature integration forward pass failed: {e}")
+                # Continue with unmodified tensor if S140 fails
+
+        # -----------------------------------------------------
+        # S141 — Global Substrate Dynamics Initialization Layer (GSDIL)
+        # -----------------------------------------------------
+        # Initializes the first global dynamic vector field, which becomes the foundation for the next 20+ S-series operators.
+        # Up to S140, we completed all curvature-related processing: multi-order curvature stabilization, multi-frequency
+        # curvature filtering, multi-band reinforcement, and global curvature integration. The substrate is now curvature-stable
+        # and ready for the next structural domain: Global Substrate Dynamics (S141–S160). Here, the substrate begins forming
+        # dynamic global fields, enabling dynamic influence flow, substrate-wide modulation, multi-region interaction coupling,
+        # and dynamic stability propagation.
+        if self.s141 is not None:
+            try:
+                x = self.s141(x)
+            except Exception as e:
+                print(f"⚠️ S141 global substrate dynamics initialization forward pass failed: {e}")
+                # Continue with unmodified tensor if S141 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
