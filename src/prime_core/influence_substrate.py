@@ -1924,6 +1924,45 @@ class A167_SubstrateCoherenceAmplifier(nn.Module):
 
 
 # ---------------------------------------------
+# A168 — Entry–Substrate Locking Mechanism (ESLM)
+# ---------------------------------------------
+# A168 hard-locks the tensor into the MF-500 substrate manifold/harmonic frame.
+# ---------------------------------------------
+class A168_EntrySubstrateLockingMechanism(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # substrate projection for locking
+        self.Sl = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # locking constraint matrix
+        self.L = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # lock gating matrix
+        self.G_lock = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        self.act = nn.Tanh()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # substrate projection
+        p = self.act(x @ self.Sl)
+
+        # constraint transform
+        c = self.act(p @ self.L)
+
+        # lock gate
+        g = self.sigmoid(x @ self.G_lock)
+
+        # blend constrained + original
+        y = g * c + (1 - g) * x
+
+        # normalize to substrate manifold
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):

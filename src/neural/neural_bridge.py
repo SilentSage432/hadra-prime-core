@@ -89,6 +89,7 @@ try:
         A165_ManifoldCompressionLayer,
         A166_MultiBasisReconciliationOperator,
         A167_SubstrateCoherenceAmplifier,
+        A168_EntrySubstrateLockingMechanism,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -1397,6 +1398,18 @@ class NeuralBridge:
         else:
             self.a167 = None
         # -----------------------------------------------------
+        # A168 — Entry–Substrate Locking Mechanism (ESLM)
+        # -----------------------------------------------------
+        # A168 hard-locks the tensor into the MF-500 substrate manifold/harmonic frame.
+        if SUBSTRATE_AVAILABLE and A168_EntrySubstrateLockingMechanism is not None:
+            try:
+                self.a168 = A168_EntrySubstrateLockingMechanism(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A168_EntrySubstrateLockingMechanism initialization failed: {e}")
+                self.a168 = None
+        else:
+            self.a168 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -1478,7 +1491,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → A155 → A156 → A157 → A158 → A159 → A160 → A161 → A162 → A163 → A164 → A165 → A166 → A167 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → A155 → A156 → A157 → A158 → A159 → A160 → A161 → A162 → A163 → A164 → A165 → A166 → A167 → A168 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -1519,13 +1532,14 @@ class NeuralBridge:
         36. A165 Manifold Compression Layer (manifold compression)
         37. A166 Multi-Basis Reconciliation Operator (basis reconciliation)
         38. A167 Substrate Coherence Amplifier (coherence amplification)
-        39. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        39. A168 Entry–Substrate Locking Mechanism (hard substrate lock)
+        40. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, A155, A156, A157, A158, A159, A160, A161, A162, A163, A164, A165, A166, A167, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, A155, A156, A157, A158, A159, A160, A161, A162, A163, A164, A165, A166, A167, A168, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -2149,6 +2163,17 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A167 substrate coherence amplification forward pass failed: {e}")
                 # Continue with unmodified tensor if A167 fails
+
+        # -----------------------------------------------------
+        # A168 — Entry–Substrate Locking Mechanism (ESLM)
+        # -----------------------------------------------------
+        # A168 hard-locks the tensor into the MF-500 substrate manifold/harmonic frame.
+        if self.a168 is not None:
+            try:
+                x = self.a168(x)
+            except Exception as e:
+                print(f"⚠️ A168 entry–substrate locking forward pass failed: {e}")
+                # Continue with unmodified tensor if A168 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
