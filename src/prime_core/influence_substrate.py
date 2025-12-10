@@ -1556,6 +1556,86 @@ class A158_SubstrateAlignmentGate(nn.Module):
 
 
 # ---------------------------------------------
+# A159 — Pre-Substrate Stabilization Tensor (PSST)
+# ---------------------------------------------
+# A159 stabilizes the substrate-aligned tensor by extracting residual drift,
+# applying dual stabilizers, and reintegrating with controlled gain.
+# ---------------------------------------------
+class A159_PreSubstrateStabilizationTensor(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # dual stabilizer matrices
+        self.J1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.J2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # stabilization gain
+        self.beta = 0.10
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # drift proxy
+        xn = x / (torch.norm(x, dim=-1, keepdim=True) + 1e-12)
+        d = x - xn
+
+        # dual stabilizer projections
+        s1 = d @ self.J1
+        s2 = self.act(d @ self.J2)
+
+        # full stabilization tensor
+        s = s1 + s2
+
+        # reintegrate with gain
+        y = x + self.beta * s
+
+        # normalize onto substrate manifold
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+
+# ---------------------------------------------
+# A160 — Unified Entry Fusion Layer (UEFL)
+# ---------------------------------------------
+# A160 fuses the stabilized entry tensor into MF substrate harmonic and manifold
+# bases, producing the first fully substrate-integrated representation.
+# ---------------------------------------------
+class A160_UnifiedEntryFusionLayer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # substrate harmonic fusion matrix
+        self.Hs = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # substrate manifold fusion matrix
+        self.Ms = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # fusion gate matrix
+        self.Gs = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # activations
+        self.act = nn.Tanh()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # harmonic fusion branch
+        h = self.act(x @ self.Hs)
+
+        # manifold fusion branch
+        m = self.act(x @ self.Ms)
+
+        # fusion gate
+        g = self.sigmoid(x @ self.Gs)
+
+        # unified fusion
+        y = g * h + (1 - g) * m
+
+        # normalize into substrate manifold
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):

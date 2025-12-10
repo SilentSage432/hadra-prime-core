@@ -80,6 +80,8 @@ try:
         A156_CurvatureToSubstrateTranspositionKernel,
         A157_EntryManifoldHarmonizer,
         A158_SubstrateAlignmentGate,
+        A159_PreSubstrateStabilizationTensor,
+        A160_UnifiedEntryFusionLayer,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -113,6 +115,8 @@ except (ImportError, RuntimeError) as e:
     A156_CurvatureToSubstrateTranspositionKernel = None
     A157_EntryManifoldHarmonizer = None
     A158_SubstrateAlignmentGate = None
+    A159_PreSubstrateStabilizationTensor = None
+    A160_UnifiedEntryFusionLayer = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -1272,6 +1276,30 @@ class NeuralBridge:
         else:
             self.a158 = None
         # -----------------------------------------------------
+        # A159 — Pre-Substrate Stabilization Tensor (PSST)
+        # -----------------------------------------------------
+        # A159 stabilizes the substrate-aligned tensor before fusion.
+        if SUBSTRATE_AVAILABLE and A159_PreSubstrateStabilizationTensor is not None:
+            try:
+                self.a159 = A159_PreSubstrateStabilizationTensor(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A159_PreSubstrateStabilizationTensor initialization failed: {e}")
+                self.a159 = None
+        else:
+            self.a159 = None
+        # -----------------------------------------------------
+        # A160 — Unified Entry Fusion Layer (UEFL)
+        # -----------------------------------------------------
+        # A160 fuses the stabilized entry tensor into the MF substrate bases.
+        if SUBSTRATE_AVAILABLE and A160_UnifiedEntryFusionLayer is not None:
+            try:
+                self.a160 = A160_UnifiedEntryFusionLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A160_UnifiedEntryFusionLayer initialization failed: {e}")
+                self.a160 = None
+        else:
+            self.a160 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -1353,7 +1381,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → A155 → A156 → A157 → A158 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → A155 → A156 → A157 → A158 → A159 → A160 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -1385,13 +1413,15 @@ class NeuralBridge:
         27. A156 Curvature → Substrate Transposition Kernel (curvature→substrate mapping)
         28. A157 Entry Manifold Harmonizer (substrate manifold harmonization)
         29. A158 Substrate Alignment Gate (substrate coordinate alignment)
-        30. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        30. A159 Pre-Substrate Stabilization Tensor (pre-fusion stabilization)
+        31. A160 Unified Entry Fusion Layer (entry→substrate fusion)
+        32. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, A155, A156, A157, A158, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, A155, A156, A157, A158, A159, A160, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -1916,6 +1946,28 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A158 substrate alignment forward pass failed: {e}")
                 # Continue with unmodified tensor if A158 fails
+
+        # -----------------------------------------------------
+        # A159 — Pre-Substrate Stabilization Tensor (PSST)
+        # -----------------------------------------------------
+        # A159 stabilizes the substrate-aligned tensor prior to fusion.
+        if self.a159 is not None:
+            try:
+                x = self.a159(x)
+            except Exception as e:
+                print(f"⚠️ A159 pre-substrate stabilization forward pass failed: {e}")
+                # Continue with unmodified tensor if A159 fails
+
+        # -----------------------------------------------------
+        # A160 — Unified Entry Fusion Layer (UEFL)
+        # -----------------------------------------------------
+        # A160 fuses the stabilized entry tensor into MF substrate harmonic/manifold bases.
+        if self.a160 is not None:
+            try:
+                x = self.a160(x)
+            except Exception as e:
+                print(f"⚠️ A160 unified entry fusion forward pass failed: {e}")
+                # Continue with unmodified tensor if A160 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
