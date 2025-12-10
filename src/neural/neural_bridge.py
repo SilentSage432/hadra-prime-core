@@ -47,6 +47,13 @@ except (ImportError, RuntimeError) as e:
     NeuralConceptMapper = None
     LatentStabilityRegulator = None
     LATENT_ENGINE_AVAILABLE = False
+# MF-401 → MF-500 Unified Substrate Integration
+try:
+    from ..prime_core.influence_substrate import InfluenceSubstrateKernel
+    SUBSTRATE_AVAILABLE = True
+except (ImportError, RuntimeError) as e:
+    InfluenceSubstrateKernel = None
+    SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
 import sys
@@ -654,6 +661,20 @@ class NeuralBridge:
             self.mf436 = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
+        # -----------------------------------------------------
+        # MF-401 → MF-500 Unified Substrate Integration
+        # -----------------------------------------------------
+        # The substrate is a deterministic tensor–transform pipeline.
+        # It receives a tensor from the bridge and returns a transformed tensor.
+        # No semantics, no cognition — strict ML mechanics.
+        if SUBSTRATE_AVAILABLE and InfluenceSubstrateKernel is not None:
+            try:
+                self.mf_substrate = InfluenceSubstrateKernel(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ InfluenceSubstrateKernel initialization failed: {e}")
+                self.mf_substrate = None
+        else:
+            self.mf_substrate = None
         # A185 — Sleep/wake timer
         self.cycle_step = 0
         self.sleep_cycle_interval = 12  # every 12 cognition cycles, PRIME "sleeps"
@@ -719,6 +740,48 @@ class NeuralBridge:
         self._update_harmonizer_signature()
         
         return stable
+
+    def forward(self, x):
+        """
+        Forward pass through the MF-401 → MF-500 Substrate
+        
+        This method processes tensors through the full 100-phase
+        influence–propagation → harmonics → manifold → transport
+        → consolidation → stability → completion pipeline.
+        
+        Args:
+            x: Input tensor (torch.Tensor)
+            
+        Returns:
+            Transformed tensor after passing through the substrate
+        """
+        # -----------------------------------------------------
+        # Pre-routing transforms (existing logic here)
+        # -----------------------------------------------------
+        # x = self.encoder(x)
+        # x = self.router(x)
+
+        # -----------------------------------------------------
+        # MF-401 → MF-500 Substrate Pass
+        # -----------------------------------------------------
+        # The substrate transforms x through the full 100-phase
+        # influence–propagation → harmonics → manifold → transport
+        # → consolidation → stability → completion pipeline.
+        #
+        # Output remains a pure tensor, passed back to routing.
+        if self.mf_substrate is not None:
+            try:
+                x = self.mf_substrate(x)
+            except Exception as e:
+                print(f"⚠️ Substrate forward pass failed: {e}")
+                # Continue with unmodified tensor if substrate fails
+
+        # -----------------------------------------------------
+        # Post-substrate routing (existing logic here)
+        # -----------------------------------------------------
+        # x = self.post_transform(x)
+
+        return x
 
     def process_reflection(self, thought):
 
