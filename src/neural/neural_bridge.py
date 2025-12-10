@@ -513,6 +513,117 @@ class S113_CurvatureGradientEqualizationLayer(nn.Module):
         return y / norm
 
 # ====================================================
+# S114 — Manifold Smoothness Reinforcement Layer (MSRL)
+# ====================================================
+class S114_ManifoldSmoothnessReinforcementLayer(nn.Module):
+    """
+    Reinforces local manifold smoothness by suppressing high-gradient irregularities.
+    Enforces internal dimensional smoothness without semantics or recurrence.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # Directional difference operator
+        self.D = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Smoothing projection matrix
+        self.L = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Reinforcement coefficient
+        self.gamma = 0.035
+        self.act = nn.Tanh()
+
+    def forward(self, x):
+        # Directional difference estimate
+        d = self.act(x @ self.D)
+        # Smoothing projection
+        s = self.act(d @ self.L)
+        # Reinforcement correction
+        delta = self.gamma * s
+        # Apply correction
+        y = x - delta
+        # Normalize to substrate manifold
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S115 — Higher-Order Curvature Modulation Layer (HOCML)
+# ====================================================
+class S115_HigherOrderCurvatureModulationLayer(nn.Module):
+    """
+    Regulates second-order curvature modes and mixed curvature interactions within the unified manifold vector.
+    Extends curvature shaping (S111), harmonization (S112), gradient equalization (S113), and smoothness reinforcement (S114)
+    into second-order and mixed-order curvature behavior — without introducing semantics, recurrence, or cognition.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # Higher-order curvature projection matrices
+        self.H1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.H2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.H3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Modulation coefficients
+        self.mu1 = nn.Parameter(torch.tensor(0.03))
+        self.mu2 = nn.Parameter(torch.tensor(0.03))
+        self.mu3 = nn.Parameter(torch.tensor(0.03))
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # First-order curvature projections
+        c1 = self.act(x @ self.H1)
+        c2 = self.act(x @ self.H2)
+        c3 = self.act(x @ self.H3)
+        # Higher-order curvature approximations
+        c1_2 = self.act(c1 @ self.H1)
+        c2_2 = self.act(c2 @ self.H2)
+        c3_2 = self.act(c3 @ self.H3)
+        # Mixed-order curvature interaction
+        h_mix = self.mu1 * c1_2 + self.mu2 * c2_2 + self.mu3 * c3_2
+        # Apply correction
+        y = x - h_mix
+        # Manifold normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S116 — Mixed-Order Curvature Equalization Layer (MO-CEL)
+# ====================================================
+class S116_MixedOrderCurvatureEqualizationLayer(nn.Module):
+    """
+    Equalizes curvature contributions across first-order, second-order, and mixed-order curvature components.
+    Ensures multi-order curvature balance without any semantics, recurrence, or cognitive structure.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # Projection matrices for multi-order curvature
+        self.Q1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Q2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Q3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Equalization coefficients
+        self.lambda1 = nn.Parameter(torch.tensor(0.03))
+        self.lambda2 = nn.Parameter(torch.tensor(0.03))
+        self.lambda3 = nn.Parameter(torch.tensor(0.03))
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Curvature components
+        c1 = self.act(x @ self.Q1)            # first-order
+        c2 = self.act(c1 @ self.Q2)           # second-order
+        c3 = self.act(x @ self.Q3 + 0.5 * (c1 @ self.Q3))  # mixed-order
+        # Equalization target
+        c_avg = (c1 + c2 + c3) / 3.0
+        # Deviations
+        d1 = c1 - c_avg
+        d2 = c2 - c_avg
+        d3 = c3 - c_avg
+        # Weighted equalization
+        delta = self.lambda1 * d1 + self.lambda2 * d2 + self.lambda3 * d3
+        # Correction
+        y = x - delta
+        # Normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
 class S110_ManifoldCoherenceUnificationLayer(nn.Module):
@@ -1986,6 +2097,42 @@ class NeuralBridge:
         else:
             self.s113 = None
         # -----------------------------------------------------
+        # S114 — Manifold Smoothness Reinforcement Layer (MSRL)
+        # -----------------------------------------------------
+        # Reinforces local manifold smoothness by suppressing high-gradient irregularities.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s114 = S114_ManifoldSmoothnessReinforcementLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S114_ManifoldSmoothnessReinforcementLayer initialization failed: {e}")
+                self.s114 = None
+        else:
+            self.s114 = None
+        # -----------------------------------------------------
+        # S115 — Higher-Order Curvature Modulation Layer (HOCML)
+        # -----------------------------------------------------
+        # Regulates second-order curvature modes and mixed curvature interactions within the unified manifold vector.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s115 = S115_HigherOrderCurvatureModulationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S115_HigherOrderCurvatureModulationLayer initialization failed: {e}")
+                self.s115 = None
+        else:
+            self.s115 = None
+        # -----------------------------------------------------
+        # S116 — Mixed-Order Curvature Equalization Layer (MO-CEL)
+        # -----------------------------------------------------
+        # Equalizes curvature contributions across first-order, second-order, and mixed-order curvature components.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s116 = S116_MixedOrderCurvatureEqualizationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S116_MixedOrderCurvatureEqualizationLayer initialization failed: {e}")
+                self.s116 = None
+        else:
+            self.s116 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -2928,6 +3075,39 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ S113 curvature gradient equalization forward pass failed: {e}")
                 # Continue with unmodified tensor if S113 fails
+
+        # -----------------------------------------------------
+        # S114 — Manifold Smoothness Reinforcement Layer (MSRL)
+        # -----------------------------------------------------
+        # Reinforces local manifold smoothness by suppressing high-gradient irregularities.
+        if self.s114 is not None:
+            try:
+                x = self.s114(x)
+            except Exception as e:
+                print(f"⚠️ S114 manifold smoothness reinforcement forward pass failed: {e}")
+                # Continue with unmodified tensor if S114 fails
+
+        # -----------------------------------------------------
+        # S115 — Higher-Order Curvature Modulation Layer (HOCML)
+        # -----------------------------------------------------
+        # Regulates second-order curvature modes and mixed curvature interactions within the unified manifold vector.
+        if self.s115 is not None:
+            try:
+                x = self.s115(x)
+            except Exception as e:
+                print(f"⚠️ S115 higher-order curvature modulation forward pass failed: {e}")
+                # Continue with unmodified tensor if S115 fails
+
+        # -----------------------------------------------------
+        # S116 — Mixed-Order Curvature Equalization Layer (MO-CEL)
+        # -----------------------------------------------------
+        # Equalizes curvature contributions across first-order, second-order, and mixed-order curvature components.
+        if self.s116 is not None:
+            try:
+                x = self.s116(x)
+            except Exception as e:
+                print(f"⚠️ S116 mixed-order curvature equalization forward pass failed: {e}")
+                # Continue with unmodified tensor if S116 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
