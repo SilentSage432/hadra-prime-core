@@ -392,6 +392,84 @@ class S108_MultiSpectralDriftSuppressionOperator(nn.Module):
         norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
         return y / norm
 
+# ====================================================
+# S109 — Spectral Energy Redistribution Layer (SERL)
+# ====================================================
+class S109_SpectralEnergyRedistributionLayer(nn.Module):
+    """
+    Rebalances spectral activation energy to prevent dominance/collapse.
+    Uses learned redistribution targets with spectral correction projection.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        self.U = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.act = nn.Tanh()
+        # Redistribution targets initialized uniform
+        self.r = nn.Parameter(torch.ones(dim) / dim)
+
+    def forward(self, x):
+        s = self.act(x @ self.U)
+        e = torch.abs(s)
+        E_total = e.sum(dim=-1, keepdim=True) + 1e-12
+        w = e / E_total
+        delta = w - self.r
+        y = x - (delta @ self.U.T)
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S111 — Curvature-Regulated Manifold Shaper (CRMS)
+# ====================================================
+class S111_CurvatureRegulatedManifoldShaper(nn.Module):
+    """
+    Curvature-aware shaping of the unified manifold output.
+    Enforces curvature uniformity without semantics or state.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        self.C1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.C2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.zeta = 0.04
+        self.act = nn.Tanh()
+
+    def forward(self, x):
+        c1 = self.act(x @ self.C1)
+        c2 = self.act(x @ self.C2)
+        delta_c = c1 - c2
+        y = x - self.zeta * delta_c
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S110 — Manifold Coherence Unification Layer (MCUL)
+# ====================================================
+class S110_ManifoldCoherenceUnificationLayer(nn.Module):
+    """
+    Unifies all stabilization outputs into a single coherent manifold trajectory.
+    Uses geometric contraction/expansion/curvature transforms for manifold consistency.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # Geometric transformation matrices
+        self.G1 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # contraction
+        self.G2 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # expansion
+        self.G3 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # curvature adjust
+        self.act = nn.Tanh()
+
+    def forward(self, x):
+        # Geometric transforms
+        c = self.act(x @ self.G1)
+        e = self.act(x @ self.G2)
+        k = self.act(x @ self.G3)
+        # Unified manifold vector
+        u = c + e + k
+        # Manifold normalization
+        norm = torch.norm(u, dim=-1, keepdim=True) + 1e-12
+        return u / norm
+
 class NeuralBridge:
 
     def __init__(self):
@@ -1778,6 +1856,42 @@ class NeuralBridge:
         else:
             self.s108 = None
         # -----------------------------------------------------
+        # S109 — Spectral Energy Redistribution Layer (SERL)
+        # -----------------------------------------------------
+        # Balances spectral activation energy to prevent dominance/collapse.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s109 = S109_SpectralEnergyRedistributionLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S109_SpectralEnergyRedistributionLayer initialization failed: {e}")
+                self.s109 = None
+        else:
+            self.s109 = None
+        # -----------------------------------------------------
+        # S110 — Manifold Coherence Unification Layer (MCUL)
+        # -----------------------------------------------------
+        # Unifies all stabilization outputs into a coherent manifold trajectory.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s110 = S110_ManifoldCoherenceUnificationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S110_ManifoldCoherenceUnificationLayer initialization failed: {e}")
+                self.s110 = None
+        else:
+            self.s110 = None
+        # -----------------------------------------------------
+        # S111 — Curvature-Regulated Manifold Shaper (CRMS)
+        # -----------------------------------------------------
+        # Curvature-aware shaping of unified manifold output.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s111 = S111_CurvatureRegulatedManifoldShaper(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S111_CurvatureRegulatedManifoldShaper initialization failed: {e}")
+                self.s111 = None
+        else:
+            self.s111 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -2665,6 +2779,39 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ S108 multi-spectral drift suppression forward pass failed: {e}")
                 # Continue with unmodified tensor if S108 fails
+
+        # -----------------------------------------------------
+        # S109 — Spectral Energy Redistribution Layer (SERL)
+        # -----------------------------------------------------
+        # Balances spectral activation energy to prevent dominance/collapse.
+        if self.s109 is not None:
+            try:
+                x = self.s109(x)
+            except Exception as e:
+                print(f"⚠️ S109 spectral energy redistribution forward pass failed: {e}")
+                # Continue with unmodified tensor if S109 fails
+
+        # -----------------------------------------------------
+        # S110 — Manifold Coherence Unification Layer (MCUL)
+        # -----------------------------------------------------
+        # Unifies all stabilization outputs into a coherent manifold trajectory.
+        if self.s110 is not None:
+            try:
+                x = self.s110(x)
+            except Exception as e:
+                print(f"⚠️ S110 manifold coherence unification forward pass failed: {e}")
+                # Continue with unmodified tensor if S110 fails
+
+        # -----------------------------------------------------
+        # S111 — Curvature-Regulated Manifold Shaper (CRMS)
+        # -----------------------------------------------------
+        # Curvature-aware shaping of unified manifold output.
+        if self.s111 is not None:
+            try:
+                x = self.s111(x)
+            except Exception as e:
+                print(f"⚠️ S111 curvature-regulated manifold shaping forward pass failed: {e}")
+                # Continue with unmodified tensor if S111 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
