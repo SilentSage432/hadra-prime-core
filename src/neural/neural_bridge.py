@@ -2507,7 +2507,7 @@ class S152_CoherenceRedistributionOperator(nn.Module):
         self.act = nn.Tanh()
         self.softplus = nn.Softplus()
 
-    def forward(self, x: torch.Tensor, v: torch.Tensor, C: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, v: torch.Tensor, C: torch.Tensor, B: torch.Tensor, return_intermediates: bool = False):
         # projection into redistribution space
         p = self.act(v @ self.Wp)
 
@@ -2535,6 +2535,186 @@ class S152_CoherenceRedistributionOperator(nn.Module):
 
         # unified redistribution update
         U = self.act(gamma * R_d + C_f + B_f)
+        y = x + U
+
+        # envelope normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        v_out = y / norm
+
+        if return_intermediates:
+            return v_out, v_out, R, C, B
+        return v_out
+
+# ==========================================================
+# S153 — Coherence Balancing Kernel (CBK)
+# ==========================================================
+class S153_CoherenceBalancingKernel(nn.Module):
+    """
+    Performs coherence balancing, ensuring that coherence magnitudes fall within a stable operating envelope, spatial distribution
+    across the embedding remains uniform, curvature weighting is respected, basis-aligned proportions are maintained, and drift-driven
+    imbalances are suppressed. After redistribution (S152), coherence values may be uneven across dimensions, mismatched with curvature
+    geometry, misaligned with substrate basis shape, or containing micro-instabilities. S153 performs coherence balancing.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # balance profile projection
+        self.Wt = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # curvature & basis transforms
+        self.Wc = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wb = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor, v: torch.Tensor, C: torch.Tensor, B: torch.Tensor, return_intermediates: bool = False) -> torch.Tensor:
+        # magnitude field
+        m = torch.abs(v)
+
+        # target balance profile
+        t = self.act(m @ self.Wt)
+
+        # balance error
+        E = v - t
+
+        # drift attenuation
+        R = v - x
+        d = torch.norm(R, dim=-1, keepdim=True)
+        lam = 1.0 / (1.0 + d)
+
+        # curvature & basis adjustments
+        C_b = self.act(C @ self.Wc)
+        B_b = self.act(B @ self.Wb)
+
+        # unified balancing update
+        U = self.act(lam * E + C_b + B_b)
+        y = x + U
+
+        # normalization (MF-500 envelope)
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        v_out = y / norm
+
+        if return_intermediates:
+            return v_out, v_out, R, C, B
+        return v_out
+
+# ==========================================================
+# S154 — High-Order Coherence Regularization Layer (HOCRL)
+# ==========================================================
+class S154_HighOrderCoherenceRegularizationLayer(nn.Module):
+    """
+    Performs high-order coherence regularization, ensuring smoothness across dimensions,
+    suppression of high-frequency oscillation artifacts, alignment to higher-order curvature
+    geometry, regularization of cross-dimensional coupling, and maintenance of stable global
+    substrate dynamics. After balancing (S153), coherence is stable at the first-order
+    distribution level. S154 now imposes higher-order structural regularization.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # two-stage projection (higher-order)
+        self.W1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.W2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # curvature and basis transforms
+        self.Wc = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wb = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor, v: torch.Tensor, C: torch.Tensor, B: torch.Tensor, return_intermediates: bool = False) -> torch.Tensor:
+        # higher-order projection
+        h = self.act(self.act(v @ self.W1) @ self.W2)
+
+        # oscillation component (high-frequency structure)
+        o = v - h
+
+        # drift-modulated strength
+        R = v - x
+        d = torch.norm(R, dim=-1, keepdim=True)
+        rho = 1.0 / (1.0 + d)
+
+        # curvature/basis components
+        C_r = self.act(C @ self.Wc)
+        B_r = self.act(B @ self.Wb)
+
+        # unified update
+        U = self.act(rho * o + C_r + B_r)
+        y = x + U
+
+        # envelope normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        v_out = y / norm
+
+        if return_intermediates:
+            return v_out, v_out, h, o, C, B
+        return v_out
+
+# ==========================================================
+# S155 — High-Order Coherence Fusion Layer (HOCFL)
+# ==========================================================
+class S155_HighOrderCoherenceFusionLayer(nn.Module):
+    """
+    Performs high-order coherence fusion, fusing high-order projection fields and residual-oscillation
+    fields into a single high-order fused field. S154 isolated and regularized high-order structures
+    by separating low-frequency coherence (h) and high-frequency residuals (o = v - h). S155 now fuses
+    these two coherence components into a single high-order fused field, stabilizing their interaction
+    by integrating high-order projection fields, residual-oscillation fields, curvature-derived structure,
+    basis-aligned modulation, and drift-weighted fusion strength. This completes the high-order coherence
+    block before S156–S160 consolidate global dynamics.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # high-order and oscillation fusion transforms
+        self.Wf1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wf2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wf3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        self.Wg1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wg2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wg3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # fusion weights
+        self.beta1 = nn.Parameter(torch.tensor(0.33))
+        self.beta2 = nn.Parameter(torch.tensor(0.33))
+        self.beta3 = nn.Parameter(torch.tensor(0.34))
+
+        # curvature/basis transforms
+        self.Wc = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wb = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor, v: torch.Tensor, h: torch.Tensor, o: torch.Tensor, C: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
+        # fusion channels
+        f1 = self.act(h @ self.Wf1 + o @ self.Wg1)
+        f2 = self.act(h @ self.Wf2 + o @ self.Wg2)
+        f3 = self.act(h @ self.Wf3 + o @ self.Wg3)
+
+        # positive weights
+        a1 = self.softplus(self.beta1)
+        a2 = self.softplus(self.beta2)
+        a3 = self.softplus(self.beta3)
+
+        # fused high-order manifold
+        F = a1*f1 + a2*f2 + a3*f3
+
+        # drift modulation
+        R = v - x
+        d = torch.norm(R, dim=-1, keepdim=True)
+        gamma = 1.0 / (1.0 + d)
+
+        # curvature/basis corrections
+        C_f = self.act(C @ self.Wc)
+        B_f = self.act(B @ self.Wb)
+
+        # unified update
+        U = self.act(gamma * F + C_f + B_f)
         y = x + U
 
         # envelope normalization
@@ -4627,6 +4807,50 @@ class NeuralBridge:
                 self.s152 = None
         else:
             self.s152 = None
+        # S153 — Coherence Balancing Kernel (CBK)
+        # -----------------------------------------------------
+        # Performs coherence balancing, ensuring that coherence magnitudes fall within a stable operating envelope, spatial distribution
+        # across the embedding remains uniform, curvature weighting is respected, basis-aligned proportions are maintained, and drift-driven
+        # imbalances are suppressed. After redistribution (S152), coherence values may be uneven across dimensions, mismatched with curvature
+        # geometry, misaligned with substrate basis shape, or containing micro-instabilities. S153 performs coherence balancing.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s153 = S153_CoherenceBalancingKernel(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S153_CoherenceBalancingKernel initialization failed: {e}")
+                self.s153 = None
+        else:
+            self.s153 = None
+        # S154 — High-Order Coherence Regularization Layer (HOCRL)
+        # -----------------------------------------------------
+        # Performs high-order coherence regularization, ensuring smoothness across dimensions, suppression of high-frequency oscillation
+        # artifacts, alignment to higher-order curvature geometry, regularization of cross-dimensional coupling, and maintenance of stable
+        # global substrate dynamics. After balancing (S153), coherence is stable at the first-order distribution level. S154 now imposes
+        # higher-order structural regularization. This begins the high-order coherence conditioning arc of the S-series.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s154 = S154_HighOrderCoherenceRegularizationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S154_HighOrderCoherenceRegularizationLayer initialization failed: {e}")
+                self.s154 = None
+        else:
+            self.s154 = None
+        # S155 — High-Order Coherence Fusion Layer (HOCFL)
+        # -----------------------------------------------------
+        # Performs high-order coherence fusion, fusing high-order projection fields and residual-oscillation fields into a single high-order
+        # fused field. S154 isolated and regularized high-order structures by separating low-frequency coherence (h) and high-frequency
+        # residuals (o = v - h). S155 now fuses these two coherence components into a single high-order fused field, stabilizing their
+        # interaction by integrating high-order projection fields, residual-oscillation fields, curvature-derived structure, basis-aligned
+        # modulation, and drift-weighted fusion strength. This completes the high-order coherence block before S156–S160 consolidate
+        # global dynamics.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s155 = S155_HighOrderCoherenceFusionLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S155_HighOrderCoherenceFusionLayer initialization failed: {e}")
+                self.s155 = None
+        else:
+            self.s155 = None
         # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
@@ -6187,13 +6411,75 @@ class NeuralBridge:
         # curvature-regulated distribution shaping, basis-frame alignment, and MF-500 envelope stability. S151 equalized the coherence
         # distribution across the vector space. S152 now performs controlled redistribution of coherence intensity. This continues the
         # coherence normalization arc (S150 → S155).
+        s152_intermediates = None
         if self.s152 is not None and s151_intermediates is not None:
             try:
                 v, R, C, B = s151_intermediates
-                x = self.s152(x, v, C, B)
+                # Get both output and intermediate fields for S153
+                if self.s153 is not None:
+                    x, v_out, R_out, C_out, B_out = self.s152(x, v, C, B, return_intermediates=True)
+                    s152_intermediates = (v_out, R_out, C_out, B_out)
+                else:
+                    x = self.s152(x, v, C, B)
             except Exception as e:
                 print(f"⚠️ S152 coherence redistribution forward pass failed: {e}")
                 # Continue with unmodified tensor if S152 fails
+
+        # S153 — Coherence Balancing Kernel (CBK)
+        # -----------------------------------------------------
+        # Performs coherence balancing, ensuring that coherence magnitudes fall within a stable operating envelope, spatial distribution
+        # across the embedding remains uniform, curvature weighting is respected, basis-aligned proportions are maintained, and drift-driven
+        # imbalances are suppressed. After redistribution (S152), coherence values may be uneven across dimensions, mismatched with curvature
+        # geometry, misaligned with substrate basis shape, or containing micro-instabilities. S153 performs coherence balancing.
+        s153_intermediates = None
+        if self.s153 is not None and s152_intermediates is not None:
+            try:
+                v, R, C, B = s152_intermediates
+                # Get both output and intermediate fields for S154
+                if self.s154 is not None:
+                    x, v_out, R_out, C_out, B_out = self.s153(x, v, C, B, return_intermediates=True)
+                    s153_intermediates = (v_out, R_out, C_out, B_out)
+                else:
+                    x = self.s153(x, v, C, B)
+            except Exception as e:
+                print(f"⚠️ S153 coherence balancing forward pass failed: {e}")
+                # Continue with unmodified tensor if S153 fails
+
+        # S154 — High-Order Coherence Regularization Layer (HOCRL)
+        # -----------------------------------------------------
+        # Performs high-order coherence regularization, ensuring smoothness across dimensions, suppression of high-frequency oscillation
+        # artifacts, alignment to higher-order curvature geometry, regularization of cross-dimensional coupling, and maintenance of stable
+        # global substrate dynamics. After balancing (S153), coherence is stable at the first-order distribution level. S154 now imposes
+        # higher-order structural regularization. This begins the high-order coherence conditioning arc of the S-series.
+        s154_intermediates = None
+        if self.s154 is not None and s153_intermediates is not None:
+            try:
+                v, R, C, B = s153_intermediates
+                # Get both output and intermediate fields for S155
+                if self.s155 is not None:
+                    x, v_out, h, o, C_out, B_out = self.s154(x, v, C, B, return_intermediates=True)
+                    s154_intermediates = (v_out, h, o, C_out, B_out)
+                else:
+                    x = self.s154(x, v, C, B)
+            except Exception as e:
+                print(f"⚠️ S154 high-order coherence regularization forward pass failed: {e}")
+                # Continue with unmodified tensor if S154 fails
+
+        # S155 — High-Order Coherence Fusion Layer (HOCFL)
+        # -----------------------------------------------------
+        # Performs high-order coherence fusion, fusing high-order projection fields and residual-oscillation fields into a single high-order
+        # fused field. S154 isolated and regularized high-order structures by separating low-frequency coherence (h) and high-frequency
+        # residuals (o = v - h). S155 now fuses these two coherence components into a single high-order fused field, stabilizing their
+        # interaction by integrating high-order projection fields, residual-oscillation fields, curvature-derived structure, basis-aligned
+        # modulation, and drift-weighted fusion strength. This completes the high-order coherence block before S156–S160 consolidate
+        # global dynamics.
+        if self.s155 is not None and s154_intermediates is not None:
+            try:
+                v, h, o, C, B = s154_intermediates
+                x = self.s155(x, v, h, o, C, B)
+            except Exception as e:
+                print(f"⚠️ S155 high-order coherence fusion forward pass failed: {e}")
+                # Continue with unmodified tensor if S155 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
