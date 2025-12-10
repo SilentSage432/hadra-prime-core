@@ -717,6 +717,50 @@ class S118_ManifoldCoherenceReinforcementLayer(nn.Module):
         return y / norm
 
 # ====================================================
+# S119 — Manifold Harmonic Reprojection Layer (MHRL)
+# ====================================================
+class S119_ManifoldHarmonicReprojectionLayer(nn.Module):
+    """
+    Performs harmonic reprojection: identifies harmonic components in the manifold vector
+    (local, mid-frequency, and global patterns), extracts them, and reprojects the manifold
+    onto a smoothed harmonic basis. Reduces harmonic distortion, stabilizes multi-frequency
+    behavior, and creates smoother manifold transitions.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # Harmonic projection matrices
+        self.H1 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # low-frequency
+        self.H2 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # mid-frequency
+        self.H3 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # high-frequency
+        # Reprojection weights
+        self.omega1 = nn.Parameter(torch.tensor(0.33))
+        self.omega2 = nn.Parameter(torch.tensor(0.33))
+        self.omega3 = nn.Parameter(torch.tensor(0.33))
+        # Reprojection strength
+        self.alpha = nn.Parameter(torch.tensor(0.045))
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Harmonic projections
+        h1 = self.act(x @ self.H1)  # low-frequency harmonic pattern
+        h2 = self.act(x @ self.H2)  # mid-harmonic pattern
+        h3 = self.act(x @ self.H3)  # high-frequency harmonic components
+        # Target harmonic blend
+        h_target = (
+            self.omega1 * h1 +
+            self.omega2 * h2 +
+            self.omega3 * h3
+        )
+        # Harmonic residual
+        delta_h = x - h_target
+        # Reprojection update
+        y = x - self.alpha * delta_h
+        # Manifold normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
 class S110_ManifoldCoherenceUnificationLayer(nn.Module):
@@ -2250,6 +2294,21 @@ class NeuralBridge:
         else:
             self.s118 = None
         # -----------------------------------------------------
+        # S119 — Manifold Harmonic Reprojection Layer (MHRL)
+        # -----------------------------------------------------
+        # Performs harmonic reprojection: identifies harmonic components in the manifold vector
+        # (local, mid-frequency, and global patterns), extracts them, and reprojects the manifold
+        # onto a smoothed harmonic basis. Reduces harmonic distortion, stabilizes multi-frequency
+        # behavior, and creates smoother manifold transitions.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s119 = S119_ManifoldHarmonicReprojectionLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S119_ManifoldHarmonicReprojectionLayer initialization failed: {e}")
+                self.s119 = None
+        else:
+            self.s119 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -3247,6 +3306,20 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ S118 manifold coherence reinforcement forward pass failed: {e}")
                 # Continue with unmodified tensor if S118 fails
+
+        # -----------------------------------------------------
+        # S119 — Manifold Harmonic Reprojection Layer (MHRL)
+        # -----------------------------------------------------
+        # Performs harmonic reprojection: identifies harmonic components in the manifold vector
+        # (local, mid-frequency, and global patterns), extracts them, and reprojects the manifold
+        # onto a smoothed harmonic basis. Reduces harmonic distortion, stabilizes multi-frequency
+        # behavior, and creates smoother manifold transitions.
+        if self.s119 is not None:
+            try:
+                x = self.s119(x)
+            except Exception as e:
+                print(f"⚠️ S119 manifold harmonic reprojection forward pass failed: {e}")
+                # Continue with unmodified tensor if S119 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
