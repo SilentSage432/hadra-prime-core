@@ -1207,6 +1207,89 @@ class A150_SubstrateManifoldConfluenceLayer(nn.Module):
 
 
 # ---------------------------------------------
+# A151 — Substrate Entry Activation Kernel (SEAK)
+# ---------------------------------------------
+# A151 activates a geometry-resolved mapping that converts the A150 confluence
+# tensor into substrate-entry activation coordinates. It performs:
+#   - substrate-entry projection
+#   - activation ramp generation
+#   - stability-friendly bounded gating
+#   - substrate-compatible normalization
+# ---------------------------------------------
+class A151_SubstrateEntryActivationKernel(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # substrate-entry projection
+        self.E = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # activation kernel
+        self.A = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # activation strength
+        self.kappa = 0.12
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # projection into substrate-entry coordinates
+        entry = x @ self.E
+
+        # activation ramp
+        act = self.act(entry @ self.A)
+
+        # apply activation
+        out = x + self.kappa * act
+
+        # project onto substrate-compatible manifold
+        norm = torch.norm(out, dim=-1, keepdim=True) + 1e-12
+        return out / norm
+
+
+# ---------------------------------------------
+# A152 — Substrate Harmonic Injection Layer (SHIL)
+# ---------------------------------------------
+# A152 injects controlled harmonic fields aligned with the substrate's harmonic
+# geometry. It:
+#   - projects into harmonic bases
+#   - injects learned harmonic vectors
+#   - applies bounded harmonic modulation
+#   - re-normalizes for substrate geometry
+# ---------------------------------------------
+class A152_SubstrateHarmonicInjectionLayer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # harmonic projection matrices
+        self.H1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.H2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # harmonic injection vectors
+        self.v1 = nn.Parameter(torch.randn(1, dim) * 0.01)
+        self.v2 = nn.Parameter(torch.randn(1, dim) * 0.01)
+
+        # injection coefficient
+        self.omega = 0.11
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # harmonic projections
+        h1 = x @ self.H1
+        h2 = x @ self.H2
+
+        # harmonic injection
+        inj = self.act(h1 + self.v1) + self.act(h2 + self.v2)
+
+        # fuse with input tensor
+        out = x + self.omega * inj
+
+        # substrate-compatible normalization
+        norm = torch.norm(out, dim=-1, keepdim=True) + 1e-12
+        return out / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):

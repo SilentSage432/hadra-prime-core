@@ -72,6 +72,8 @@ try:
         A148_IntrinsicManifoldReinforcementField,
         A149_CrossCurvatureFusionOperator,
         A150_SubstrateManifoldConfluenceLayer,
+        A151_SubstrateEntryActivationKernel,
+        A152_SubstrateHarmonicInjectionLayer,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -97,6 +99,8 @@ except (ImportError, RuntimeError) as e:
     A148_IntrinsicManifoldReinforcementField = None
     A149_CrossCurvatureFusionOperator = None
     A150_SubstrateManifoldConfluenceLayer = None
+    A151_SubstrateEntryActivationKernel = None
+    A152_SubstrateHarmonicInjectionLayer = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -1160,6 +1164,30 @@ class NeuralBridge:
         else:
             self.a150 = None
         # -----------------------------------------------------
+        # A151 — Substrate Entry Activation Kernel (SEAK)
+        # -----------------------------------------------------
+        # A151 maps the A150 confluence tensor into substrate-entry activation coordinates.
+        if SUBSTRATE_AVAILABLE and A151_SubstrateEntryActivationKernel is not None:
+            try:
+                self.a151 = A151_SubstrateEntryActivationKernel(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A151_SubstrateEntryActivationKernel initialization failed: {e}")
+                self.a151 = None
+        else:
+            self.a151 = None
+        # -----------------------------------------------------
+        # A152 — Substrate Harmonic Injection Layer (SHIL)
+        # -----------------------------------------------------
+        # A152 injects substrate harmonic fields into the activation tensor.
+        if SUBSTRATE_AVAILABLE and A152_SubstrateHarmonicInjectionLayer is not None:
+            try:
+                self.a152 = A152_SubstrateHarmonicInjectionLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A152_SubstrateHarmonicInjectionLayer initialization failed: {e}")
+                self.a152 = None
+        else:
+            self.a152 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -1241,7 +1269,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -1265,13 +1293,15 @@ class NeuralBridge:
         19. A148 Intrinsic Manifold Reinforcement Field (intrinsic manifold reinforcement)
         20. A149 Cross-Curvature Fusion Operator (cross-curvature fusion)
         21. A150 Substrate–Manifold Confluence Layer (substrate–manifold confluence)
-        22. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        22. A151 Substrate Entry Activation Kernel (substrate-entry activation mapping)
+        23. A152 Substrate Harmonic Injection Layer (substrate harmonic injection)
+        24. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -1708,6 +1738,28 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A150 substrate–manifold confluence forward pass failed: {e}")
                 # Continue with unmodified tensor if A150 fails
+
+        # -----------------------------------------------------
+        # A151 — Substrate Entry Activation Kernel (SEAK)
+        # -----------------------------------------------------
+        # A151 activates a substrate-entry mapping, generating a gated activation ramp.
+        if self.a151 is not None:
+            try:
+                x = self.a151(x)
+            except Exception as e:
+                print(f"⚠️ A151 substrate entry activation forward pass failed: {e}")
+                # Continue with unmodified tensor if A151 fails
+
+        # -----------------------------------------------------
+        # A152 — Substrate Harmonic Injection Layer (SHIL)
+        # -----------------------------------------------------
+        # A152 injects substrate harmonic fields to align with MF harmonic geometry.
+        if self.a152 is not None:
+            try:
+                x = self.a152(x)
+            except Exception as e:
+                print(f"⚠️ A152 substrate harmonic injection forward pass failed: {e}")
+                # Continue with unmodified tensor if A152 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
