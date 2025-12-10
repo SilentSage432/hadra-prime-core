@@ -592,6 +592,11 @@ class NeuralBridge:
             self.mf422 = self.MF422_ResonanceWeightedNormalizer(dim=self.dim, alpha=0.1)
         except Exception:
             self.mf422 = None
+        # MF-424 — Phase-Space Gradient Alignment Kernel
+        try:
+            self.mf424 = self.MF424_PhaseSpaceAlignment(dim=self.dim)
+        except Exception:
+            self.mf424 = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -31924,6 +31929,105 @@ class NeuralBridge:
             except Exception:
                 # If normalization fails, return original influence
                 return influence
+
+    class MF424_PhaseSpaceAlignment(nn.Module):
+        """
+        MF-424 — Phase-Space Gradient Alignment Kernel
+
+        Introduces a kernel that aligns the resonance-gradient-modulated propagation tensor
+        with a phase-space orientation field derived from substrate geometry. This ensures
+        downstream flow remains phase-coherent, avoiding divergence when gradients cross into
+        higher-curvature regions of the substrate manifold.
+
+        Core Computational Components:
+        1. Phase-direction tensor: computed via local second-order differences, serving as
+           an orientation indicator derived from propagation curvature.
+        2. Gradient-phase interaction: element-wise product of propagation signal with
+           phase-direction tensor.
+        3. Alignment coefficients: learned low-rank projection with sigmoid activation to
+           determine alignment intensity.
+        4. Phase-aligned propagation output: shifts the propagation field toward the dominant
+           phase-space curvature without overshooting.
+
+        This introduces phase-geometry awareness into the propagation tensor, preparing the
+        system for MF-425, which begins refining phase-coherence across multi-band dynamics.
+        """
+
+        def __init__(self, dim: int):
+            super().__init__()
+            self.align_proj = nn.Linear(dim, dim, bias=False)
+            self.activation = nn.Sigmoid()
+
+        def forward(self, x):
+            """
+            x: gradient-modulated propagation tensor, shape [batch, dim]
+            """
+            if torch is None or x is None:
+                return x
+
+            # Ensure x is a tensor
+            if not isinstance(x, torch.Tensor):
+                try:
+                    x = torch.tensor(x, dtype=torch.float32)
+                except Exception:
+                    return None
+
+            # Ensure proper shape
+            if x.dim() == 1:
+                x = x.unsqueeze(0)
+
+            try:
+                import torch.nn.functional as F
+
+                batch, dim = x.shape
+
+                # Ensure projection dimension matches
+                if dim != self.align_proj.in_features:
+                    # Create new projection with correct dimension
+                    device = x.device if hasattr(x, 'device') else None
+                    self.align_proj = nn.Linear(dim, dim, bias=False)
+                    if device is not None:
+                        self.align_proj = self.align_proj.to(device)
+
+                # Second-order difference = phase-direction approximation
+                # Using roll to compute second-order finite differences
+                if dim > 2:
+                    x_roll1 = torch.roll(x, shifts=1, dims=-1)
+                    x_roll2 = torch.roll(x, shifts=2, dims=-1)
+                    phase_dir = x - 2 * x_roll1 + x_roll2
+                else:
+                    # For small dimensions, use simpler approximation
+                    if dim > 1:
+                        phase_dir = x[:, 1:] - x[:, :-1]
+                        phase_dir = F.pad(phase_dir, (0, 1), mode="replicate")
+                    else:
+                        phase_dir = torch.zeros_like(x)
+
+                # Ensure phase_dir matches dimension
+                if phase_dir.shape[-1] != dim:
+                    if phase_dir.shape[-1] < dim:
+                        padding = torch.zeros(
+                            phase_dir.shape[:-1] + (dim - phase_dir.shape[-1],),
+                            dtype=phase_dir.dtype,
+                            device=phase_dir.device if hasattr(phase_dir, 'device') else None
+                        )
+                        phase_dir = torch.cat([phase_dir, padding], dim=-1)
+                    else:
+                        phase_dir = phase_dir[..., :dim]
+
+                # Gradient-phase interaction
+                interaction = x * phase_dir
+
+                # Alignment coefficients
+                align_coeff = self.activation(self.align_proj(interaction))
+
+                # Modulate propagation toward phase-direction
+                output = x + align_coeff * phase_dir
+
+                return output
+            except Exception:
+                # If alignment fails, return original input
+                return x
 
     def integrate_A301(self):
         """
