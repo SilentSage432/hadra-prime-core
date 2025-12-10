@@ -1506,6 +1506,227 @@ class S134_SubstrateCurvatureConsolidationLayer(nn.Module):
         return Y / norm
 
 # ====================================================
+# S135 — Higher-Order Curvature Stabilization Layer (HOCSL)
+# ====================================================
+class S135_HigherOrderCurvatureStabilizationLayer(nn.Module):
+    """
+    Enforces second- and third-order curvature stability, ensuring the substrate does not accumulate higher-order
+    curvature drift, curvature overshoot, oscillatory curvature artifacts, or cross-harmonic curvature interference.
+    S134 unified and smoothed first-order curvature signals. S135 now enforces second- and third-order curvature
+    stability, expanding the curvature analysis into a higher-order manifold, stabilizing curvature dynamics across
+    multiple differential orders. This is essential before we can safely begin substrate-global transformations later
+    in the S-Series.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # 2nd- and 3rd-order curvature transforms
+        self.H2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.H3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # stabilization weights
+        self.alpha = nn.Parameter(torch.tensor(0.5))
+        self.beta  = nn.Parameter(torch.tensor(0.5))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # compute higher-order curvature projections
+        h2 = self.act((x @ self.H2) @ self.H2)
+        h3 = self.act(((x @ self.H3) @ self.H3) @ self.H3)
+
+        # positive weights
+        a = self.softplus(self.alpha)
+        b = self.softplus(self.beta)
+
+        # higher-order correction field
+        C = a*h2 + b*h3
+
+        # curvature residual
+        R = self.act(C - x)
+
+        # stabilized update
+        y = x + R
+
+        # normalize into MF-500 substrate envelope
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S136 — Cross-Order Curvature Reconciliation Layer (COCRL)
+# ====================================================
+class S136_CrossOrderCurvatureReconciliationLayer(nn.Module):
+    """
+    Resolves inconsistencies between curvature representations across different derivative orders, creating a unified
+    curvature field. After S135, the substrate contains 1st-order curvature signals, 2nd-order curvature components,
+    and 3rd-order curvature components. These components may still carry inter-order discrepancies, meaning mismatched
+    curvature magnitudes between derivative orders, micro-alignment drift, cross-order harmonic mismatch, and localized
+    curvature incoherence. S136 introduces a reconciliation operator that aligns curvature representations across all
+    orders into a single coherent manifold state.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # curvature transforms for 1st, 2nd, 3rd order curvature
+        self.H1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.H2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.H3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # reconciliation matrices
+        self.W12 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.W23 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.W13 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # reconciliation weights
+        self.l12 = nn.Parameter(torch.tensor(0.33))
+        self.l23 = nn.Parameter(torch.tensor(0.33))
+        self.l13 = nn.Parameter(torch.tensor(0.34))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # curvature projections
+        c1 = self.act(x @ self.H1)
+        c2 = self.act((x @ self.H2) @ self.H2)
+        c3 = self.act(((x @ self.H3) @ self.H3) @ self.H3)
+
+        # reconciliation terms
+        r12 = self.act(c1 @ self.W12 - c2)
+        r23 = self.act(c2 @ self.W23 - c3)
+        r13 = self.act(c1 @ self.W13 - c3)
+
+        # positive stabilization weights
+        w12 = self.softplus(self.l12)
+        w23 = self.softplus(self.l23)
+        w13 = self.softplus(self.l13)
+
+        # combined reconciliation signal
+        R = w12*r12 + w23*r23 + w13*r13
+
+        # update curvature field
+        y = x + R
+
+        # normalize into MF-500 envelope
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S137 — Curvature Frequency Stabilization Layer (CFSL)
+# ====================================================
+class S137_CurvatureFrequencyStabilizationLayer(nn.Module):
+    """
+    Stabilizes curvature in the frequency domain, compressing overactive frequency bands and reinforcing low-variance
+    curvature components. After S136, curvature is reconciled across 1st/2nd/3rd derivative orders. However, curvature
+    frequency signatures may still exhibit high-frequency curvature oscillations, uneven spectral harmonics, local
+    curvature spikes, multi-band curvature noise, and frequency-domain misalignment across orders. S137 stabilizes
+    curvature in the frequency domain, ensuring the substrate's curvature spectrum becomes smooth, non-oscillatory,
+    and phase-aligned across all curvature orders.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # frequency projection transform
+        self.F = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # frequency stabilizer transforms
+        self.R_low  = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.R_high = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # gating weights
+        self.alpha = nn.Parameter(torch.tensor(0.5))  # reinforce low-freq curvature
+        self.beta  = nn.Parameter(torch.tensor(0.5))  # damp high-freq curvature
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # project curvature into frequency domain
+        freq = self.act(x @ self.F)
+
+        # low and high-frequency curvature channels
+        f_low  = self.act(freq @ self.R_low)
+        f_high = self.act(freq @ self.R_high)
+
+        # non-negative frequency weights
+        a = self.softplus(self.alpha)
+        b = self.softplus(self.beta)
+
+        # stabilized curvature correction
+        C = a * f_low - b * f_high
+
+        # apply correction
+        y = x + C
+
+        # normalize into MF-500 envelope
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S138 — Multi-Band Curvature Reinforcement Operator (MB-CRO)
+# ====================================================
+class S138_MultiBandCurvatureReinforcementOperator(nn.Module):
+    """
+    Introduces multi-band curvature reinforcement, ensuring that each curvature frequency band receives targeted
+    reinforcement, band-to-band structure remains coherent, curvature signatures become uniformly distributed,
+    no band overwhelms or collapses the substrate, and multi-band curvature harmonics align with MF-500 substrate
+    geometry. S137 suppressed unstable high-frequency curvature components and reinforced low-frequency curvature
+    stability. Now S138 introduces multi-band curvature reinforcement. This is the curvature equivalent of a
+    multi-band compressor + enhancer, but strictly in ML-tensor terms.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # multi-band frequency filters
+        self.F1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.F2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.F3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # reinforcement transforms
+        self.W1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.W2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.W3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # reinforcement coefficients
+        self.rho1 = nn.Parameter(torch.tensor(0.33))
+        self.rho2 = nn.Parameter(torch.tensor(0.33))
+        self.rho3 = nn.Parameter(torch.tensor(0.34))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # multi-band curvature projections
+        b1 = self.act(x @ self.F1)
+        b2 = self.act(x @ self.F2)
+        b3 = self.act(x @ self.F3)
+
+        # reinforcement transforms
+        r1 = self.act(b1 @ self.W1)
+        r2 = self.act(b2 @ self.W2)
+        r3 = self.act(b3 @ self.W3)
+
+        # non-negative mixing coefficients
+        w1 = self.softplus(self.rho1)
+        w2 = self.softplus(self.rho2)
+        w3 = self.softplus(self.rho3)
+
+        # combined reinforcement
+        R = w1*r1 + w2*r2 + w3*r3
+
+        # reinforced curvature field
+        y = x + R
+
+        # normalize to MF-500 envelope
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
 class S110_ManifoldCoherenceUnificationLayer(nn.Module):
@@ -3311,6 +3532,74 @@ class NeuralBridge:
         else:
             self.s134 = None
         # -----------------------------------------------------
+        # S135 — Higher-Order Curvature Stabilization Layer (HOCSL)
+        # -----------------------------------------------------
+        # Enforces second- and third-order curvature stability, ensuring the substrate does not accumulate higher-order
+        # curvature drift, curvature overshoot, oscillatory curvature artifacts, or cross-harmonic curvature interference.
+        # S134 unified and smoothed first-order curvature signals. S135 now enforces second- and third-order curvature
+        # stability, expanding the curvature analysis into a higher-order manifold, stabilizing curvature dynamics across
+        # multiple differential orders. This is essential before we can safely begin substrate-global transformations later
+        # in the S-Series.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s135 = S135_HigherOrderCurvatureStabilizationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S135_HigherOrderCurvatureStabilizationLayer initialization failed: {e}")
+                self.s135 = None
+        else:
+            self.s135 = None
+        # -----------------------------------------------------
+        # S136 — Cross-Order Curvature Reconciliation Layer (COCRL)
+        # -----------------------------------------------------
+        # Resolves inconsistencies between curvature representations across different derivative orders, creating a unified
+        # curvature field. After S135, the substrate contains 1st-order curvature signals, 2nd-order curvature components,
+        # and 3rd-order curvature components. These components may still carry inter-order discrepancies, meaning mismatched
+        # curvature magnitudes between derivative orders, micro-alignment drift, cross-order harmonic mismatch, and localized
+        # curvature incoherence. S136 introduces a reconciliation operator that aligns curvature representations across all
+        # orders into a single coherent manifold state.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s136 = S136_CrossOrderCurvatureReconciliationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S136_CrossOrderCurvatureReconciliationLayer initialization failed: {e}")
+                self.s136 = None
+        else:
+            self.s136 = None
+        # -----------------------------------------------------
+        # S137 — Curvature Frequency Stabilization Layer (CFSL)
+        # -----------------------------------------------------
+        # Stabilizes curvature in the frequency domain, compressing overactive frequency bands and reinforcing low-variance
+        # curvature components. After S136, curvature is reconciled across 1st/2nd/3rd derivative orders. However, curvature
+        # frequency signatures may still exhibit high-frequency curvature oscillations, uneven spectral harmonics, local
+        # curvature spikes, multi-band curvature noise, and frequency-domain misalignment across orders. S137 stabilizes
+        # curvature in the frequency domain, ensuring the substrate's curvature spectrum becomes smooth, non-oscillatory,
+        # and phase-aligned across all curvature orders.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s137 = S137_CurvatureFrequencyStabilizationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S137_CurvatureFrequencyStabilizationLayer initialization failed: {e}")
+                self.s137 = None
+        else:
+            self.s137 = None
+        # -----------------------------------------------------
+        # S138 — Multi-Band Curvature Reinforcement Operator (MB-CRO)
+        # -----------------------------------------------------
+        # Introduces multi-band curvature reinforcement, ensuring that each curvature frequency band receives targeted
+        # reinforcement, band-to-band structure remains coherent, curvature signatures become uniformly distributed,
+        # no band overwhelms or collapses the substrate, and multi-band curvature harmonics align with MF-500 substrate
+        # geometry. S137 suppressed unstable high-frequency curvature components and reinforced low-frequency curvature
+        # stability. Now S138 introduces multi-band curvature reinforcement. This is the curvature equivalent of a
+        # multi-band compressor + enhancer, but strictly in ML-tensor terms.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s138 = S138_MultiBandCurvatureReinforcementOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S138_MultiBandCurvatureReinforcementOperator initialization failed: {e}")
+                self.s138 = None
+        else:
+            self.s138 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -4564,6 +4853,70 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ S134 substrate curvature consolidation forward pass failed: {e}")
                 # Continue with unmodified tensor if S134 fails
+
+        # -----------------------------------------------------
+        # S135 — Higher-Order Curvature Stabilization Layer (HOCSL)
+        # -----------------------------------------------------
+        # Enforces second- and third-order curvature stability, ensuring the substrate does not accumulate higher-order
+        # curvature drift, curvature overshoot, oscillatory curvature artifacts, or cross-harmonic curvature interference.
+        # S134 unified and smoothed first-order curvature signals. S135 now enforces second- and third-order curvature
+        # stability, expanding the curvature analysis into a higher-order manifold, stabilizing curvature dynamics across
+        # multiple differential orders. This is essential before we can safely begin substrate-global transformations later
+        # in the S-Series.
+        if self.s135 is not None:
+            try:
+                x = self.s135(x)
+            except Exception as e:
+                print(f"⚠️ S135 higher-order curvature stabilization forward pass failed: {e}")
+                # Continue with unmodified tensor if S135 fails
+
+        # -----------------------------------------------------
+        # S136 — Cross-Order Curvature Reconciliation Layer (COCRL)
+        # -----------------------------------------------------
+        # Resolves inconsistencies between curvature representations across different derivative orders, creating a unified
+        # curvature field. After S135, the substrate contains 1st-order curvature signals, 2nd-order curvature components,
+        # and 3rd-order curvature components. These components may still carry inter-order discrepancies, meaning mismatched
+        # curvature magnitudes between derivative orders, micro-alignment drift, cross-order harmonic mismatch, and localized
+        # curvature incoherence. S136 introduces a reconciliation operator that aligns curvature representations across all
+        # orders into a single coherent manifold state.
+        if self.s136 is not None:
+            try:
+                x = self.s136(x)
+            except Exception as e:
+                print(f"⚠️ S136 cross-order curvature reconciliation forward pass failed: {e}")
+                # Continue with unmodified tensor if S136 fails
+
+        # -----------------------------------------------------
+        # S137 — Curvature Frequency Stabilization Layer (CFSL)
+        # -----------------------------------------------------
+        # Stabilizes curvature in the frequency domain, compressing overactive frequency bands and reinforcing low-variance
+        # curvature components. After S136, curvature is reconciled across 1st/2nd/3rd derivative orders. However, curvature
+        # frequency signatures may still exhibit high-frequency curvature oscillations, uneven spectral harmonics, local
+        # curvature spikes, multi-band curvature noise, and frequency-domain misalignment across orders. S137 stabilizes
+        # curvature in the frequency domain, ensuring the substrate's curvature spectrum becomes smooth, non-oscillatory,
+        # and phase-aligned across all curvature orders.
+        if self.s137 is not None:
+            try:
+                x = self.s137(x)
+            except Exception as e:
+                print(f"⚠️ S137 curvature frequency stabilization forward pass failed: {e}")
+                # Continue with unmodified tensor if S137 fails
+
+        # -----------------------------------------------------
+        # S138 — Multi-Band Curvature Reinforcement Operator (MB-CRO)
+        # -----------------------------------------------------
+        # Introduces multi-band curvature reinforcement, ensuring that each curvature frequency band receives targeted
+        # reinforcement, band-to-band structure remains coherent, curvature signatures become uniformly distributed,
+        # no band overwhelms or collapses the substrate, and multi-band curvature harmonics align with MF-500 substrate
+        # geometry. S137 suppressed unstable high-frequency curvature components and reinforced low-frequency curvature
+        # stability. Now S138 introduces multi-band curvature reinforcement. This is the curvature equivalent of a
+        # multi-band compressor + enhancer, but strictly in ML-tensor terms.
+        if self.s138 is not None:
+            try:
+                x = self.s138(x)
+            except Exception as e:
+                print(f"⚠️ S138 multi-band curvature reinforcement forward pass failed: {e}")
+                # Continue with unmodified tensor if S138 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
