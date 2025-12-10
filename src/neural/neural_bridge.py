@@ -566,6 +566,14 @@ class NeuralBridge:
             )
         except Exception:
             self.mf418_msmpil = None
+        # MF-419 — Propagation-Coherence Alignment Layer (PCAL)
+        try:
+            self.mf419_pcal = self.PropagationCoherenceAlignmentLayer(
+                substrate_dim=self.dim,
+                coh_dim=4
+            )
+        except Exception:
+            self.mf419_pcal = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -31302,6 +31310,189 @@ class NeuralBridge:
                     return F.normalize(MP_out, dim=-1)
                 except Exception:
                     return MP_out
+
+    class PropagationCoherenceAlignmentLayer(nn.Module):
+        """
+        MF-419 — Propagation-Coherence Alignment Layer (PCAL)
+
+        Begins the Propagation-Coherence Arc by aligning multi-step propagation tensors to
+        manifold-consistency constraints to reduce structural drift and ensure propagation
+        behaviors remain stable across manifold indices. This layer consumes the multi-step
+        integrated propagation tensor (MS_out) from MF-418 and generates a coherence-aligned
+        propagation field, enabling manifold-wide propagation consistency, directional drift
+        correction, coherence gradient extraction, and regulated projection into the unified
+        substrate.
+
+        Core Computational Components:
+        1. Coherence Gradient Extraction: measures local inconsistency in propagation via
+           first-order coherence gradients (forward and backward), forming a coherence gradient
+           stack.
+        2. Coherence Tensor Correction Field: uses a learned rank-3 tensor to transform
+           coherence gradients into alignment corrections, yielding coherence-correction channels
+           across the manifold.
+        3. Coherence Fusion Field: fuses the multi-step propagation field, coherence corrections,
+           and a learned coherence bias vector via learned coefficients (α, β, γ).
+        4. Stabilized Projection into the Substrate: applies a limiter and final projection to
+           produce the coherence-aligned propagation field for MF-420.
+
+        Outcome:
+        MF-419 outputs PC_out, which encodes forward/backward coherence gradients, coherence-correction
+        tensor interactions, integrated propagation alignment, and stabilized manifold-coherence output.
+        This closes the structural foundation for propagation-coherence enforcement, enabling the
+        transition into the Influence-Propagation Interlock Series.
+        """
+
+        def __init__(self, substrate_dim, coh_dim=4):
+            super().__init__()
+            self.coh_dim = coh_dim
+
+            # Coherence-correction tensor (rank-3)
+            # Shape: [coh_dim, coh_dim, substrate_dim]
+            self.T_coh = nn.Parameter(
+                torch.randn(coh_dim, coh_dim, substrate_dim) * 0.01
+            )
+
+            # Coherence gradient stack projection (2 gradients -> coh_dim)
+            self.coh_proj = nn.Parameter(
+                torch.randn(coh_dim, 2, substrate_dim) * 0.01
+            )
+
+            # Coherence bias
+            self.b_coh = nn.Parameter(
+                torch.randn(substrate_dim) * 0.01
+            )
+
+            # Fusion coefficients
+            self.alpha = nn.Parameter(torch.tensor(0.55))
+            self.beta = nn.Parameter(torch.tensor(0.30))
+            self.gamma = nn.Parameter(torch.tensor(0.15))
+
+            # Final alignment projection
+            self.W_align = nn.Parameter(
+                torch.randn(substrate_dim, substrate_dim) * 0.01
+            )
+
+        def forward(self, MS_out):
+            """
+            MS_out: integrated manifold propagation tensor from MF-418, shape [batch, dim]
+            """
+            if torch is None or MS_out is None:
+                return MS_out
+
+            # Ensure MS_out is a tensor
+            if not isinstance(MS_out, torch.Tensor):
+                try:
+                    MS_out = torch.tensor(MS_out, dtype=torch.float32)
+                except Exception:
+                    return MS_out
+
+            # Ensure proper shape
+            if MS_out.dim() == 1:
+                MS_out = MS_out.unsqueeze(0)
+
+            try:
+                import torch.nn.functional as F
+
+                batch, dim = MS_out.shape
+                substrate_dim = dim
+
+                # Ensure dimensions match
+                if dim != self.W_align.shape[0]:
+                    if dim < self.W_align.shape[0]:
+                        padding = torch.zeros(
+                            (batch, self.W_align.shape[0] - dim),
+                            dtype=MS_out.dtype,
+                            device=MS_out.device if hasattr(MS_out, 'device') else None
+                        )
+                        MS_out = torch.cat([MS_out, padding], dim=-1)
+                        dim = self.W_align.shape[0]
+                    else:
+                        MS_out = MS_out[..., :self.W_align.shape[0]]
+                        dim = self.W_align.shape[0]
+
+                # 1. Coherence gradient extraction
+                if dim > 1:
+                    # Forward gradient
+                    C1_raw = MS_out[:, 1:] - MS_out[:, :-1]
+                    C1 = F.pad(C1_raw, (0, 1), mode="replicate")
+
+                    # Backward gradient
+                    C2_raw = MS_out[:, :-1] - MS_out[:, 1:]
+                    C2 = F.pad(C2_raw, (1, 0), mode="replicate")
+                else:
+                    C1 = torch.zeros_like(MS_out)
+                    C2 = torch.zeros_like(MS_out)
+
+                # Ensure gradients match dimension
+                if C1.shape[-1] != dim:
+                    if C1.shape[-1] < dim:
+                        padding = torch.zeros(
+                            C1.shape[:-1] + (dim - C1.shape[-1],),
+                            dtype=C1.dtype,
+                            device=C1.device if hasattr(C1, 'device') else None
+                        )
+                        C1 = torch.cat([C1, padding], dim=-1)
+                    else:
+                        C1 = C1[..., :dim]
+                if C2.shape[-1] != dim:
+                    if C2.shape[-1] < dim:
+                        padding = torch.zeros(
+                            C2.shape[:-1] + (dim - C2.shape[-1],),
+                            dtype=C2.dtype,
+                            device=C2.device if hasattr(C2, 'device') else None
+                        )
+                        C2 = torch.cat([C2, padding], dim=-1)
+                    else:
+                        C2 = C2[..., :dim]
+
+                # Stack: [batch, 2, dim]
+                C_stack = torch.stack([C1, C2], dim=1)
+
+                # Project to coh_dim using learned projection
+                # C_stack: [batch, 2, dim]
+                # coh_proj: [coh_dim, 2, dim]
+                # Result: [batch, coh_dim, dim]
+                C_projected = torch.zeros(batch, self.coh_dim, dim, dtype=C_stack.dtype,
+                                        device=C_stack.device if hasattr(C_stack, 'device') else None)
+                for i in range(self.coh_dim):
+                    for j in range(2):
+                        C_projected[:, i] += self.coh_proj[i, j] * C_stack[:, j]
+
+                # 2. Coherence tensor correction
+                A_list = []
+                for i in range(self.coh_dim):
+                    interaction = torch.zeros_like(MS_out)
+                    for j in range(self.coh_dim):
+                        # T_coh[i, j] is shape [substrate_dim]
+                        # C_projected[:, j] is shape [batch, dim]
+                        tensor_ij = self.T_coh[i, j].unsqueeze(0)  # [1, substrate_dim]
+                        interaction += C_projected[:, j] * tensor_ij  # [batch, dim]
+                    A_list.append(interaction)
+
+                A = torch.stack(A_list, dim=0).sum(dim=0)  # [batch, dim]
+
+                # 3. Coherence fusion field
+                b_coh_expanded = self.b_coh.unsqueeze(0).expand(batch, -1)  # [batch, dim]
+                F_combined = (
+                    self.alpha * MS_out
+                    + self.beta * A
+                    + self.gamma * b_coh_expanded
+                )
+
+                # 4. Stabilized projection
+                F_reg = F_combined / (1 + torch.abs(F_combined))
+
+                PC_out = torch.matmul(F_reg, self.W_align)
+                PC_out = F.normalize(PC_out, dim=-1)
+
+                return PC_out
+            except Exception:
+                # If coherence alignment fails, return normalized input
+                try:
+                    import torch.nn.functional as F
+                    return F.normalize(MS_out, dim=-1)
+                except Exception:
+                    return MS_out
 
     def integrate_A301(self):
         """
