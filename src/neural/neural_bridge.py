@@ -443,6 +443,76 @@ class S111_CurvatureRegulatedManifoldShaper(nn.Module):
         return y / norm
 
 # ====================================================
+# S112 — Multi-Curvature Harmonization Operator (MCHO)
+# ====================================================
+class S112_MultiCurvatureHarmonizationOperator(nn.Module):
+    """
+    Harmonizes curvature across multiple curvature subspaces.
+    Prevents curvature conflict and ensures smooth multi-curvature interaction.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # Curvature subspace projections
+        self.K1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.K2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.K3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Harmonization coefficients
+        self.alpha1 = nn.Parameter(torch.tensor(0.033))
+        self.alpha2 = nn.Parameter(torch.tensor(0.033))
+        self.alpha3 = nn.Parameter(torch.tensor(0.033))
+        self.act = nn.Tanh()
+
+    def forward(self, x):
+        # Curvature projections
+        k1 = self.act(x @ self.K1)
+        k2 = self.act(x @ self.K2)
+        k3 = self.act(x @ self.K3)
+        # Average curvature
+        k_avg = (k1 + k2 + k3) / 3.0
+        # Curvature deviations
+        d1 = k1 - k_avg
+        d2 = k2 - k_avg
+        d3 = k3 - k_avg
+        # Harmonization correction
+        d_total = self.alpha1 * d1 + self.alpha2 * d2 + self.alpha3 * d3
+        # Apply correction
+        y = x - d_total
+        # Renormalize
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
+# S113 — Curvature Gradient Equalization Layer (CGEL)
+# ====================================================
+class S113_CurvatureGradientEqualizationLayer(nn.Module):
+    """
+    Equalizes curvature gradients to prevent sharp directional changes.
+    Ensures smooth, bounded curvature gradient across manifold dimensions.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # Directional gradient-style projections
+        self.G_up = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.G_down = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        # Gradient equalization coefficient
+        self.beta = 0.04
+        self.act = nn.Tanh()
+
+    def forward(self, x):
+        # Curvature-gradient style projections
+        g_up = self.act(x @ self.G_up)
+        g_down = self.act(x @ self.G_down)
+        # Discrepancy in curvature-gradient space
+        delta_g = g_up - g_down
+        # Equalization step
+        y = x - self.beta * delta_g
+        # Renormalize to substrate manifold
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+# ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
 class S110_ManifoldCoherenceUnificationLayer(nn.Module):
@@ -1892,6 +1962,30 @@ class NeuralBridge:
         else:
             self.s111 = None
         # -----------------------------------------------------
+        # S112 — Multi-Curvature Harmonization Operator (MCHO)
+        # -----------------------------------------------------
+        # Harmonizes curvature across multiple curvature subspaces.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s112 = S112_MultiCurvatureHarmonizationOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S112_MultiCurvatureHarmonizationOperator initialization failed: {e}")
+                self.s112 = None
+        else:
+            self.s112 = None
+        # -----------------------------------------------------
+        # S113 — Curvature Gradient Equalization Layer (CGEL)
+        # -----------------------------------------------------
+        # Equalizes curvature gradients to prevent sharp directional changes.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s113 = S113_CurvatureGradientEqualizationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S113_CurvatureGradientEqualizationLayer initialization failed: {e}")
+                self.s113 = None
+        else:
+            self.s113 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -2812,6 +2906,28 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ S111 curvature-regulated manifold shaping forward pass failed: {e}")
                 # Continue with unmodified tensor if S111 fails
+
+        # -----------------------------------------------------
+        # S112 — Multi-Curvature Harmonization Operator (MCHO)
+        # -----------------------------------------------------
+        # Harmonizes curvature across multiple curvature subspaces.
+        if self.s112 is not None:
+            try:
+                x = self.s112(x)
+            except Exception as e:
+                print(f"⚠️ S112 multi-curvature harmonization forward pass failed: {e}")
+                # Continue with unmodified tensor if S112 fails
+
+        # -----------------------------------------------------
+        # S113 — Curvature Gradient Equalization Layer (CGEL)
+        # -----------------------------------------------------
+        # Equalizes curvature gradients to prevent sharp directional changes.
+        if self.s113 is not None:
+            try:
+                x = self.s113(x)
+            except Exception as e:
+                print(f"⚠️ S113 curvature gradient equalization forward pass failed: {e}")
+                # Continue with unmodified tensor if S113 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
