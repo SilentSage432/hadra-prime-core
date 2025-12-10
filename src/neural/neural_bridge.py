@@ -76,6 +76,10 @@ try:
         A152_SubstrateHarmonicInjectionLayer,
         A153_EntryFieldDriftRegulationKernel,
         A154_SubstrateVectorConditioningLayer,
+        A155_MultiChannelEntryModulationOperator,
+        A156_CurvatureToSubstrateTranspositionKernel,
+        A157_EntryManifoldHarmonizer,
+        A158_SubstrateAlignmentGate,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -105,6 +109,10 @@ except (ImportError, RuntimeError) as e:
     A152_SubstrateHarmonicInjectionLayer = None
     A153_EntryFieldDriftRegulationKernel = None
     A154_SubstrateVectorConditioningLayer = None
+    A155_MultiChannelEntryModulationOperator = None
+    A156_CurvatureToSubstrateTranspositionKernel = None
+    A157_EntryManifoldHarmonizer = None
+    A158_SubstrateAlignmentGate = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -1216,6 +1224,54 @@ class NeuralBridge:
         else:
             self.a154 = None
         # -----------------------------------------------------
+        # A155 — Multi-Channel Entry Modulation Operator (MCEMO)
+        # -----------------------------------------------------
+        # A155 introduces multi-channel modulation for substrate-entry geometry.
+        if SUBSTRATE_AVAILABLE and A155_MultiChannelEntryModulationOperator is not None:
+            try:
+                self.a155 = A155_MultiChannelEntryModulationOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A155_MultiChannelEntryModulationOperator initialization failed: {e}")
+                self.a155 = None
+        else:
+            self.a155 = None
+        # -----------------------------------------------------
+        # A156 — Curvature → Substrate Transposition Kernel (CSTK)
+        # -----------------------------------------------------
+        # A156 transposes curvature-informed geometry into substrate field geometry.
+        if SUBSTRATE_AVAILABLE and A156_CurvatureToSubstrateTranspositionKernel is not None:
+            try:
+                self.a156 = A156_CurvatureToSubstrateTranspositionKernel(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A156_CurvatureToSubstrateTranspositionKernel initialization failed: {e}")
+                self.a156 = None
+        else:
+            self.a156 = None
+        # -----------------------------------------------------
+        # A157 — Entry Manifold Harmonizer (EMH)
+        # -----------------------------------------------------
+        # A157 harmonizes the substrate-entry manifold post transposition.
+        if SUBSTRATE_AVAILABLE and A157_EntryManifoldHarmonizer is not None:
+            try:
+                self.a157 = A157_EntryManifoldHarmonizer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A157_EntryManifoldHarmonizer initialization failed: {e}")
+                self.a157 = None
+        else:
+            self.a157 = None
+        # -----------------------------------------------------
+        # A158 — Substrate Alignment Gate (SAG)
+        # -----------------------------------------------------
+        # A158 performs gated alignment into the substrate coordinate frame.
+        if SUBSTRATE_AVAILABLE and A158_SubstrateAlignmentGate is not None:
+            try:
+                self.a158 = A158_SubstrateAlignmentGate(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A158_SubstrateAlignmentGate initialization failed: {e}")
+                self.a158 = None
+        else:
+            self.a158 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -1297,7 +1353,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → A155 → A156 → A157 → A158 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -1325,13 +1381,17 @@ class NeuralBridge:
         23. A152 Substrate Harmonic Injection Layer (substrate harmonic injection)
         24. A153 Entry-Field Drift-Regulation Kernel (substrate-entry drift control)
         25. A154 Substrate Vector Conditioning Layer (substrate vector conditioning)
-        26. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        26. A155 Multi-Channel Entry Modulation Operator (multi-channel modulation)
+        27. A156 Curvature → Substrate Transposition Kernel (curvature→substrate mapping)
+        28. A157 Entry Manifold Harmonizer (substrate manifold harmonization)
+        29. A158 Substrate Alignment Gate (substrate coordinate alignment)
+        30. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, A155, A156, A157, A158, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -1812,6 +1872,50 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A154 substrate vector conditioning forward pass failed: {e}")
                 # Continue with unmodified tensor if A154 fails
+
+        # -----------------------------------------------------
+        # A155 — Multi-Channel Entry Modulation Operator (MCEMO)
+        # -----------------------------------------------------
+        # A155 applies multi-channel modulation to diversify substrate-entry geometry.
+        if self.a155 is not None:
+            try:
+                x = self.a155(x)
+            except Exception as e:
+                print(f"⚠️ A155 multi-channel entry modulation forward pass failed: {e}")
+                # Continue with unmodified tensor if A155 fails
+
+        # -----------------------------------------------------
+        # A156 — Curvature → Substrate Transposition Kernel (CSTK)
+        # -----------------------------------------------------
+        # A156 maps curvature-derived geometry into substrate field geometry.
+        if self.a156 is not None:
+            try:
+                x = self.a156(x)
+            except Exception as e:
+                print(f"⚠️ A156 curvature→substrate transposition forward pass failed: {e}")
+                # Continue with unmodified tensor if A156 fails
+
+        # -----------------------------------------------------
+        # A157 — Entry Manifold Harmonizer (EMH)
+        # -----------------------------------------------------
+        # A157 harmonizes the substrate-entry manifold post curvature transposition.
+        if self.a157 is not None:
+            try:
+                x = self.a157(x)
+            except Exception as e:
+                print(f"⚠️ A157 entry manifold harmonization forward pass failed: {e}")
+                # Continue with unmodified tensor if A157 fails
+
+        # -----------------------------------------------------
+        # A158 — Substrate Alignment Gate (SAG)
+        # -----------------------------------------------------
+        # A158 performs gated alignment into the substrate coordinate system.
+        if self.a158 is not None:
+            try:
+                x = self.a158(x)
+            except Exception as e:
+                print(f"⚠️ A158 substrate alignment forward pass failed: {e}")
+                # Continue with unmodified tensor if A158 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass

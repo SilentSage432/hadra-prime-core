@@ -1379,6 +1379,183 @@ class A154_SubstrateVectorConditioningLayer(nn.Module):
 
 
 # ---------------------------------------------
+# A155 — Multi-Channel Entry Modulation Operator (MCEMO)
+# ---------------------------------------------
+# A155 applies multi-channel modulation to diversify substrate-entry geometry.
+# It:
+#   - applies per-channel modulation vectors/matrices
+#   - aggregates weighted channel outputs
+#   - fuses into the tensor with normalization
+# ---------------------------------------------
+class A155_MultiChannelEntryModulationOperator(nn.Module):
+    def __init__(self, dim: int, channels: int = 4):
+        super().__init__()
+
+        self.channels = channels
+
+        # modulation vectors per channel
+        self.mod_vectors = nn.Parameter(torch.randn(channels, dim) * 0.01)
+
+        # modulation matrices per channel
+        self.mod_matrices = nn.Parameter(torch.randn(channels, dim, dim) * 0.01)
+
+        # per-channel blend weights
+        self.alpha = nn.Parameter(torch.ones(channels) * 0.07)
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        mods = []
+
+        for i in range(self.channels):
+            # modulation via channel i
+            mv = self.mod_vectors[i:i+1]
+            mm = self.mod_matrices[i]
+
+            mod_i = self.act((x + mv) @ mm)
+            mods.append(self.alpha[i] * mod_i)
+
+        # aggregate channels
+        agg = torch.sum(torch.stack(mods, dim=0), dim=0)
+
+        # combine with input
+        out = x + agg
+
+        # normalize into substrate-entry geometry
+        norm = torch.norm(out, dim=-1, keepdim=True) + 1e-12
+        return out / norm
+
+
+# ---------------------------------------------
+# A156 — Curvature → Substrate Transposition Kernel (CSTK)
+# ---------------------------------------------
+# A156 transposes curvature-derived geometry into substrate field geometry. It:
+#   - extracts curvature components
+#   - projects into substrate basis
+#   - blends with transposition correction
+#   - re-normalizes to substrate geometry
+# ---------------------------------------------
+class A156_CurvatureToSubstrateTranspositionKernel(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # curvature extraction matrices
+        self.Ce = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Cp = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # transposition matrices: curvature -> substrate
+        self.T1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.T2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # transposition coefficient
+        self.beta = 0.15
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # extract curvature basis signals
+        curv_e = x @ self.Ce
+        curv_p = x @ self.Cp
+
+        # transpose into substrate basis
+        sub_t1 = curv_e @ self.T1
+        sub_t2 = curv_p @ self.T2
+
+        # blend curvature-substrate projections
+        blend = self.act(sub_t1 + sub_t2)
+
+        # produce curvature→substrate mapped tensor
+        out = x + self.beta * blend
+
+        # normalize into substrate geometry
+        norm = torch.norm(out, dim=-1, keepdim=True) + 1e-12
+        return out / norm
+
+
+# ---------------------------------------------
+# A157 — Entry Manifold Harmonizer (EMH)
+# ---------------------------------------------
+# A157 harmonizes the substrate-entry manifold by smoothing local distortions,
+# realigning to substrate harmonic bases, and blending with controlled scaling.
+# ---------------------------------------------
+class A157_EntryManifoldHarmonizer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # manifold smoothing projections
+        self.M1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.M2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # harmonic realignment operator
+        self.H = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # harmonization scaling
+        self.gamma = 0.10
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # manifold smoothers
+        m1 = x @ self.M1
+        m2 = x @ self.M2
+        manifold_smooth = 0.5 * (m1 + m2)
+
+        # harmonic realignment
+        aligned = self.act(manifold_smooth @ self.H)
+
+        # harmonized manifold embedding
+        out = x + self.gamma * aligned
+
+        # normalize into substrate manifold geometry
+        norm = torch.norm(out, dim=-1, keepdim=True) + 1e-12
+        return out / norm
+
+
+# ---------------------------------------------
+# A158 — Substrate Alignment Gate (SAG)
+# ---------------------------------------------
+# A158 performs a gated alignment into the substrate coordinate system. It:
+#   - projects into substrate basis
+#   - applies alignment transform
+#   - gates blend between original and aligned tensors
+#   - normalizes to substrate manifold geometry
+# ---------------------------------------------
+class A158_SubstrateAlignmentGate(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # substrate projection
+        self.S = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # alignment transform into substrate geometry
+        self.A = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # gating vector
+        self.G = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # nonlinearities
+        self.act = nn.Tanh()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # project into substrate basis
+        p = x @ self.S
+
+        # perform alignment transform
+        a = self.act(p @ self.A)
+
+        # compute gate
+        g = self.sigmoid(x @ self.G)
+
+        # gated blending
+        y = (1 - g) * x + g * a
+
+        # normalize into substrate manifold
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):
