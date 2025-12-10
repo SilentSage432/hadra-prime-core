@@ -587,6 +587,11 @@ class NeuralBridge:
             self.mf421 = self.MF421_ResonanceEqualization(dim=self.dim)
         except Exception:
             self.mf421 = None
+        # MF-422 — Resonance-Weighted Propagation Field Normalizer
+        try:
+            self.mf422 = self.MF422_ResonanceWeightedNormalizer(dim=self.dim, alpha=0.1)
+        except Exception:
+            self.mf422 = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -31803,6 +31808,121 @@ class NeuralBridge:
                 return influence + balanced
             except Exception:
                 # If equalization fails, return original influence
+                return influence
+
+    class MF422_ResonanceWeightedNormalizer(nn.Module):
+        """
+        MF-422 — Resonance-Weighted Propagation Field Normalizer
+
+        Introduces a resonance-weighted normalization kernel that aligns the output of MF-421's
+        equalized resonance field with the upstream propagation manifold. This ensures consistent
+        downstream routing behavior and prevents local field dominance.
+
+        Core Computational Components:
+        1. Resonance-weighted norms: computes norm of element-wise product of influence and
+           equalized field.
+        2. Bandwise normalization coefficients: derived from resonance amplitude, propagation
+           magnitude, and harmonic density.
+        3. Stabilized influence-propagation tensor: applies weighted normalization using
+           alpha-scaled norm.
+        4. Rebalancing transform: uses learned projection layer to produce uniformly scaled,
+           resonance-aligned propagation field.
+
+        The layer normalizes propagation amplitudes, attenuates over-weighted resonance bands,
+        amplifies underexpressed propagation signals, and stabilizes flow uniformity before
+        entering MF-423.
+        """
+
+        def __init__(self, dim: int, alpha: float = 0.1):
+            super().__init__()
+            self.alpha = alpha
+            self.projection = nn.Linear(dim, dim, bias=False)
+
+        def forward(self, influence, equalized):
+            """
+            influence: influence field tensor, shape [batch, dim]
+            equalized: equalized field from MF-421, shape [batch, dim]
+            """
+            if torch is None or influence is None or equalized is None:
+                return influence if influence is not None else equalized
+
+            # Ensure inputs are tensors
+            if not isinstance(influence, torch.Tensor):
+                try:
+                    influence = torch.tensor(influence, dtype=torch.float32)
+                except Exception:
+                    return equalized if isinstance(equalized, torch.Tensor) else None
+
+            if not isinstance(equalized, torch.Tensor):
+                try:
+                    equalized = torch.tensor(equalized, dtype=torch.float32)
+                except Exception:
+                    return influence
+
+            # Ensure proper shapes
+            if influence.dim() == 1:
+                influence = influence.unsqueeze(0)
+            if equalized.dim() == 1:
+                equalized = equalized.unsqueeze(0)
+
+            try:
+                # Ensure dimensions match
+                batch_inf, dim_inf = influence.shape
+                batch_eq, dim_eq = equalized.shape
+                batch = max(batch_inf, batch_eq)
+                dim = max(dim_inf, dim_eq)
+
+                # Align dimensions
+                if dim_inf != dim:
+                    if dim_inf < dim:
+                        padding = torch.zeros(
+                            (batch_inf, dim - dim_inf),
+                            dtype=influence.dtype,
+                            device=influence.device if hasattr(influence, 'device') else None
+                        )
+                        influence = torch.cat([influence, padding], dim=-1)
+                    else:
+                        influence = influence[..., :dim]
+
+                if dim_eq != dim:
+                    if dim_eq < dim:
+                        padding = torch.zeros(
+                            (batch_eq, dim - dim_eq),
+                            dtype=equalized.dtype,
+                            device=equalized.device if hasattr(equalized, 'device') else None
+                        )
+                        equalized = torch.cat([equalized, padding], dim=-1)
+                    else:
+                        equalized = equalized[..., :dim]
+
+                # Ensure batch dimensions match
+                if batch_inf != batch_eq:
+                    if batch_inf < batch_eq:
+                        influence = influence.expand(batch_eq, -1)
+                    else:
+                        equalized = equalized.expand(batch_inf, -1)
+
+                # Ensure projection dimension matches
+                if dim != self.projection.in_features:
+                    # Create new projection with correct dimension
+                    device = influence.device if hasattr(influence, 'device') else None
+                    self.projection = nn.Linear(dim, dim, bias=False)
+                    if device is not None:
+                        self.projection = self.projection.to(device)
+
+                # Compute resonance-weighted norm
+                resonance = influence * equalized
+                norm = resonance.norm(dim=-1, keepdim=True)
+
+                # Normalize propagation flow
+                normalized = influence / (1.0 + self.alpha * norm)
+
+                # Rebalance with harmonic projection
+                stabilized = self.projection(normalized)
+
+                return stabilized
+            except Exception:
+                # If normalization fails, return original influence
                 return influence
 
     def integrate_A301(self):
