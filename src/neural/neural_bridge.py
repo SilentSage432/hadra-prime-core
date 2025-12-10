@@ -607,6 +607,11 @@ class NeuralBridge:
             self.mf426 = self.MF426_ResonanceCoherenceCoupling(dim=self.dim)
         except Exception:
             self.mf426 = None
+        # MF-427 — Multi-Band Phase-Manifold Alignment Layer
+        try:
+            self.mf427 = self.MF427_MultiBandManifoldAlignment(dim=self.dim)
+        except Exception:
+            self.mf427 = None
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # A185 — Sleep/wake timer
@@ -32201,6 +32206,83 @@ class NeuralBridge:
                 return output
             except Exception:
                 # If coupling fails, return original input
+                return x
+
+    class MF427_MultiBandManifoldAlignment(nn.Module):
+        """
+        MF-427 — Multi-Band Phase-Manifold Alignment Layer
+
+        Introduces the first multi-band phase-manifold alignment kernel, responsible for aligning
+        the resonance–coherence–modulated tensor (MF-426 output) with manifold curvature structures
+        across multiple harmonic bands.
+
+        This layer enables the propagation stream to:
+        - conform to manifold geometry
+        - adjust to curvature-dependent flow paths
+        - align multi-band signals into a unified manifold orientation
+        - prepare for manifold-level synthesis (MF-428 → MF-430)
+
+        MF-427 marks the transition from local coupling to global manifold structuring.
+
+        Core Computational Components:
+        1. Manifold curvature approximation: using second-order bandwise differences to approximate
+           local curvature in feature space.
+        2. Multi-band alignment weights: learned projection derives bandwise alignment coefficients
+           via sigmoid activation, determining how strongly the propagation tensor should align to
+           manifold curvature.
+        3. Curvature-driven adjustment: generates a curvature-following adjustment tensor.
+        4. Multi-band manifold-aligned output: propagation field is oriented along the manifold's
+           geometric contours.
+        """
+
+        def __init__(self, dim: int):
+            super().__init__()
+            self.manifold_proj = nn.Linear(dim, dim, bias=False)
+            self.activation = nn.Sigmoid()
+
+        def forward(self, x):
+            """
+            x: resonance–coherence modulated propagation tensor from MF-426, shape [batch, dim]
+            """
+            if torch is None or x is None:
+                return x
+
+            # Ensure x is a tensor
+            if not isinstance(x, torch.Tensor):
+                try:
+                    x = torch.tensor(x, dtype=torch.float32)
+                except Exception:
+                    return None
+
+            # Ensure proper shape
+            if x.dim() == 1:
+                x = x.unsqueeze(0)
+
+            try:
+                batch, dim = x.shape
+
+                # Ensure projection dimension matches
+                if dim != self.manifold_proj.in_features:
+                    # Create new projection with correct dimension
+                    device = x.device if hasattr(x, 'device') else None
+                    self.manifold_proj = nn.Linear(dim, dim, bias=False)
+                    if device is not None:
+                        self.manifold_proj = self.manifold_proj.to(device)
+
+                # Manifold curvature approximation (second-order difference)
+                m1 = x.roll(shifts=1, dims=-1)
+                m2 = x.roll(shifts=2, dims=-1)
+                curvature = x - 2 * m1 + m2
+
+                # Multi-band alignment weights
+                weights = self.activation(self.manifold_proj(curvature))
+
+                # Curvature-driven adjustment
+                output = x + weights * curvature
+
+                return output
+            except Exception:
+                # If alignment fails, return original input
                 return x
 
     def integrate_A301(self):
