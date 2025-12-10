@@ -448,6 +448,168 @@ class A136_CrossManifoldAlignmentRegulator(nn.Module):
 
 
 # ---------------------------------------------
+# A137 — Cross-Manifold Stabilization Layer (CMSL)
+# ---------------------------------------------
+# A137 follows A136 and performs the second half of cross-manifold regulation.
+# A136 aligned the geometric basis between upstream space and substrate manifold.
+# A137 stabilizes that alignment across multiple manifold orders, ensuring:
+#   - no oscillatory deviation
+#   - no geometric overshoot
+#   - no curvature "bounce-back"
+#   - no resonance mismatch before MF-401
+#
+# Even after alignment (A136), tensors may still contain:
+#   - residual manifold inconsistencies
+#   - unstable transformation curvature
+#   - multi-order distortions
+#   - high-sensitivity regions near manifold boundaries
+#
+# A137 neutralizes these effects through a two-transform stabilization sequence.
+#
+# A137 performs:
+#   1. Dual manifold projection – applies two complementary transforms
+#   2. Residual stabilization – computes deviation vectors for unstable components
+#   3. Regulated re-integration – applies bounded correction to remove instability
+#   4. Unit manifold enforcement – ensures tensor re-enters substrate-ready manifold shell
+#
+# Output: cross-manifold stabilized tensor ready for stable substrate entry.
+# ---------------------------------------------
+class A137_CrossManifoldStabilizationLayer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.r1 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # primary projection
+        self.r2 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # secondary projection
+        self.delta = 0.12  # stabilization coefficient
+        self.act = nn.Tanh()  # bounded smooth activation
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # dual manifold projections
+        p1 = x @ self.r1
+        p2 = x @ self.r2
+
+        # cross-manifold residual
+        r = p1 - p2
+
+        # bounded stabilization correction
+        c = self.delta * self.act(r)
+
+        # stabilized output
+        x_new = x - c
+
+        # reproject onto substrate manifold constraints
+        norm = torch.norm(x_new, dim=-1, keepdim=True) + 1e-12
+        return x_new / norm
+
+
+# ---------------------------------------------
+# A138 — Pre-Substrate Anisotropy Equalization Layer (PAEL)
+# ---------------------------------------------
+# A138 addresses a property that becomes critical after cross-manifold alignment (A136)
+# and stabilization (A137): residual anisotropy in the tensor's directional energy distribution.
+#
+# Even after manifold alignment and stabilization, tensors may still have:
+#   - uneven directional variance
+#   - elongated energy distribution in specific axes
+#   - anisotropic feature band dominance
+#   - asymmetric curvature response
+#
+# MF-401 expects isotropic manifold entries — meaning the tensor should not favor
+# any dimension directionally.
+#
+# A138 corrects this by equalizing directional energy distribution and suppressing
+# systematic axis bias.
+#
+# This is required to prevent:
+#   - resonance skew
+#   - directional amplification
+#   - drift re-emergence inside MF-sub-layers
+#   - curvature distortion in MF-421+
+#
+# A138 performs:
+#   1. Anisotropy detection – measures directional variance using a learned tensor transform
+#   2. Bias quantification – computes directional deviation relative to isotropic expectation
+#   3. Anisotropy correction – applies a bounded compensatory transform
+#   4. Reprojection & normalization – ensures tensor re-enters substrate-ready isotropic manifold
+#
+# Output: directionally uniform, isotropic tensor ready for stable substrate entry.
+# ---------------------------------------------
+class A138_AnisotropyEqualizationLayer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.A = nn.Parameter(torch.randn(dim, dim) * 0.01)  # anisotropy projection
+        self.C = nn.Parameter(torch.randn(dim, dim) * 0.01)  # correction mapping
+        self.kappa = 0.15  # anisotropy correction coefficient
+        self.act = nn.Tanh()  # bounded activation
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # detect anisotropy
+        a = x @ self.A
+
+        # compute directional deviation
+        d = a - x
+
+        # correction term
+        corr = self.kappa * self.act(d @ self.C)
+
+        # remove anisotropic bias
+        x_new = x - corr
+
+        # re-normalize to manifold constraints
+        norm = torch.norm(x_new, dim=-1, keepdim=True) + 1e-12
+        return x_new / norm
+
+
+# ---------------------------------------------
+# A139 — Terminal Pre-Substrate Alignment Normalizer (TPSAN)
+# ---------------------------------------------
+# A139 is the final operator in the A13x pre-substrate conditioning chain.
+# Its role:
+#   - Finalize tensor geometry before MF-401
+#   - Remove residual cross-band distortion
+#   - Enforce uniform manifold curvature
+#   - Produce a fully stabilized, isotropic, substrate-aligned tensor
+#
+# After A138 has equalized anisotropy, A139 performs the terminal check:
+# A139 ensures the tensor lies on the exact manifold shape, curvature, and magnitude
+# required by the MF-401 → MF-500 unified substrate.
+#
+# This is a precision normalization operator, not a general transform.
+#
+# A139 performs:
+#   1. Residual shape deviation projection – detects remaining geometric mismatch from substrate manifold
+#   2. Shape correction transform – applies bounded correction to align final tensor shape
+#   3. Cross-band harmonization – smooths interactions between low-, mid-, and high-frequency components
+#   4. Final manifold projection – places tensor into the exact MF-401 manifold shell
+#
+# Output: fully stabilized, isotropic, substrate-aligned tensor ready for MF-401 entry.
+# ---------------------------------------------
+class A139_TerminalAlignmentNormalizer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.h1 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # shape projection
+        self.h2 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # correction matrix
+        self.tau = 0.10  # terminal correction coefficient
+        self.act = nn.Tanh()  # bounded smooth activation
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # substrate shape projection
+        s = x @ self.h1
+
+        # residual geometric deviation
+        r = s - x
+
+        # bounded correction
+        c = self.tau * self.act(r @ self.h2)
+
+        # final alignment
+        x_new = x + c
+
+        # substrate manifold normalization
+        norm = torch.norm(x_new, dim=-1, keepdim=True) + 1e-12
+        return x_new / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):

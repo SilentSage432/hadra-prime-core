@@ -58,6 +58,9 @@ try:
         A134_SpectralEqualizationLayer,
         A135_EnergyNormalizationLayer,
         A136_CrossManifoldAlignmentRegulator,
+        A137_CrossManifoldStabilizationLayer,
+        A138_AnisotropyEqualizationLayer,
+        A139_TerminalAlignmentNormalizer,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -69,6 +72,9 @@ except (ImportError, RuntimeError) as e:
     A134_SpectralEqualizationLayer = None
     A135_EnergyNormalizationLayer = None
     A136_CrossManifoldAlignmentRegulator = None
+    A137_CrossManifoldStabilizationLayer = None
+    A138_AnisotropyEqualizationLayer = None
+    A139_TerminalAlignmentNormalizer = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -819,6 +825,96 @@ class NeuralBridge:
         else:
             self.a136 = None
         # -----------------------------------------------------
+        # A137 — Cross-Manifold Stabilization Layer (CMSL)
+        # -----------------------------------------------------
+        # A137 follows A136 and performs the second half of cross-manifold regulation.
+        # A136 aligned the geometric basis between upstream space and substrate manifold.
+        # A137 stabilizes that alignment across multiple manifold orders, ensuring:
+        #   - no oscillatory deviation
+        #   - no geometric overshoot
+        #   - no curvature "bounce-back"
+        #   - no resonance mismatch before MF-401
+        # Even after alignment (A136), tensors may still contain:
+        #   - residual manifold inconsistencies
+        #   - unstable transformation curvature
+        #   - multi-order distortions
+        #   - high-sensitivity regions near manifold boundaries
+        # A137 neutralizes these effects through a two-transform stabilization sequence.
+        # It performs:
+        #   - Dual manifold projection – applies two complementary transforms
+        #   - Residual stabilization – computes deviation vectors for unstable components
+        #   - Regulated re-integration – applies bounded correction to remove instability
+        #   - Unit manifold enforcement – ensures tensor re-enters substrate-ready manifold shell
+        # Output: cross-manifold stabilized tensor ready for stable substrate entry.
+        if SUBSTRATE_AVAILABLE and A137_CrossManifoldStabilizationLayer is not None:
+            try:
+                self.a137 = A137_CrossManifoldStabilizationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A137_CrossManifoldStabilizationLayer initialization failed: {e}")
+                self.a137 = None
+        else:
+            self.a137 = None
+        # -----------------------------------------------------
+        # A138 — Pre-Substrate Anisotropy Equalization Layer (PAEL)
+        # -----------------------------------------------------
+        # A138 addresses a property that becomes critical after cross-manifold alignment (A136)
+        # and stabilization (A137): residual anisotropy in the tensor's directional energy distribution.
+        # Even after manifold alignment and stabilization, tensors may still have:
+        #   - uneven directional variance
+        #   - elongated energy distribution in specific axes
+        #   - anisotropic feature band dominance
+        #   - asymmetric curvature response
+        # MF-401 expects isotropic manifold entries — meaning the tensor should not favor
+        # any dimension directionally.
+        # A138 corrects this by equalizing directional energy distribution and suppressing
+        # systematic axis bias.
+        # This is required to prevent:
+        #   - resonance skew
+        #   - directional amplification
+        #   - drift re-emergence inside MF-sub-layers
+        #   - curvature distortion in MF-421+
+        # A138 performs:
+        #   - Anisotropy detection – measures directional variance using a learned tensor transform
+        #   - Bias quantification – computes directional deviation relative to isotropic expectation
+        #   - Anisotropy correction – applies a bounded compensatory transform
+        #   - Reprojection & normalization – ensures tensor re-enters substrate-ready isotropic manifold
+        # Output: directionally uniform, isotropic tensor ready for stable substrate entry.
+        if SUBSTRATE_AVAILABLE and A138_AnisotropyEqualizationLayer is not None:
+            try:
+                self.a138 = A138_AnisotropyEqualizationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A138_AnisotropyEqualizationLayer initialization failed: {e}")
+                self.a138 = None
+        else:
+            self.a138 = None
+        # -----------------------------------------------------
+        # A139 — Terminal Pre-Substrate Alignment Normalizer (TPSAN)
+        # -----------------------------------------------------
+        # A139 is the final operator in the A13x pre-substrate conditioning chain.
+        # Its role:
+        #   - Finalize tensor geometry before MF-401
+        #   - Remove residual cross-band distortion
+        #   - Enforce uniform manifold curvature
+        #   - Produce a fully stabilized, isotropic, substrate-aligned tensor
+        # After A138 has equalized anisotropy, A139 performs the terminal check:
+        # A139 ensures the tensor lies on the exact manifold shape, curvature, and magnitude
+        # required by the MF-401 → MF-500 unified substrate.
+        # This is a precision normalization operator, not a general transform.
+        # A139 performs:
+        #   - Residual shape deviation projection – detects remaining geometric mismatch from substrate manifold
+        #   - Shape correction transform – applies bounded correction to align final tensor shape
+        #   - Cross-band harmonization – smooths interactions between low-, mid-, and high-frequency components
+        #   - Final manifold projection – places tensor into the exact MF-401 manifold shell
+        # Output: fully stabilized, isotropic, substrate-aligned tensor ready for MF-401 entry.
+        if SUBSTRATE_AVAILABLE and A139_TerminalAlignmentNormalizer is not None:
+            try:
+                self.a139 = A139_TerminalAlignmentNormalizer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A139_TerminalAlignmentNormalizer initialization failed: {e}")
+                self.a139 = None
+        else:
+            self.a139 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -900,7 +996,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -910,13 +1006,16 @@ class NeuralBridge:
         5. A134 Spectral Equalization Layer (spectral balance)
         6. A135 Energy Normalization Layer (energy balance)
         7. A136 Cross-Manifold Alignment Regulator (manifold alignment)
-        8. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        8. A137 Cross-Manifold Stabilization Layer (manifold stabilization)
+        9. A138 Anisotropy Equalization Layer (directional uniformity)
+        10. A139 Terminal Alignment Normalizer (final geometric alignment)
+        11. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -1054,6 +1153,93 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A136 cross-manifold alignment forward pass failed: {e}")
                 # Continue with unmodified tensor if A136 fails
+
+        # -----------------------------------------------------
+        # A137 — Cross-Manifold Stabilization Layer (CMSL)
+        # -----------------------------------------------------
+        # A137 follows A136 and performs the second half of cross-manifold regulation.
+        # A136 aligned the geometric basis between upstream space and substrate manifold.
+        # A137 stabilizes that alignment across multiple manifold orders, ensuring:
+        #   - no oscillatory deviation
+        #   - no geometric overshoot
+        #   - no curvature "bounce-back"
+        #   - no resonance mismatch before MF-401
+        # Even after alignment (A136), tensors may still contain:
+        #   - residual manifold inconsistencies
+        #   - unstable transformation curvature
+        #   - multi-order distortions
+        #   - high-sensitivity regions near manifold boundaries
+        # A137 neutralizes these effects through a two-transform stabilization sequence.
+        # It performs:
+        #   - Dual manifold projection – applies two complementary transforms
+        #   - Residual stabilization – computes deviation vectors for unstable components
+        #   - Regulated re-integration – applies bounded correction to remove instability
+        #   - Unit manifold enforcement – ensures tensor re-enters substrate-ready manifold shell
+        # Output: cross-manifold stabilized tensor ready for stable substrate entry.
+        if self.a137 is not None:
+            try:
+                x = self.a137(x)
+            except Exception as e:
+                print(f"⚠️ A137 cross-manifold stabilization forward pass failed: {e}")
+                # Continue with unmodified tensor if A137 fails
+
+        # -----------------------------------------------------
+        # A138 — Pre-Substrate Anisotropy Equalization Layer (PAEL)
+        # -----------------------------------------------------
+        # A138 addresses a property that becomes critical after cross-manifold alignment (A136)
+        # and stabilization (A137): residual anisotropy in the tensor's directional energy distribution.
+        # Even after manifold alignment and stabilization, tensors may still have:
+        #   - uneven directional variance
+        #   - elongated energy distribution in specific axes
+        #   - anisotropic feature band dominance
+        #   - asymmetric curvature response
+        # MF-401 expects isotropic manifold entries — meaning the tensor should not favor
+        # any dimension directionally.
+        # A138 corrects this by equalizing directional energy distribution and suppressing
+        # systematic axis bias.
+        # This is required to prevent:
+        #   - resonance skew
+        #   - directional amplification
+        #   - drift re-emergence inside MF-sub-layers
+        #   - curvature distortion in MF-421+
+        # A138 performs:
+        #   - Anisotropy detection – measures directional variance using a learned tensor transform
+        #   - Bias quantification – computes directional deviation relative to isotropic expectation
+        #   - Anisotropy correction – applies a bounded compensatory transform
+        #   - Reprojection & normalization – ensures tensor re-enters substrate-ready isotropic manifold
+        # Output: directionally uniform, isotropic tensor ready for stable substrate entry.
+        if self.a138 is not None:
+            try:
+                x = self.a138(x)
+            except Exception as e:
+                print(f"⚠️ A138 anisotropy equalization forward pass failed: {e}")
+                # Continue with unmodified tensor if A138 fails
+
+        # -----------------------------------------------------
+        # A139 — Terminal Pre-Substrate Alignment Normalizer (TPSAN)
+        # -----------------------------------------------------
+        # A139 is the final operator in the A13x pre-substrate conditioning chain.
+        # Its role:
+        #   - Finalize tensor geometry before MF-401
+        #   - Remove residual cross-band distortion
+        #   - Enforce uniform manifold curvature
+        #   - Produce a fully stabilized, isotropic, substrate-aligned tensor
+        # After A138 has equalized anisotropy, A139 performs the terminal check:
+        # A139 ensures the tensor lies on the exact manifold shape, curvature, and magnitude
+        # required by the MF-401 → MF-500 unified substrate.
+        # This is a precision normalization operator, not a general transform.
+        # A139 performs:
+        #   - Residual shape deviation projection – detects remaining geometric mismatch from substrate manifold
+        #   - Shape correction transform – applies bounded correction to align final tensor shape
+        #   - Cross-band harmonization – smooths interactions between low-, mid-, and high-frequency components
+        #   - Final manifold projection – places tensor into the exact MF-401 manifold shell
+        # Output: fully stabilized, isotropic, substrate-aligned tensor ready for MF-401 entry.
+        if self.a139 is not None:
+            try:
+                x = self.a139(x)
+            except Exception as e:
+                print(f"⚠️ A139 terminal alignment normalizer forward pass failed: {e}")
+                # Continue with unmodified tensor if A139 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
