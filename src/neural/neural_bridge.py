@@ -74,6 +74,8 @@ try:
         A150_SubstrateManifoldConfluenceLayer,
         A151_SubstrateEntryActivationKernel,
         A152_SubstrateHarmonicInjectionLayer,
+        A153_EntryFieldDriftRegulationKernel,
+        A154_SubstrateVectorConditioningLayer,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -101,6 +103,8 @@ except (ImportError, RuntimeError) as e:
     A150_SubstrateManifoldConfluenceLayer = None
     A151_SubstrateEntryActivationKernel = None
     A152_SubstrateHarmonicInjectionLayer = None
+    A153_EntryFieldDriftRegulationKernel = None
+    A154_SubstrateVectorConditioningLayer = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -1188,6 +1192,30 @@ class NeuralBridge:
         else:
             self.a152 = None
         # -----------------------------------------------------
+        # A153 — Entry-Field Drift-Regulation Kernel (EFDRK)
+        # -----------------------------------------------------
+        # A153 regulates drift introduced by substrate-entry harmonics.
+        if SUBSTRATE_AVAILABLE and A153_EntryFieldDriftRegulationKernel is not None:
+            try:
+                self.a153 = A153_EntryFieldDriftRegulationKernel(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A153_EntryFieldDriftRegulationKernel initialization failed: {e}")
+                self.a153 = None
+        else:
+            self.a153 = None
+        # -----------------------------------------------------
+        # A154 — Substrate Vector Conditioning Layer (SVCL)
+        # -----------------------------------------------------
+        # A154 conditions the tensor into substrate vector geometry.
+        if SUBSTRATE_AVAILABLE and A154_SubstrateVectorConditioningLayer is not None:
+            try:
+                self.a154 = A154_SubstrateVectorConditioningLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A154_SubstrateVectorConditioningLayer initialization failed: {e}")
+                self.a154 = None
+        else:
+            self.a154 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -1269,7 +1297,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -1295,13 +1323,15 @@ class NeuralBridge:
         21. A150 Substrate–Manifold Confluence Layer (substrate–manifold confluence)
         22. A151 Substrate Entry Activation Kernel (substrate-entry activation mapping)
         23. A152 Substrate Harmonic Injection Layer (substrate harmonic injection)
-        24. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        24. A153 Entry-Field Drift-Regulation Kernel (substrate-entry drift control)
+        25. A154 Substrate Vector Conditioning Layer (substrate vector conditioning)
+        26. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -1760,6 +1790,28 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A152 substrate harmonic injection forward pass failed: {e}")
                 # Continue with unmodified tensor if A152 fails
+
+        # -----------------------------------------------------
+        # A153 — Entry-Field Drift-Regulation Kernel (EFDRK)
+        # -----------------------------------------------------
+        # A153 regulates substrate-entry drift introduced by harmonic injection.
+        if self.a153 is not None:
+            try:
+                x = self.a153(x)
+            except Exception as e:
+                print(f"⚠️ A153 entry-field drift regulation forward pass failed: {e}")
+                # Continue with unmodified tensor if A153 fails
+
+        # -----------------------------------------------------
+        # A154 — Substrate Vector Conditioning Layer (SVCL)
+        # -----------------------------------------------------
+        # A154 conditions the tensor into the substrate vector-field geometry.
+        if self.a154 is not None:
+            try:
+                x = self.a154(x)
+            except Exception as e:
+                print(f"⚠️ A154 substrate vector conditioning forward pass failed: {e}")
+                # Continue with unmodified tensor if A154 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass

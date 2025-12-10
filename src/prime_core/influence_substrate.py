@@ -1290,6 +1290,95 @@ class A152_SubstrateHarmonicInjectionLayer(nn.Module):
 
 
 # ---------------------------------------------
+# A153 — Entry-Field Drift-Regulation Kernel (EFDRK)
+# ---------------------------------------------
+# A153 regulates drift introduced by substrate-entry harmonics. It:
+#   - extracts drift components
+#   - attenuates drift via a compensation kernel
+#   - recombines with controlled subtraction
+#   - re-normalizes to substrate geometry
+# ---------------------------------------------
+class A153_EntryFieldDriftRegulationKernel(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # drift extraction matrices
+        self.D1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.D2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # drift-compensation kernel
+        self.Rd = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # attenuation coefficient
+        self.rho = 0.10
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # extract drift components
+        d1 = x @ self.D1
+        d2 = x @ self.D2
+
+        # combine drift components
+        drift_raw = self.act(d1 + d2)
+
+        # attenuate drift
+        drift_comp = drift_raw @ self.Rd
+
+        # apply drift regulation
+        out = x - self.rho * drift_comp
+
+        # substrate-compatible normalization
+        norm = torch.norm(out, dim=-1, keepdim=True) + 1e-12
+        return out / norm
+
+
+# ---------------------------------------------
+# A154 — Substrate Vector Conditioning Layer (SVCL)
+# ---------------------------------------------
+# A154 conditions the substrate-entry tensor into the substrate's vector-field
+# geometry. It:
+#   - projects into substrate vector subspace
+#   - applies correction via a vector kernel
+#   - fuses with controlled scaling
+#   - re-normalizes to substrate vector manifold
+# ---------------------------------------------
+class A154_SubstrateVectorConditioningLayer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # substrate vector projection matrices
+        self.V1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.V2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # correction kernel
+        self.Cv = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # conditioning coefficient
+        self.theta = 0.13
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # substrate vector projections
+        v1 = x @ self.V1
+        v2 = x @ self.V2
+
+        # activation for conditioning
+        cond_raw = self.act(v1 + v2)
+
+        # correction kernel
+        corrected = cond_raw @ self.Cv
+
+        # conditioned vector output
+        out = x + self.theta * corrected
+
+        # normalized projection into substrate vector manifold
+        norm = torch.norm(out, dim=-1, keepdim=True) + 1e-12
+        return out / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):
