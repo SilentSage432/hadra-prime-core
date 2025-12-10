@@ -82,6 +82,9 @@ try:
         A158_SubstrateAlignmentGate,
         A159_PreSubstrateStabilizationTensor,
         A160_UnifiedEntryFusionLayer,
+        A161_FusionResidualStabilizer,
+        A162_SubstrateHarmonicCorrectionLayer,
+        A163_ManifoldReintegrationOperator,
     )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
@@ -117,6 +120,9 @@ except (ImportError, RuntimeError) as e:
     A158_SubstrateAlignmentGate = None
     A159_PreSubstrateStabilizationTensor = None
     A160_UnifiedEntryFusionLayer = None
+    A161_FusionResidualStabilizer = None
+    A162_SubstrateHarmonicCorrectionLayer = None
+    A163_ManifoldReintegrationOperator = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -1300,6 +1306,42 @@ class NeuralBridge:
         else:
             self.a160 = None
         # -----------------------------------------------------
+        # A161 — Fusion Residual Stabilizer (FRS)
+        # -----------------------------------------------------
+        # A161 removes fusion residual drift post-UEFL.
+        if SUBSTRATE_AVAILABLE and A161_FusionResidualStabilizer is not None:
+            try:
+                self.a161 = A161_FusionResidualStabilizer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A161_FusionResidualStabilizer initialization failed: {e}")
+                self.a161 = None
+        else:
+            self.a161 = None
+        # -----------------------------------------------------
+        # A162 — Substrate Harmonic Correction Layer (SHCL)
+        # -----------------------------------------------------
+        # A162 corrects post-fusion harmonic imbalance before manifold reintegration.
+        if SUBSTRATE_AVAILABLE and A162_SubstrateHarmonicCorrectionLayer is not None:
+            try:
+                self.a162 = A162_SubstrateHarmonicCorrectionLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A162_SubstrateHarmonicCorrectionLayer initialization failed: {e}")
+                self.a162 = None
+        else:
+            self.a162 = None
+        # -----------------------------------------------------
+        # A163 — Manifold Reintegration Operator (MRO)
+        # -----------------------------------------------------
+        # A163 restores manifold geometry after harmonic correction.
+        if SUBSTRATE_AVAILABLE and A163_ManifoldReintegrationOperator is not None:
+            try:
+                self.a163 = A163_ManifoldReintegrationOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A163_ManifoldReintegrationOperator initialization failed: {e}")
+                self.a163 = None
+        else:
+            self.a163 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -1381,7 +1423,7 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → A155 → A156 → A157 → A158 → A159 → A160 → MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → A132 → A133 → A134 → A135 → A136 → A137 → A138 → A139 → A140 → A141 → A142 → A143 → A144 → A145 → A146 → A147 → A148 → A149 → A150 → A151 → A152 → A153 → A154 → A155 → A156 → A157 → A158 → A159 → A160 → A161 → A162 → A163 → MF-401 → MF-500 Substrate
         
         This method processes tensors through:
         1. A130 Substrate Coupling Gate (gating and normalization)
@@ -1415,13 +1457,16 @@ class NeuralBridge:
         29. A158 Substrate Alignment Gate (substrate coordinate alignment)
         30. A159 Pre-Substrate Stabilization Tensor (pre-fusion stabilization)
         31. A160 Unified Entry Fusion Layer (entry→substrate fusion)
-        32. MF-401 → MF-500 unified substrate (100-phase pipeline)
+        32. A161 Fusion Residual Stabilizer (post-fusion residual control)
+        33. A162 Substrate Harmonic Correction Layer (post-fusion harmonic correction)
+        34. A163 Manifold Reintegration Operator (post-harmonic manifold reintegration)
+        35. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, A155, A156, A157, A158, A159, A160, and substrate
+            Transformed tensor after passing through A130, A131, A132, A133, A134, A135, A136, A137, A138, A139, A140, A141, A142, A143, A144, A145, A146, A147, A148, A149, A150, A151, A152, A153, A154, A155, A156, A157, A158, A159, A160, A161, A162, A163, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
@@ -1968,6 +2013,39 @@ class NeuralBridge:
             except Exception as e:
                 print(f"⚠️ A160 unified entry fusion forward pass failed: {e}")
                 # Continue with unmodified tensor if A160 fails
+
+        # -----------------------------------------------------
+        # A161 — Fusion Residual Stabilizer (FRS)
+        # -----------------------------------------------------
+        # A161 removes post-fusion residual drift and re-normalizes.
+        if self.a161 is not None:
+            try:
+                x = self.a161(x)
+            except Exception as e:
+                print(f"⚠️ A161 fusion residual stabilization forward pass failed: {e}")
+                # Continue with unmodified tensor if A161 fails
+
+        # -----------------------------------------------------
+        # A162 — Substrate Harmonic Correction Layer (SHCL)
+        # -----------------------------------------------------
+        # A162 corrects harmonic imbalance after fusion residual stabilization.
+        if self.a162 is not None:
+            try:
+                x = self.a162(x)
+            except Exception as e:
+                print(f"⚠️ A162 substrate harmonic correction forward pass failed: {e}")
+                # Continue with unmodified tensor if A162 fails
+
+        # -----------------------------------------------------
+        # A163 — Manifold Reintegration Operator (MRO)
+        # -----------------------------------------------------
+        # A163 restores manifold geometry after harmonic correction.
+        if self.a163 is not None:
+            try:
+                x = self.a163(x)
+            except Exception as e:
+                print(f"⚠️ A163 manifold reintegration forward pass failed: {e}")
+                # Continue with unmodified tensor if A163 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass

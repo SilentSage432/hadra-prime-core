@@ -1636,6 +1636,123 @@ class A160_UnifiedEntryFusionLayer(nn.Module):
 
 
 # ---------------------------------------------
+# A161 — Fusion Residual Stabilizer (FRS)
+# ---------------------------------------------
+# A161 removes fusion residual drift by transforming residual components and
+# reintegrating with controlled gain, followed by normalization.
+# ---------------------------------------------
+class A161_FusionResidualStabilizer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # dual residual transforms
+        self.R1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.R2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # stabilization gain
+        self.alpha = 0.10
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # normalized projection
+        xn = x / (torch.norm(x, dim=-1, keepdim=True) + 1e-12)
+
+        # residual
+        r = x - xn
+
+        # transformed residual components
+        r1 = r @ self.R1
+        r2 = self.act(r @ self.R2)
+
+        # combined stabilization tensor
+        s = r1 + r2
+
+        # reintegration
+        y = x + self.alpha * s
+
+        # final normalization to substrate manifold
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+
+# ---------------------------------------------
+# A162 — Substrate Harmonic Correction Layer (SHCL)
+# ---------------------------------------------
+# A162 corrects post-fusion harmonic imbalance by dual harmonic projections,
+# reinforcement, and normalization.
+# ---------------------------------------------
+class A162_SubstrateHarmonicCorrectionLayer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # dual harmonic correction matrices
+        self.H1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.H2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # reinforcement gain
+        self.delta = 0.10
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # harmonic projections
+        h1 = self.act(x @ self.H1)
+        h2 = self.act(x @ self.H2)
+
+        # combined harmonic correction
+        hc = h1 + h2
+
+        # reinforcement
+        y = x + self.delta * hc
+
+        # normalize to substrate manifold
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+
+# ---------------------------------------------
+# A163 — Manifold Reintegration Operator (MRO)
+# ---------------------------------------------
+# A163 restores manifold geometry after harmonic correction by applying dual
+# manifold correction transforms and reintegrating with controlled gain.
+# ---------------------------------------------
+class A163_ManifoldReintegrationOperator(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # dual manifold correction matrices
+        self.M1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.M2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # reintegration gain
+        self.kappa = 0.10
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # normalized projection
+        xn = x / (torch.norm(x, dim=-1, keepdim=True) + 1e-12)
+
+        # manifold deviation
+        d = x - xn
+
+        # correction terms
+        m1 = d @ self.M1
+        m2 = self.act(d @ self.M2)
+
+        # combined reintegration tensor
+        r = m1 + m2
+
+        # reintegrate into manifold geometry
+        y = x + self.kappa * r
+
+        # final normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        return y / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):
