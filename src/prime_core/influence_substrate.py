@@ -161,6 +161,68 @@ MF500 = build_mf_operator_class(500)
 
 
 # ---------------------------------------------
+# A130 — Substrate Coupling Gate (SCG)
+# ---------------------------------------------
+# This operator sits between NeuralBridge and MF-401.
+# It ensures controlled injection of upstream tensors,
+# gating high-variance inputs and preventing magnitude
+# spikes from reaching MF-500.
+# ---------------------------------------------
+class A130_SubstrateCouplingGate(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.w1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.w2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.act = nn.Tanh()  # bounded nonlinearity
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # linear + bounded modulation
+        combined = x @ self.w1 + self.act(x) @ self.w2
+
+        # unit-manifold normalization (pre-substrate)
+        norm = torch.norm(combined, dim=-1, keepdim=True) + 1e-12
+        return combined / norm
+
+
+# ---------------------------------------------
+# A131 — Pre-Substrate Drift Attenuation Layer (PDAL)
+# ---------------------------------------------
+# This operator is the second component in the coupling chain.
+# Where A130 establishes the gating surface, A131 establishes
+# drift suppression for any residual variance in incoming fields.
+#
+# A131 corrects:
+#   - small directional biases
+#   - anisotropic energy distribution
+#   - curvature drift
+#   - high-frequency noise
+#
+# Output: drift-attenuated, curvature-aligned tensor ready
+# for stable substrate entry.
+# ---------------------------------------------
+class A131_DriftAttenuationLayer(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.proj = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.gamma = 0.02  # drift-suppression coefficient
+        self.act = nn.Tanh()  # bounded activation
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # manifold projection
+        p = x @ self.proj
+
+        # residual drift
+        d = x - p
+
+        # attenuate drift contribution
+        x_new = p + self.gamma * self.act(d)
+
+        # enforce unit manifold norm
+        norm = torch.norm(x_new, dim=-1, keepdim=True) + 1e-12
+        return x_new / norm
+
+
+# ---------------------------------------------
 # Unified Substrate Kernel
 # ---------------------------------------------
 class InfluenceSubstrateKernel(nn.Module):

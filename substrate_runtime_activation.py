@@ -8,6 +8,7 @@ to verify runtime activation and stability.
 
 import os
 import sys
+import torch
 
 # ---------------------------------------
 # FIX: Ensure project root is importable
@@ -20,17 +21,12 @@ src_path = os.path.join(PROJECT_ROOT, 'src')
 sys.path.insert(0, src_path)
 
 try:
-    import torch
-    TORCH_AVAILABLE = True
-except ImportError:
-    print("❌ PyTorch is required for runtime activation tests")
-    print("   Install with: pip install torch")
-    sys.exit(1)
-
-try:
-    from neural.neural_bridge import NeuralBridge
+    from src.neural.neural_bridge import NeuralBridge
+    from prime_core.influence_substrate import InfluenceSubstrateKernel
 except ImportError as e:
-    print(f"❌ Could not import NeuralBridge: {e}")
+    print(f"❌ Could not import required modules: {e}")
+    import traceback
+    traceback.print_exc()
     sys.exit(1)
 
 dim = 128

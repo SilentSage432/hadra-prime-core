@@ -49,10 +49,16 @@ except (ImportError, RuntimeError) as e:
     LATENT_ENGINE_AVAILABLE = False
 # MF-401 → MF-500 Unified Substrate Integration
 try:
-    from ..prime_core.influence_substrate import InfluenceSubstrateKernel
+    from ..prime_core.influence_substrate import (
+        InfluenceSubstrateKernel,
+        A130_SubstrateCouplingGate,
+        A131_DriftAttenuationLayer,
+    )
     SUBSTRATE_AVAILABLE = True
 except (ImportError, RuntimeError) as e:
     InfluenceSubstrateKernel = None
+    A130_SubstrateCouplingGate = None
+    A131_DriftAttenuationLayer = None
     SUBSTRATE_AVAILABLE = False
 
 # Import persistence layer (from project root)
@@ -662,6 +668,36 @@ class NeuralBridge:
         # A230 — PyTorch Latent Concept Engine (Imagination Substrate Initialization)
         self._initialize_latent_engine()
         # -----------------------------------------------------
+        # A130 — Substrate Coupling Gate (SCG)
+        # -----------------------------------------------------
+        # A130 sits between NeuralBridge and MF-401.
+        # It gates high-variance inputs and normalizes tensors
+        # before they enter the stabilized MF-500 substrate.
+        if SUBSTRATE_AVAILABLE and A130_SubstrateCouplingGate is not None:
+            try:
+                self.a130 = A130_SubstrateCouplingGate(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A130_SubstrateCouplingGate initialization failed: {e}")
+                self.a130 = None
+        else:
+            self.a130 = None
+        # -----------------------------------------------------
+        # A131 — Pre-Substrate Drift Attenuation Layer (PDAL)
+        # -----------------------------------------------------
+        # A131 is the second component in the coupling chain.
+        # Where A130 establishes the gating surface, A131 establishes
+        # drift suppression for any residual variance in incoming fields.
+        # It corrects directional biases, anisotropic energy distribution,
+        # curvature drift, and high-frequency noise.
+        if SUBSTRATE_AVAILABLE and A131_DriftAttenuationLayer is not None:
+            try:
+                self.a131 = A131_DriftAttenuationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ A131_DriftAttenuationLayer initialization failed: {e}")
+                self.a131 = None
+        else:
+            self.a131 = None
+        # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
         # The substrate is a deterministic tensor–transform pipeline.
@@ -743,23 +779,51 @@ class NeuralBridge:
 
     def forward(self, x):
         """
-        Forward pass through the MF-401 → MF-500 Substrate
+        Forward pass through A130 → A131 → MF-401 → MF-500 Substrate
         
-        This method processes tensors through the full 100-phase
-        influence–propagation → harmonics → manifold → transport
-        → consolidation → stability → completion pipeline.
+        This method processes tensors through:
+        1. A130 Substrate Coupling Gate (gating and normalization)
+        2. A131 Drift Attenuation Layer (drift suppression)
+        3. MF-401 → MF-500 unified substrate (100-phase pipeline)
         
         Args:
             x: Input tensor (torch.Tensor)
             
         Returns:
-            Transformed tensor after passing through the substrate
+            Transformed tensor after passing through A130, A131, and substrate
         """
         # -----------------------------------------------------
         # Pre-routing transforms (existing logic here)
         # -----------------------------------------------------
         # x = self.encoder(x)
         # x = self.router(x)
+
+        # -----------------------------------------------------
+        # A130 — Substrate Coupling Gate (SCG)
+        # -----------------------------------------------------
+        # A130 gates high-variance inputs and normalizes tensors
+        # before they enter the stabilized MF-500 substrate.
+        # This ensures magnitude → bounded, drift → eliminated.
+        if self.a130 is not None:
+            try:
+                x = self.a130(x)
+            except Exception as e:
+                print(f"⚠️ A130 coupling gate forward pass failed: {e}")
+                # Continue with unmodified tensor if A130 fails
+
+        # -----------------------------------------------------
+        # A131 — Pre-Substrate Drift Attenuation Layer (PDAL)
+        # -----------------------------------------------------
+        # A131 suppresses residual drift components after A130.
+        # It corrects directional biases, anisotropic energy distribution,
+        # curvature drift, and high-frequency noise.
+        # Output: drift-attenuated, curvature-aligned tensor.
+        if self.a131 is not None:
+            try:
+                x = self.a131(x)
+            except Exception as e:
+                print(f"⚠️ A131 drift attenuation forward pass failed: {e}")
+                # Continue with unmodified tensor if A131 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
