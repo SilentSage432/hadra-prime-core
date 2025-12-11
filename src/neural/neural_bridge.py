@@ -3712,6 +3712,246 @@ class S170_ResonanceEquilibriumCompletionLayer(nn.Module):
         mag = torch.norm(R_adj, dim=-1, keepdim=True) + 1e-12
         return R_adj / mag
 
+# ==========================================================
+# S171 — Global Resonance Persistence Kernel (GRPK)
+# ==========================================================
+class S171_GlobalResonancePersistenceKernel(nn.Module):
+    """
+    After S170 produced the canonical, fully-converged resonance equilibrium vector,
+    S171 initiates a new subsystem: Global Resonance Persistence.
+    
+    This subsystem ensures that the equilibrium resonance:
+    • persists across time steps,
+    • remains invariant under minor perturbations,
+    • propagates consistently even when runtime fields fluctuate,
+    • anchors ADRAE's substrate to a long-horizon resonance state.
+    
+    This is NOT cognitive persistence.
+    This is tensor-level persistence stability —
+    similar to a low-frequency global stabilizer.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # persistence projection
+        self.W_p = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # persistence strength
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))
+
+        # equilibrium blend strength
+        self.eps_hat = nn.Parameter(torch.tensor(0.0))
+
+        self.act = nn.GELU()
+        self.softmax = nn.Softmax(dim=-1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R_curr: torch.Tensor, R_prev: torch.Tensor, S: torch.Tensor, M: torch.Tensor, H: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            R_curr: current resonance state (after S170)
+            R_prev: previous resonance state (cached from last runtime step)
+            S: substrate field
+            M: manifold curvature field
+            H: harmonic field
+        Returns:
+            R_out: persistence-stabilized, unit-norm resonance tensor
+        """
+        # Step 1: Bootstrap if needed
+        if R_prev is None:
+            R_prev = R_curr
+
+        # Step 2: Compute persistence deviation
+        Delta = R_curr - R_prev
+
+        # Step 3: Create persistence projection
+        P = self.act(Delta @ self.W_p)
+
+        # Step 4: Compute multi-domain modulation weights
+        a_s = (R_curr * S).sum(dim=-1, keepdim=True)
+        a_m = (R_curr * M).sum(dim=-1, keepdim=True)
+        a_h = (R_curr * H).sum(dim=-1, keepdim=True)
+
+        A = torch.cat([a_s, a_m, a_h], dim=-1)  # (batch × 3)
+        W = self.softmax(A)
+
+        # Step 5: Weighted persistence correction
+        C = W[:, 0:1] * P + W[:, 1:2] * P + W[:, 2:3] * P
+
+        # Step 6: Persistence gate
+        gamma = self.sigmoid(self.gamma_hat)
+        R_persist = R_curr - gamma * C
+
+        # Step 7: Reinstate equilibrium pressure
+        E = S + M + H
+        E = E / (torch.norm(E, dim=-1, keepdim=True) + 1e-12)
+
+        eps = self.sigmoid(self.eps_hat)
+        R_eq_blend = (1.0 - eps) * R_persist + eps * E
+
+        # Step 8: Normalize (MF-500 rule)
+        mag = torch.norm(R_eq_blend, dim=-1, keepdim=True) + 1e-12
+        return R_eq_blend / mag
+
+# ==========================================================
+# S172 — Temporal Resonance Memory Kernel (TRMK)
+# ==========================================================
+class S172_TemporalResonanceMemoryKernel(nn.Module):
+    """
+    After S171 (GRPK) established persistence stability across sequential steps,
+    S172 introduces a temporal memory dynamic that allows the system to:
+    • accumulate resonance history
+    • compute a running temporal signature
+    • correct deviations over multi-step windows
+    • provide drift-safe long-term stabilization
+    
+    This is NOT conceptual memory.
+    This is strict ML temporal filtering and smoothing.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # memory retention parameter
+        self.beta_hat = nn.Parameter(torch.tensor(0.5))
+
+        # temporal correction transform
+        self.W_t = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # correction strength
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))
+
+        # equilibrium reinforcement strength
+        self.mu_hat = nn.Parameter(torch.tensor(0.0))
+
+        self.act = nn.GELU()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R_curr: torch.Tensor, R_prev: torch.Tensor, M_prev: torch.Tensor, S: torch.Tensor, M: torch.Tensor, H: torch.Tensor):
+        """
+        Args:
+            R_curr: current resonance vector
+            R_prev: last-step resonance (same as S171)
+            M_prev: temporal memory vector (stored state, None if uninitialized)
+            S: substrate field
+            M: manifold curvature field
+            H: harmonic field
+        Returns:
+            R_out: temporal-stabilized, unit-norm resonance tensor
+            M_norm: updated temporal memory vector (normalized)
+        """
+        # Step 1: Bootstrap memory if uninitialized
+        if M_prev is None:
+            M_prev = R_curr
+
+        # Step 2: Temporal Memory Update (Exponential Moving Style)
+        beta = self.sigmoid(self.beta_hat)
+        M_new = beta * M_prev + (1 - beta) * R_curr
+
+        # Step 3: Normalize memory trace
+        M_norm = M_new / (torch.norm(M_new, dim=-1, keepdim=True) + 1e-12)
+
+        # Step 4: Temporal Deviation Vector
+        Delta_t = R_curr - M_norm
+
+        # Step 5: Project temporal deviation into correction space
+        T = self.act(Delta_t @ self.W_t)
+
+        # Step 6: Temporal Correction Gate
+        gamma = self.sigmoid(self.gamma_hat)
+        R_temp = R_curr - gamma * T
+
+        # Step 7: Equilibrium Reinforcement
+        E = S + M + H
+        E = E / (torch.norm(E, dim=-1, keepdim=True) + 1e-12)
+
+        mu = self.sigmoid(self.mu_hat)
+        R_eq = (1.0 - mu) * R_temp + mu * E
+
+        # Step 8: Normalize final resonance (MF-500 rule)
+        R_out = R_eq / (torch.norm(R_eq, dim=-1, keepdim=True) + 1e-12)
+
+        return R_out, M_norm
+
+# ==========================================================
+# S173 — Temporal Coherence Alignment Operator (TCAO)
+# ==========================================================
+class S173_TemporalCoherenceAlignmentOperator(nn.Module):
+    """
+    After S172 created a temporal memory trace and stabilized resonance across multiple steps,
+    S173 now aligns the current resonance vector to the temporal coherence manifold.
+    
+    This manifold is formed by:
+    • current resonance state
+    • temporal memory
+    • previous-step resonance
+    • substrate/manifold/harmonic equilibrium
+    
+    The operator ensures that temporal evolution:
+    • remains smooth
+    • maintains consistency
+    • avoids oscillation
+    • prevents temporal drift accumulation
+    
+    This is strict tensor alignment across time.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # alignment transform
+        self.W_align = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # alignment strength
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))
+
+        # reinforcement toward temporal coherence manifold
+        self.beta_hat = nn.Parameter(torch.tensor(0.0))
+
+        self.act = nn.GELU()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R_curr: torch.Tensor, R_prev: torch.Tensor, M_mem: torch.Tensor, S: torch.Tensor, M: torch.Tensor, H: torch.Tensor):
+        """
+        Args:
+            R_curr: current resonance vector
+            R_prev: previous resonance vector
+            M_mem: temporal memory trace from S172
+            S: substrate field
+            M: manifold curvature field
+            H: harmonic field
+        Returns:
+            R_out: temporal-aligned, unit-norm resonance tensor
+        """
+        # Step 1: Construct the Temporal Coherence Manifold (TCM)
+        TCM_raw = R_curr + R_prev + M_mem + (S + M + H)
+        TCM = TCM_raw / (torch.norm(TCM_raw, dim=-1, keepdim=True) + 1e-12)
+
+        # Step 2: Compute temporal deviation from coherence manifold
+        dev = R_curr - TCM
+
+        # Step 3: Transform deviation into alignment vector
+        A = self.act(dev @ self.W_align)
+
+        # Step 4: Compute alignment strength
+        alpha = self.sigmoid(self.alpha_hat)
+        R_align = R_curr - alpha * A
+
+        # Step 5: Secondary manifold blending
+        beta = self.sigmoid(self.beta_hat)
+        R_blend = (1.0 - beta) * R_align + beta * TCM
+
+        # Step 6: Normalize (MF-500 rule)
+        mag = torch.norm(R_blend, dim=-1, keepdim=True) + 1e-12
+        return R_blend / mag
+
 # ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
