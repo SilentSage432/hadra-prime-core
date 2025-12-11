@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  adrae-core:
+    image: adrae-core:cpu
+    container_name: adrae-core
+    command: ["runtime"]
+    restart: unless-stopped
+    environment:
+      ADRAE_ENV: production
+    volumes:
+      - /mnt/sage-drive-2/ADRAE/logs:/data/logs
+      - /mnt/sage-drive-2/ADRAE/stability:/data/stability
+      - /mnt/sage-drive-2/ADRAE/substrate:/data/substrate
+    networks:
+      - adrae-net
+
+  adrae-health:
+    image: adrae-core:cpu
+    container_name: adrae-health
+    command: ["server"]
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ADRAE_ENV: production
+    volumes:
+      - /mnt/sage-drive-2/ADRAE/logs:/data/logs
+      - /mnt/sage-drive-2/ADRAE/stability:/data/stability
+      - /mnt/sage-drive-2/ADRAE/substrate:/data/substrate
+    networks:
+      - adrae-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+
+networks:
+  adrae-net:
+    driver: bridge
+
