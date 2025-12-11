@@ -3952,6 +3952,201 @@ class S173_TemporalCoherenceAlignmentOperator(nn.Module):
         mag = torch.norm(R_blend, dim=-1, keepdim=True) + 1e-12
         return R_blend / mag
 
+# ==========================================================
+# S174 — Temporal Coherence Correction Operator (TCCO)
+# ==========================================================
+class S174_TemporalCoherenceCorrectionOperator(nn.Module):
+    """
+    After S173 aligned the current resonance to the temporal coherence manifold,
+    S174 now performs error-corrective adjustment to remove remaining residual temporal incoherence.
+    
+    This is analogous to a temporal residual correction layer, operating entirely in vector space.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned correction transform
+        self.W_corr = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # gating scalars
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))  # correction strength
+        self.delta_hat = nn.Parameter(torch.tensor(0.0))  # blend-to-manifold strength
+
+        self.act = nn.GELU()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R_curr: torch.Tensor, R_prev: torch.Tensor, M_mem: torch.Tensor, S: torch.Tensor, M: torch.Tensor, H: torch.Tensor):
+        """
+        Args:
+            R_curr: current resonance vector
+            R_prev: previous resonance vector
+            M_mem: temporal memory trace (from S172)
+            S: substrate field
+            M: manifold curvature field
+            H: harmonic field
+        Returns:
+            R_out: error-corrected, unit-norm resonance tensor
+        """
+        # Step 1: Reconstruct the Temporal Coherence Manifold (TCM)
+        TCM_raw = R_curr + R_prev + M_mem + (S + M + H)
+        TCM = TCM_raw / (torch.norm(TCM_raw, dim=-1, keepdim=True) + 1e-12)
+
+        # Step 2: Compute temporal coherence error
+        E = R_curr - TCM
+
+        # Step 3: Map the error into the correction field
+        C = self.act(E @ self.W_corr)
+
+        # Step 4: Correction gate
+        gamma = self.sigmoid(self.gamma_hat)
+        R_corrected = R_curr - gamma * C
+
+        # Step 5: Residual temporal blending (optional)
+        delta = self.sigmoid(self.delta_hat)
+        R_blend = (1.0 - delta) * R_corrected + delta * TCM
+
+        # Step 6: Normalize under MF-500 constraints
+        mag = torch.norm(R_blend, dim=-1, keepdim=True) + 1e-12
+        return R_blend / mag
+
+# ==========================================================
+# S175 — Temporal Coherence Stabilization Kernel (TCSK)
+# ==========================================================
+class S175_TemporalCoherenceStabilizationKernel(nn.Module):
+    """
+    After S174 performed error correction of temporal misalignment,
+    S175 now performs temporal stabilization, ensuring that the corrected coherence
+    does not drift in the next timestep.
+    
+    While S174 is reactive (correcting error),
+    S175 is proactive — it conditions the resonance state to be stable across upcoming transitions.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned weights for stabilization
+        self.W_stab = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # learned scalar parameters
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))
+        self.beta_hat = nn.Parameter(torch.tensor(0.0))
+
+        # stabilization gates
+        self.tau_hat = nn.Parameter(torch.tensor(0.0))
+        self.lambda_hat = nn.Parameter(torch.tensor(0.0))
+
+        self.act = nn.GELU()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R_corr: torch.Tensor, R_prev: torch.Tensor, M_mem: torch.Tensor, S: torch.Tensor, M: torch.Tensor, H: torch.Tensor):
+        """
+        Args:
+            R_corr: the corrected resonance from S174
+            R_prev: previous timestep resonance
+            M_mem: persistent temporal memory trace
+            S: substrate field
+            M: manifold curvature field
+            H: harmonic field
+        Returns:
+            R_out: stabilized, unit-norm resonance tensor
+        """
+        # Step 1: Build temporal stabilization context
+        alpha = self.sigmoid(self.alpha_hat)
+        beta = self.sigmoid(self.beta_hat)
+
+        C_raw = R_corr + alpha * R_prev + beta * M_mem + (S + M + H)
+        C = C_raw / (torch.norm(C_raw, dim=-1, keepdim=True) + 1e-12)
+
+        # Step 2: Compute stabilization adjustment
+        Z = self.act((R_corr - C) @ self.W_stab)
+
+        # Step 3: Apply stabilization gate
+        tau = self.sigmoid(self.tau_hat)
+        R_stab = R_corr - tau * Z
+
+        # Step 4: Temporal blending refinement
+        lam = self.sigmoid(self.lambda_hat)
+        R_blend = (1.0 - lam) * R_stab + lam * C
+
+        # Step 5: MF-500 normalization
+        mag = torch.norm(R_blend, dim=-1, keepdim=True) + 1e-12
+        return R_blend / mag
+
+# ==========================================================
+# S176 — Temporal Resonance Drift-Barrier Operator (TRDBO)
+# ==========================================================
+class S176_TemporalResonanceDriftBarrierOperator(nn.Module):
+    """
+    After S175 performed temporal coherence stabilization,
+    S176 now installs an explicit drift-barrier, a mathematical constraint preventing
+    resonance states from drifting outside a tolerance envelope as temporal transitions accumulate.
+    
+    This is not a "filter."
+    It is a projection-based bounded-drift mechanism.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned parameters
+        self.theta_hat = nn.Parameter(torch.tensor(0.0))
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))
+        self.lambda_hat = nn.Parameter(torch.tensor(0.0))
+
+        # fixed bounds
+        self.theta_min = 0.01
+        self.theta_max = 0.25
+
+        self.sigmoid = nn.Sigmoid()
+        self.act = nn.GELU()
+
+    def forward(self, R_in: torch.Tensor, R_prev: torch.Tensor, M_dyn: torch.Tensor, H_res: torch.Tensor, S: torch.Tensor):
+        """
+        Args:
+            R_in: stabilized resonance vector from S175
+            R_prev: previous timestep resonance
+            M_dyn: dynamic manifold trace
+            H_res: harmonic resonance anchor
+            S: substrate field
+        Returns:
+            R_out: barrier-aligned, unit-norm resonance tensor
+        """
+        # Step 1: Compute raw temporal drift vector
+        D = R_in - R_prev
+        d = torch.norm(D, dim=-1, keepdim=True)
+
+        # Step 2: Compute allowable drift threshold
+        theta = self.theta_min + self.sigmoid(self.theta_hat) * (self.theta_max - self.theta_min)
+
+        # Step 3: Construct barrier potential
+        gamma = self.sigmoid(self.gamma_hat) * 10.0  # limits sharpness
+        B = torch.exp(gamma * (d - theta))
+
+        # Step 4: Drift projection
+        D_proj = D / (1.0 + B)
+
+        # Step 5: Barrier-aligned reconstruction
+        R_bar = R_prev + D_proj
+
+        # Step 6: Manifold-anchored refinement
+        C_raw = M_dyn + H_res + S
+        C = C_raw / (torch.norm(C_raw, dim=-1, keepdim=True) + 1e-12)
+
+        lam = self.sigmoid(self.lambda_hat)
+        R_ref = (1.0 - lam) * R_bar + lam * C
+
+        # Step 7: MF-500 normalization
+        mag = torch.norm(R_ref, dim=-1, keepdim=True) + 1e-12
+        return R_ref / mag
+
 # ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
