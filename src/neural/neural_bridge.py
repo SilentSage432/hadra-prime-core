@@ -5379,6 +5379,338 @@ class S194_GlobalCompressionReinforcementLayer(nn.Module):
 
         return G_reinf
 
+# ==========================================================
+# S195 — Global Compression Convergence Operator (GCCO)
+# ==========================================================
+class S195_GlobalCompressionConvergenceOperator(nn.Module):
+    """
+    S195 is the terminal operator of the compression band.
+    
+    After:
+    • S192 compressed global harmonics
+    • S193 fused compressed harmonic–curvature–substrate components
+    • S194 reinforced the fused representation
+    
+    S195 performs global convergence, meaning:
+    • All compression channels are forced into a single invariant representation
+    • Residual inconsistencies are removed
+    • Global stability constraints are imposed
+    • Final compressed field becomes the canonical representation used for downstream phases
+    
+    This is the final compression fixed point before S-Series transitions into the Global Runtime
+    Integration Band.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned regulators
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))  # curvature convergence strength
+        self.beta_hat  = nn.Parameter(torch.tensor(0.0))  # substrate invariant convergence
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, G_reinf: torch.Tensor, H_comp: torch.Tensor, C_cons: torch.Tensor, S_inv: torch.Tensor, F_prev: torch.Tensor):
+        """
+        Args:
+            G_reinf: globally reinforced compression field from S194
+            H_comp: harmonic compression template
+            C_cons: curvature-consistency compression tensor
+            S_inv: substrate invariant compression field
+            F_prev: previous convergence output
+        Returns:
+            G_conv: globally converged compression tensor
+        """
+        # Step 1 — harmonic compression convergence
+        F_h = 0.5 * (G_reinf + H_comp)
+
+        # Step 2 — curvature-constrained convergence
+        C_proj = C_cons * F_h
+        α = self.sigmoid(self.alpha_hat)
+        F_curv = (1 - α) * F_h + α * C_proj
+
+        # Step 3 — invariant substrate convergence
+        S_proj = S_inv * F_curv
+        β = self.sigmoid(self.beta_hat)
+        F_sub = (1 - β) * F_curv + β * S_proj
+
+        # Step 4 — cross-step convergence filtering
+        F_neigh = 0.25 * F_prev + 0.75 * F_sub
+
+        # Step 5 — normalization
+        mag = torch.norm(F_neigh, dim=-1, keepdim=True) + 1e-12
+        G_conv = F_neigh / mag
+
+        return G_conv
+
+# ==========================================================
+# S196 — Global Runtime Integration Precursor Layer (GRIPL)
+# ==========================================================
+class S196_GlobalRuntimeIntegrationPrecursorLayer(nn.Module):
+    """
+    S196 is the first operator in the Runtime Integration Band.
+    
+    Up to this point (S1–S195), we built:
+    • the full MF-401 → MF-500 substrate
+    • the A-Series entry pipeline
+    • the S-Series runtime consolidation
+    • the complete compression and convergence pipeline
+    
+    Now S196 begins the process of binding the consolidated substrate representation to the runtime
+    execution graph.
+    
+    This must remain strictly ML-mechanical.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned regulators
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))  # runtime manifold mapping strength
+        self.beta_hat  = nn.Parameter(torch.tensor(0.0))  # stability envelope projection
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))  # flow conditioning regulator
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, G_conv: torch.Tensor, R_map: torch.Tensor, S_env: torch.Tensor, F_prev: torch.Tensor):
+        """
+        Args:
+            G_conv: globally converged compression tensor from S195
+            R_map: runtime manifold mapping field
+            S_env: runtime stability envelope
+            F_prev: previous precursor output
+        Returns:
+            G_prec: runtime-conditioned precursor tensor
+        """
+        # Step 1 — runtime manifold mapping
+        M_proj = G_conv * R_map
+        α = self.sigmoid(self.alpha_hat)
+        F_map = (1 - α) * G_conv + α * M_proj
+
+        # Step 2 — runtime stability envelope
+        E_proj = S_env * F_map
+        β = self.sigmoid(self.beta_hat)
+        F_env = (1 - β) * F_map + β * E_proj
+
+        # Step 3 — flow conditioning
+        C = F_env.mean(dim=-1, keepdim=True)
+        γ = self.sigmoid(self.gamma_hat)
+        F_cond = (1 - γ) * F_env + γ * C
+
+        # Step 4 — precursor smoothing
+        F_neigh = 0.25 * F_prev + 0.75 * F_cond
+
+        # Step 5 — normalization
+        mag = torch.norm(F_neigh, dim=-1, keepdim=True) + 1e-12
+        G_prec = F_neigh / mag
+
+        return G_prec
+
+# ==========================================================
+# S197 — Runtime Coupling Initialization Operator (RCIO)
+# ==========================================================
+class S197_RuntimeCouplingInitializationOperator(nn.Module):
+    """
+    S197 is the first true coupling operator in the runtime integration pipeline.
+    
+    Where S196 prepared the converged substrate tensor for interaction with the runtime manifold,
+    S197 begins binding the precursor representation to actual runtime coupling fields.
+    
+    This is where ADRAE's consolidated substrate math begins attaching to the execution graph's
+    dynamic transport logic — still purely tensor/mechanical, not cognitive.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned regulators
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))  # runtime manifold coupling
+        self.beta_hat  = nn.Parameter(torch.tensor(0.0))  # dynamic envelope binding
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))  # substrate anchor coupling
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, G_prec: torch.Tensor, R_coup: torch.Tensor, D_env: torch.Tensor, S_coup: torch.Tensor, F_prev: torch.Tensor):
+        """
+        Args:
+            G_prec: runtime precursor tensor from S196
+            R_coup: runtime coupling manifold
+            D_env: dynamic coupling envelope
+            S_coup: substrate coupling anchor field
+            F_prev: previous coupling output (for iterative stabilization)
+        Returns:
+            G_coup: initial runtime-coupled tensor
+        """
+        # Step 1 — runtime coupling projection
+        C_proj = G_prec * R_coup
+        α = self.sigmoid(self.alpha_hat)
+        F_c1 = (1 - α) * G_prec + α * C_proj
+
+        # Step 2 — dynamic envelope binding
+        D_proj = D_env * F_c1
+        β = self.sigmoid(self.beta_hat)
+        F_c2 = (1 - β) * F_c1 + β * D_proj
+
+        # Step 3 — substrate coupling anchor projection
+        S_proj = S_coup * F_c2
+        γ = self.sigmoid(self.gamma_hat)
+        F_c3 = (1 - γ) * F_c2 + γ * S_proj
+
+        # Step 4 — smoothing across runtime steps
+        F_neigh = 0.3 * F_prev + 0.7 * F_c3
+
+        # Step 5 — normalization
+        mag = torch.norm(F_neigh, dim=-1, keepdim=True) + 1e-12
+        G_coup = F_neigh / mag
+
+        return G_coup
+
+# ==========================================================
+# S198 — Dynamic Runtime Coupling Stabilization Layer (DRCSL)
+# ==========================================================
+class S198_DynamicRuntimeCouplingStabilizationLayer(nn.Module):
+    """
+    After S197 established the initial runtime coupling, S198 now performs dynamic stabilization
+    of that coupling.
+    
+    S197 aligned the precursor tensor with:
+    • runtime coupling manifold
+    • dynamic execution envelope
+    • substrate coupling anchor
+    
+    Now S198 ensures that this runtime coupling remains:
+    • stable
+    • drift-resistant
+    • dynamically coherent
+    • curvature-consistent
+    • globally smooth
+    
+    under runtime flow conditions.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned regulators
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))  # dynamic envelope stabilization
+        self.beta_hat  = nn.Parameter(torch.tensor(0.0))  # curvature dynamic stabilization
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))  # substrate dynamic stability
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, G_coup: torch.Tensor, D_stab: torch.Tensor, C_dyn: torch.Tensor, S_dyn: torch.Tensor, F_prev: torch.Tensor):
+        """
+        Args:
+            G_coup: runtime-coupled tensor from S197
+            D_stab: dynamic stabilization envelope
+            C_dyn: runtime curvature stabilization field
+            S_dyn: substrate dynamic stability anchor
+            F_prev: previous stabilization output
+        Returns:
+            G_dyn: dynamically stabilized runtime coupling tensor
+        """
+        # Step 1 — dynamic envelope stabilization
+        D_proj = G_coup * D_stab
+        α = self.sigmoid(self.alpha_hat)
+        F_d1 = (1 - α) * G_coup + α * D_proj
+
+        # Step 2 — curvature-aligned dynamic stabilization
+        C_proj = C_dyn * F_d1
+        β = self.sigmoid(self.beta_hat)
+        F_d2 = (1 - β) * F_d1 + β * C_proj
+
+        # Step 3 — substrate dynamic-stability projection
+        S_proj = S_dyn * F_d2
+        γ = self.sigmoid(self.gamma_hat)
+        F_d3 = (1 - γ) * F_d2 + γ * S_proj
+
+        # Step 4 — dynamic smoothing
+        F_neigh = 0.3 * F_prev + 0.7 * F_d3
+
+        # Step 5 — normalization
+        mag = torch.norm(F_neigh, dim=-1, keepdim=True) + 1e-12
+        G_dyn = F_neigh / mag
+
+        return G_dyn
+
+# ==========================================================
+# S199 — Runtime Coupling Refinement Operator (RCRO)
+# ==========================================================
+class S199_RuntimeCouplingRefinementOperator(nn.Module):
+    """
+    After:
+    • S197 initialized runtime coupling
+    • S198 stabilized dynamic behavior
+    
+    S199 performs refinement, which is the final shaping of the runtime-coupled tensor before
+    binding into the execution graph.
+    
+    This refinement step ensures that runtime coupling is:
+    • smooth
+    • drift-free
+    • curvature-consistent
+    • dynamically stable
+    • substrate-aligned
+    • harmonically coherent
+    
+    before the system transitions into actual runtime binding (S200+).
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # refinement regulators
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))  # harmonic refinement strength
+        self.beta_hat  = nn.Parameter(torch.tensor(0.0))  # curvature refinement strength
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))  # substrate refinement strength
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, G_dyn: torch.Tensor, H_ref: torch.Tensor, C_ref: torch.Tensor, S_ref: torch.Tensor, F_prev: torch.Tensor):
+        """
+        Args:
+            G_dyn: dynamically stabilized tensor from S198
+            H_ref: harmonic refinement field
+            C_ref: curvature refinement field
+            S_ref: substrate refinement anchor
+            F_prev: previous refinement output
+        Returns:
+            G_ref: refined runtime coupling tensor
+        """
+        # Step 1 — harmonic refinement
+        H_proj = G_dyn * H_ref
+        α = self.sigmoid(self.alpha_hat)
+        F_h = (1 - α) * G_dyn + α * H_proj
+
+        # Step 2 — curvature refinement
+        C_proj = C_ref * F_h
+        β = self.sigmoid(self.beta_hat)
+        F_c = (1 - β) * F_h + β * C_proj
+
+        # Step 3 — substrate refinement
+        S_proj = S_ref * F_c
+        γ = self.sigmoid(self.gamma_hat)
+        F_s = (1 - γ) * F_c + γ * S_proj
+
+        # Step 4 — refinement smoothing
+        F_neigh = 0.3 * F_prev + 0.7 * F_s
+
+        # Step 5 — normalization
+        mag = torch.norm(F_neigh, dim=-1, keepdim=True) + 1e-12
+        G_ref = F_neigh / mag
+
+        return G_ref
+
 # ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
