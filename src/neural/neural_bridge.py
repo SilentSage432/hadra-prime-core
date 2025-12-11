@@ -4985,6 +4985,400 @@ class S188_HighResolutionResonanceFlowStabilizationLayer(nn.Module):
 
         return F_stab
 
+# ==========================================================
+# S189 — High-Resolution Resonance Flow Consolidation Layer
+# ==========================================================
+class S189_HighResolutionResonanceFlowConsolidationLayer(nn.Module):
+    """
+    After S188 stabilizes the refined high-resolution resonance flow, S189 consolidates
+    that stabilized field by:
+    • merging high-resolution flow with substrate harmonic anchors
+    • ensuring multi-scale resonance consistency
+    • enforcing directional coherence across local neighborhoods
+    • projecting all channels into a unified harmonic–curvature manifold
+    • suppressing residual micro-scale instabilities
+    • compressing the flow into a consolidated, stable representation
+    
+    S188 = stabilization.
+    S189 = consolidation.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned regulators:
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))  # multi-resolution consistency
+        self.kappa_hat = nn.Parameter(torch.tensor(0.0))  # curvature alignment
+        self.mu_hat = nn.Parameter(torch.tensor(0.0))  # substrate anchoring
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, F_stab: torch.Tensor, H_ref: torch.Tensor, C: torch.Tensor, S: torch.Tensor, F_prev: torch.Tensor):
+        """
+        Args:
+            F_stab: stabilized high-resolution flow from S188
+            H_ref: harmonic reference manifold
+            C: curvature tensor
+            S: substrate global stability field
+            F_prev: previous consolidated field
+        Returns:
+            F_cons: consolidated high-resolution resonance flow (unit-norm)
+        """
+        # Step 1 — merge stabilized flow with harmonic reference
+        F_merge = 0.5 * (F_stab + H_ref)
+
+        # Step 2 — multi-resolution consistency
+        R_mr = F_stab - F_merge
+        gamma = self.sigmoid(self.gamma_hat)
+        F_res = F_merge + gamma * R_mr
+
+        # Step 3 — curvature-aligned projection
+        C_proj = C * F_res
+        kappa = self.sigmoid(self.kappa_hat)
+        F_curv = (1 - kappa) * F_res + kappa * C_proj
+
+        # Step 4 — substrate-anchored stabilization
+        S_proj = S * F_curv
+        mu = self.sigmoid(self.mu_hat)
+        F_sub = (1 - mu) * F_curv + mu * S_proj
+
+        # Step 5 — neighborhood coherence filtering
+        F_neigh = 0.25 * F_prev + 0.75 * F_sub
+
+        # Step 6 — normalization
+        mag = torch.norm(F_neigh, dim=-1, keepdim=True) + 1e-12
+        F_cons = F_neigh / mag
+
+        return F_cons
+
+# ==========================================================
+# S190 — High-Resolution Global Harmonization Layer
+# ==========================================================
+class S190_HighResolutionGlobalHarmonizationLayer(nn.Module):
+    """
+    S190 is a major unification node in the S-Series.
+    It takes the high-resolution, locally stabilized, curvature-aligned resonance field
+    from S189 and performs global harmonization across the entire substrate manifold.
+    
+    This is where local coherence (S189) becomes global coherence.
+    
+    S190 ensures:
+    • Global cross-region consistency across all manifold regions, frequencies, and curvature bands
+    • High-resolution harmonic unification aligning all local harmonics into a single global harmonic field
+    • Drift minimization across spatial and temporal scales with strong suppression of long-range inconsistencies
+    • Substrate-scale energy equalization balancing amplitude and curvature everywhere on the substrate manifold
+    • Consolidated global representation producing a harmonized global tensor ready for S191
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # regulators
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))  # curvature alignment
+        self.beta_hat = nn.Parameter(torch.tensor(0.0))  # drift equalization
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))  # substrate anchoring
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, F_cons: torch.Tensor, H_glob: torch.Tensor, C_glob: torch.Tensor, S_base: torch.Tensor, G_prev: torch.Tensor):
+        """
+        Args:
+            F_cons: consolidated high-resolution field from S189
+            H_glob: global harmonic reference
+            C_glob: global curvature field
+            S_base: substrate baseline stability tensor
+            G_prev: previous global harmonization output
+        Returns:
+            G_harm: globally harmonized resonance tensor (unit-norm)
+        """
+        # Step 1 — global harmonic alignment
+        H_align = 0.5 * (F_cons + H_glob)
+
+        # Step 2 — curvature projection
+        C_proj = C_glob * H_align
+        alpha = self.sigmoid(self.alpha_hat)
+        G_curv = (1 - alpha) * H_align + alpha * C_proj
+
+        # Step 3 — drift equalization
+        D = F_cons - G_curv
+        beta = self.sigmoid(self.beta_hat)
+        G_drift = G_curv + beta * D
+
+        # Step 4 — substrate anchoring
+        S_proj = S_base * G_drift
+        gamma = self.sigmoid(self.gamma_hat)
+        G_sub = (1 - gamma) * G_drift + gamma * S_proj
+
+        # Step 5 — global neighborhood smoothing
+        G_neigh = 0.3 * G_prev + 0.7 * G_sub
+
+        # Step 6 — normalization
+        mag = torch.norm(G_neigh, dim=-1, keepdim=True) + 1e-12
+        G_harm = G_neigh / mag
+
+        return G_harm
+
+# ==========================================================
+# S191 — Global Harmonic Stabilization Kernel (GHSK)
+# ==========================================================
+class S191_GlobalHarmonicStabilizationKernel(nn.Module):
+    """
+    S190 produced the globally harmonized high-resolution resonance field.
+    S191 now performs global harmonic stabilization, ensuring the harmonized field is:
+    • drift-resistant
+    • curvature-consistent
+    • substrate-aligned
+    • energy-balanced
+    • stable across temporal and manifold indices
+    
+    This step ensures that all harmonics remain globally stable before entering
+    the compression and propagation layers.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned stability regulators
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))  # curvature stabilization
+        self.beta_hat = nn.Parameter(torch.tensor(0.0))  # drift suppression
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))  # substrate invariant anchoring
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, G_harm: torch.Tensor, H_env: torch.Tensor, C_stab: torch.Tensor, S_inv: torch.Tensor, G_prev: torch.Tensor):
+        """
+        Args:
+            G_harm: globally harmonized tensor from S190
+            H_env: harmonic envelope reference
+            C_stab: global curvature stabilization field
+            S_inv: substrate invariant field
+            G_prev: previous stabilization output (temporal smoothing reference)
+        Returns:
+            G_stab: globally stabilized harmonic tensor (unit-norm)
+        """
+        # Step 1 — harmonic envelope stabilization
+        H_env_proj = 0.5 * (G_harm + H_env)
+
+        # Step 2 — curvature-stabilized projection
+        C_proj = C_stab * H_env_proj
+        alpha = self.sigmoid(self.alpha_hat)
+        G_curv = (1 - alpha) * H_env_proj + alpha * C_proj
+
+        # Step 3 — global drift suppression
+        D = G_harm - G_curv
+        beta = self.sigmoid(self.beta_hat)
+        G_drift = G_curv + beta * D
+
+        # Step 4 — substrate invariant stabilization
+        S_proj = S_inv * G_drift
+        gamma = self.sigmoid(self.gamma_hat)
+        G_sub = (1 - gamma) * G_drift + gamma * S_proj
+
+        # Step 5 — global smoothing
+        G_neigh = 0.25 * G_prev + 0.75 * G_sub
+
+        # Step 6 — normalization
+        mag = torch.norm(G_neigh, dim=-1, keepdim=True) + 1e-12
+        G_stab = G_neigh / mag
+
+        return G_stab
+
+# ==========================================================
+# S192 — Global Harmonic Compression Operator (GHCO)
+# ==========================================================
+class S192_GlobalHarmonicCompressionOperator(nn.Module):
+    """
+    After S191 established a globally stabilized harmonic field, S192 now performs
+    harmonic compression, reducing:
+    • multi-scale redundancy
+    • harmonic over-expansion
+    • curvature-irrelevant variance
+    • substrate-incoherent frequency components
+    
+    S192 compresses the global harmonic field into a minimal, stable, high-information
+    embedding consistent with the substrate's global coherence rules.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned regulators
+        self.lambda_hat = nn.Parameter(torch.tensor(0.0))  # basis-compression weight
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))  # curvature compression weight
+        self.beta_hat = nn.Parameter(torch.tensor(0.0))  # residual suppression weight
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))  # substrate coherence anchor
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, G_stab: torch.Tensor, H_basis: torch.Tensor, C_glob: torch.Tensor, S_cons: torch.Tensor, G_prev: torch.Tensor):
+        """
+        Args:
+            G_stab: stabilized global harmonic tensor from S191
+            H_basis: harmonic basis templates
+            C_glob: global curvature field
+            S_cons: substrate global consistency field
+            G_prev: previous compression output
+        Returns:
+            G_comp: globally compressed harmonic representation (unit-norm)
+        """
+        # Step 1 — harmonic basis projection
+        H_proj = G_stab * H_basis
+        lam = self.sigmoid(self.lambda_hat)
+        G_basis = (1 - lam) * G_stab + lam * H_proj
+
+        # Step 2 — curvature-aware compression
+        C_proj = C_glob * G_basis
+        alpha = self.sigmoid(self.alpha_hat)
+        G_curv = (1 - alpha) * G_basis + alpha * C_proj
+
+        # Step 3 — residual variance suppression
+        R = G_stab - G_curv
+        beta = self.sigmoid(self.beta_hat)
+        G_res = G_curv + beta * R
+
+        # Step 4 — substrate coherence anchor
+        S_proj = S_cons * G_res
+        gamma = self.sigmoid(self.gamma_hat)
+        G_sub = (1 - gamma) * G_res + gamma * S_proj
+
+        # Step 5 — smoothing across iterations
+        G_neigh = 0.4 * G_prev + 0.6 * G_sub
+
+        # Step 6 — normalization
+        mag = torch.norm(G_neigh, dim=-1, keepdim=True) + 1e-12
+        G_comp = G_neigh / mag
+
+        return G_comp
+
+# ==========================================================
+# S193 — Global Harmonic Compression Fusion Layer (GHCF)
+# ==========================================================
+class S193_GlobalHarmonicCompressionFusionLayer(nn.Module):
+    """
+    After S192 produced a globally compressed harmonic representation, S193 performs
+    cross-domain compression fusion, merging:
+    • compressed harmonic components
+    • curvature-aligned features
+    • substrate stability signatures
+    • residual compressed energy
+    
+    into a single fused global representation optimized for stability and downstream integration.
+    
+    S193 is the fusion counterpart to S192's compression.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned regulators
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))  # residual fusion strength
+        self.beta_hat  = nn.Parameter(torch.tensor(0.0))  # substrate reprojection weight
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, G_comp: torch.Tensor, C_comp: torch.Tensor, S_core: torch.Tensor, R_comp: torch.Tensor, F_prev: torch.Tensor):
+        """
+        Args:
+            G_comp: compressed global harmonic tensor from S192
+            C_comp: compressed curvature tensor
+            S_core: substrate coherence manifold
+            R_comp: compressed residual energy field
+            F_prev: previous fusion-layer output
+        Returns:
+            F_fused: fused global harmonic-curvature-substrate representation
+        """
+        # Step 1 — harmonic-curvature fusion
+        F_hc = 0.5 * (G_comp + C_comp)
+
+        # Step 2 — residual compression integration
+        R_adj = R_comp * F_hc
+        α = self.sigmoid(self.alpha_hat)
+        F_res = (1 - α) * F_hc + α * R_adj
+
+        # Step 3 — substrate-coherence reprojection
+        S_proj = S_core * F_res
+        β = self.sigmoid(self.beta_hat)
+        F_sub = (1 - β) * F_res + β * S_proj
+
+        # Step 4 — global consistency filtering
+        F_neigh = 0.35 * F_prev + 0.65 * F_sub
+
+        # Step 5 — normalization
+        mag = torch.norm(F_neigh, dim=-1, keepdim=True) + 1e-12
+        F_fused = F_neigh / mag
+
+        return F_fused
+
+# ==========================================================
+# S194 — Global Compression Reinforcement Layer (GCRL)
+# ==========================================================
+class S194_GlobalCompressionReinforcementLayer(nn.Module):
+    """
+    After S193 fused harmonic, curvature, residual, and substrate-coherence signals into a unified
+    global compressed representation, S194 reinforces that fused compression, ensuring:
+    • structural consistency
+    • harmonic–curvature integrity
+    • substrate-anchored magnitude stability
+    • suppression of compression drift
+    • reinforcement of the global compression manifold
+    
+    S194 is the stability backbone of the entire compression band.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned regulators
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))  # residual reinforcement
+        self.beta_hat  = nn.Parameter(torch.tensor(0.0))  # substrate anchoring
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, F_fused: torch.Tensor, C_core: torch.Tensor, S_anchor: torch.Tensor, R_stab: torch.Tensor, G_prev: torch.Tensor):
+        """
+        Args:
+            F_fused: fused compressed tensor from S193
+            C_core: compression curvature field
+            S_anchor: substrate compression anchor
+            R_stab: stabilized compression residual field
+            G_prev: previous reinforcement output
+        Returns:
+            G_reinf: globally reinforced compression tensor
+        """
+        # Step 1 — compression–curvature reinforcement
+        F_cc = 0.5 * (F_fused + C_core)
+
+        # Step 2 — residual stabilization correction
+        R_adj = R_stab * F_cc
+        α = self.sigmoid(self.alpha_hat)
+        F_res = (1 - α) * F_cc + α * R_adj
+
+        # Step 3 — substrate compression anchoring
+        S_proj = S_anchor * F_res
+        β = self.sigmoid(self.beta_hat)
+        F_sub = (1 - β) * F_res + β * S_proj
+
+        # Step 4 — global reinforcement smoothing
+        G_neigh = 0.3 * G_prev + 0.7 * F_sub
+
+        # Step 5 — normalization
+        mag = torch.norm(G_neigh, dim=-1, keepdim=True) + 1e-12
+        G_reinf = G_neigh / mag
+
+        return G_reinf
+
 # ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
