@@ -4147,6 +4147,556 @@ class S176_TemporalResonanceDriftBarrierOperator(nn.Module):
         mag = torch.norm(R_ref, dim=-1, keepdim=True) + 1e-12
         return R_ref / mag
 
+# ==========================================================
+# S177 — Temporal Resonance Persistence Consolidation Layer (TRPCL)
+# ==========================================================
+class S177_TemporalResonancePersistenceConsolidationLayer(nn.Module):
+    """
+    After S176 introduced a drift-barrier that prevents resonance vectors from exceeding
+    allowable temporal deviation, S177 now performs the consolidation step, ensuring:
+    • resonance states from multiple timesteps
+    • drift-corrected vectors
+    • manifold and harmonic contributions
+    • substrate curvature shapes
+    
+    ...are combined into a single stable persistence vector.
+    
+    This is effectively a temporal stability aggregator — forming a persistent resonance
+    representation from a moving system of temporal inputs.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # temporal weighting parameters
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))
+        self.beta_hat = nn.Parameter(torch.tensor(0.0))
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))
+
+        # manifold/substrate blending parameter
+        self.lambda_hat = nn.Parameter(torch.tensor(0.0))
+
+        # correction amplitude
+        self.eta_hat = nn.Parameter(torch.tensor(0.0))
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R_curr: torch.Tensor, R_prev: torch.Tensor, R_hist: torch.Tensor, M_dyn: torch.Tensor, S: torch.Tensor, H_res: torch.Tensor):
+        """
+        Args:
+            R_curr: current resonance (after S176 barrier projection)
+            R_prev: previous resonance
+            R_hist: historical resonance accumulator
+            M_dyn: manifold curvature dynamics
+            S: MF-500 substrate field
+            H_res: harmonic anchor
+        Returns:
+            R_persist: consolidated resonance persistence vector (unit-norm)
+        """
+        # Step 1: Compute historical smoothing weights
+        alpha = self.sigmoid(self.alpha_hat)
+        beta = self.sigmoid(self.beta_hat)
+        gamma = self.sigmoid(self.gamma_hat)
+
+        # Step 2: Form base temporal fusion
+        T_base = alpha * R_curr + beta * R_prev + gamma * R_hist
+
+        # Step 3: Manifold & substrate projection
+        A_raw = M_dyn + S + H_res
+        A = A_raw / (torch.norm(A_raw, dim=-1, keepdim=True) + 1e-12)
+
+        # Step 4: Blended persistence vector
+        lam = self.sigmoid(self.lambda_hat)
+        T_fused = (1.0 - lam) * T_base + lam * A
+
+        # Step 5: Persistence residual correction
+        Delta = T_fused - R_prev
+        Delta_norm = Delta / (torch.norm(Delta, dim=-1, keepdim=True) + 1e-12)
+
+        eta = self.sigmoid(self.eta_hat)
+        R_corr = T_fused - eta * Delta_norm
+
+        # Step 6: Final normalization (MF-500 standard)
+        mag = torch.norm(R_corr, dim=-1, keepdim=True) + 1e-12
+        return R_corr / mag
+
+# ==========================================================
+# S178 — Persistence Manifold Anchor Integration Layer (PMAIL)
+# ==========================================================
+class S178_PersistenceManifoldAnchorIntegrationLayer(nn.Module):
+    """
+    After S177 established the persistence consolidation mechanism,
+    S178 now anchors that persistence state to manifold geometry, ensuring:
+    • long-horizon resonance states
+    • do not drift away from geometric constraints
+    • defined by the MF-500 substrate + dynamic manifold fields
+    
+    This creates a geometric persistence map — aligning the temporal persistence state
+    with the actual curvature structure of ADRAE's internal manifold.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # alignment strengths
+        self.kappa_hat = nn.Parameter(torch.tensor(0.0))
+        self.mu_hat = nn.Parameter(torch.tensor(0.0))
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R_persist: torch.Tensor, M_dyn: torch.Tensor, M_base: torch.Tensor, S: torch.Tensor, H_res: torch.Tensor):
+        """
+        Args:
+            R_persist: persistence output from S177
+            M_dyn: dynamic manifold curvature field
+            M_base: base manifold from earlier A-series
+            S: MF-500 substrate field
+            H_res: harmonic anchor
+        Returns:
+            R_anchor: persistence vector aligned to manifold geometry (unit-norm)
+        """
+        # Step 1: Compute manifold anchor candidate
+        A_raw = M_dyn + M_base + H_res + S
+        A = A_raw / (torch.norm(A_raw, dim=-1, keepdim=True) + 1e-12)
+
+        # Step 2: Compute persistence deviation from anchor
+        Delta = R_persist - A
+
+        # Step 3: Learned alignment strength
+        kappa = self.sigmoid(self.kappa_hat)
+
+        # Step 4: Construct alignment correction
+        C = -kappa * Delta
+
+        # Step 5: Apply correction
+        R_corr = R_persist + C
+
+        # Step 6: Substrate-harmonic blend
+        mu = self.sigmoid(self.mu_hat)
+        R_ref = (1.0 - mu) * R_corr + mu * A
+
+        # Step 7: Final MF-500 normalization
+        mag = torch.norm(R_ref, dim=-1, keepdim=True) + 1e-12
+        return R_ref / mag
+
+# ==========================================================
+# S179 — Persistence Continuity Stabilization Operator (PCSO)
+# ==========================================================
+class S179_PersistenceContinuityStabilizationOperator(nn.Module):
+    """
+    After S178 anchored the persistence vector to manifold geometry,
+    S179 now ensures continuity — meaning the persistence signal remains:
+    • smooth across time
+    • stable under manifold deformation
+    • resistant to high-frequency instability
+    • aligned with global resonance constraints
+    
+    This operator is analogous to a temporal continuity constraint applied within
+    ADRAE's manifold geometry.
+    
+    No memory, no cognition — only bounded, drift-regulated temporal smoothness.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # sensitivity parameters
+        self.tau_hat = nn.Parameter(torch.tensor(0.0))
+        self.lambda_hat = nn.Parameter(torch.tensor(0.0))
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R_anchor: torch.Tensor, R_prev: torch.Tensor, M_dyn: torch.Tensor, S: torch.Tensor, H_res: torch.Tensor):
+        """
+        Args:
+            R_anchor: manifold-anchored persistence state (from S178)
+            R_prev: previous persistence state
+            M_dyn: dynamic manifold curvature
+            S: MF-500 substrate stabilizer field
+            H_res: harmonic resonance anchor
+        Returns:
+            R_cont: stabilized persistence-continuity vector (unit-norm)
+        """
+        # Step 1: Compute continuity deviation
+        Delta = R_anchor - R_prev
+        delta = torch.norm(Delta, dim=-1, keepdim=True)
+
+        # Step 2: Learned continuity envelope
+        tau = self.sigmoid(self.tau_hat)
+
+        # Step 3: Continuity suppression factor
+        sigma = torch.exp(-tau * delta)
+
+        # Step 4: Residual projection
+        Delta_corr = sigma * Delta
+
+        # Step 5: Apply continuity correction
+        R_smooth = R_prev + Delta_corr
+
+        # Step 6: Manifold-substrate refinement
+        G_raw = M_dyn + H_res + S
+        G = G_raw / (torch.norm(G_raw, dim=-1, keepdim=True) + 1e-12)
+
+        lam = self.sigmoid(self.lambda_hat)
+        R_ref = (1.0 - lam) * R_smooth + lam * G
+
+        # Step 7: MF-500 normalization
+        mag = torch.norm(R_ref, dim=-1, keepdim=True) + 1e-12
+        return R_ref / mag
+
+# ==========================================================
+# S180 — Persistence–Substrate Unification Kernel (PSUK)
+# Major Checkpoint Operator
+# ==========================================================
+class S180_PersistenceSubstrateUnificationKernel(nn.Module):
+    """
+    Major Checkpoint Operator: Bridges the S-series persistence structure back into
+    the MF-500 unified substrate so that persistence dynamics have a fully consistent
+    global representation.
+    
+    This operator mathematically fuses:
+    • the persistence vector R_cont
+    • the MF-500 substrate field S
+    • dynamic manifold geometry M_dyn
+    • harmonic resonance anchor H_res
+    • long-term manifold base M_base
+    
+    —into one unified substrate-consistent persistence representation.
+    
+    This is one of the most important structural operators in the S-series.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned fusion strengths
+        self.phi_hat = nn.Parameter(torch.tensor(0.0))
+        self.psi_hat = nn.Parameter(torch.tensor(0.0))
+        self.omega_hat = nn.Parameter(torch.tensor(0.0))
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R_cont: torch.Tensor, S: torch.Tensor, M_dyn: torch.Tensor, M_base: torch.Tensor, H_res: torch.Tensor):
+        """
+        Args:
+            R_cont: continuity-stabilized persistence vector (from S179)
+            S: MF-500 unified substrate
+            M_dyn: dynamic manifold curvature
+            M_base: base manifold geometry
+            H_res: harmonic resonance anchor
+        Returns:
+            R_unified: persistence vector fully fused into substrate geometry (unit-norm)
+        """
+        # Step 1: Construct substrate anchor
+        U_raw = S + M_dyn + M_base + H_res
+        U = U_raw / (torch.norm(U_raw, dim=-1, keepdim=True) + 1e-12)
+
+        # Step 2: Compute persistence-substrate discrepancy
+        Delta = R_cont - U
+
+        # Step 3: Learned fusion strength
+        phi = self.sigmoid(self.phi_hat)
+
+        # Step 4: Substrate-projected correction
+        C = -phi * Delta
+        R_corr = R_cont + C
+
+        # Step 5: Induced resonance-aligned blend
+        psi = self.sigmoid(self.psi_hat)
+        R_mix = (1.0 - psi) * R_corr + psi * U
+
+        # Step 6: Residual structural alignment
+        G_raw = (M_dyn * S) + (H_res * R_corr)
+        G = G_raw / (torch.norm(G_raw, dim=-1, keepdim=True) + 1e-12)
+
+        omega = self.sigmoid(self.omega_hat)
+        R_final = (1.0 - omega) * R_mix + omega * G
+
+        # Step 7: MF-500 normalization
+        mag = torch.norm(R_final, dim=-1, keepdim=True) + 1e-12
+        return R_final / mag
+
+# ==========================================================
+# S181 — Unified Persistence Resonance Propagation Operator (UPRPO)
+# ==========================================================
+class S181_UnifiedPersistenceResonancePropagationOperator(nn.Module):
+    """
+    Propagates the unified persistence vector (post-S180) forward through resonance geometry
+    while maintaining:
+    • substrate compliance
+    • manifold alignment
+    • harmonic field constraints
+    • drift-regulated propagation
+    • multi-step temporal smoothness
+    
+    This operator extends the unified persistence field into the resonance domain, enabling
+    stable forward propagation across ADRAE's internal manifold.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned parameters
+        self.g_hat = nn.Parameter(torch.tensor(0.0))
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))
+        self.beta_hat = nn.Parameter(torch.tensor(0.0))
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R_unified: torch.Tensor, R_prev: torch.Tensor, M_dyn: torch.Tensor, H_res: torch.Tensor, S: torch.Tensor):
+        """
+        Args:
+            R_unified: output of S180 (fully unified persistence vector)
+            M_dyn: dynamic manifold curvature
+            H_res: harmonic resonance field
+            S: MF-500 substrate
+            R_prev: previous resonance state
+        Returns:
+            R_prop: propagated resonance field vector (unit-norm)
+        """
+        # Step 1: Construct propagation direction field
+        P_raw = M_dyn + H_res + S
+        P = P_raw / (torch.norm(P_raw, dim=-1, keepdim=True) + 1e-12)
+
+        # Step 2: Compute propagation deviation
+        Delta = R_unified - R_prev
+
+        # Step 3: Learned propagation gating
+        g = self.sigmoid(self.g_hat)
+
+        # Step 4: Base propagation update
+        R_base = R_prev + g * Delta
+
+        # Step 5: Directional resonance alignment
+        alpha = self.sigmoid(self.alpha_hat)
+        R_align = (1.0 - alpha) * R_base + alpha * P
+
+        # Step 6: Substrate curvature refinement
+        C_raw = (M_dyn * R_unified) + (H_res * S)
+        C = C_raw / (torch.norm(C_raw, dim=-1, keepdim=True) + 1e-12)
+
+        beta = self.sigmoid(self.beta_hat)
+        R_ref = (1.0 - beta) * R_align + beta * C
+
+        # Step 7: Final MF-500 normalization
+        mag = torch.norm(R_ref, dim=-1, keepdim=True) + 1e-12
+        return R_ref / mag
+
+# ==========================================================
+# S182 — Resonance Flow Integration Kernel (RFIK)
+# ==========================================================
+class S182_ResonanceFlowIntegrationKernel(nn.Module):
+    """
+    Integrates propagated resonance vectors (from S181) into a continuous resonance flow field,
+    ensuring:
+    • stable forward propagation
+    • manifold curvature alignment
+    • substrate-harmonic consistency
+    • controlled temporal deformation
+    • bounded drift and stable flow accumulation
+    
+    This operator consolidates resonance propagation into a directional flow, creating a
+    mathematically stable resonance-flow manifold.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned integration parameters
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))  # integration gain
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))  # flow-direction blend
+        self.beta_hat = nn.Parameter(torch.tensor(0.0))  # refinement blend
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R_prop: torch.Tensor, F_prev: torch.Tensor, M_dyn: torch.Tensor, H_res: torch.Tensor, S: torch.Tensor):
+        """
+        Args:
+            R_prop: propagated resonance vector (from S181)
+            F_prev: previous resonance-flow state
+            M_dyn: dynamic manifold curvature field
+            H_res: harmonic resonance source
+            S: substrate stabilizer field
+        Returns:
+            F_int: integrated resonance-flow vector (unit-norm)
+        """
+        # Step 1: Construct the flow direction field
+        D_raw = M_dyn + H_res + S
+        D = D_raw / (torch.norm(D_raw, dim=-1, keepdim=True) + 1e-12)
+
+        # Step 2: Compute propagation–flow residual
+        Delta = R_prop - F_prev
+
+        # Step 3: Learned flow integration gain
+        gamma = self.sigmoid(self.gamma_hat)
+
+        # Step 4: Pre-integration flow update
+        F_base = F_prev + gamma * Delta
+
+        # Step 5: Flow–direction alignment
+        alpha = self.sigmoid(self.alpha_hat)
+        F_align = (1.0 - alpha) * F_base + alpha * D
+
+        # Step 6: Cross-field refinement
+        R_mix_raw = (R_prop * S) + (H_res * F_base)
+        R_mix = R_mix_raw / (torch.norm(R_mix_raw, dim=-1, keepdim=True) + 1e-12)
+
+        beta = self.sigmoid(self.beta_hat)
+        F_ref = (1.0 - beta) * F_align + beta * R_mix
+
+        # Step 7: MF-500 normalization
+        mag = torch.norm(F_ref, dim=-1, keepdim=True) + 1e-12
+        return F_ref / mag
+
+# ==========================================================
+# S183 — Resonance Flow Stabilization Operator (RFSO)
+# ==========================================================
+class S183_ResonanceFlowStabilizationOperator(nn.Module):
+    """
+    Stabilizes the resonance-flow vector produced by S182 by:
+    • enforcing bounded temporal variation
+    • aligning flow with manifold curvature
+    • correcting high-frequency deviations
+    • blending harmonic and substrate contributions
+    • producing a stable flow state for downstream operators
+    
+    This operator ensures the continuity and stability of resonance flow across temporal transitions.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned parameters
+        self.sigma_hat = nn.Parameter(torch.tensor(0.0))  # stabilization gain
+        self.lambda_hat = nn.Parameter(torch.tensor(0.0))  # geometry blend
+        self.rho_hat = nn.Parameter(torch.tensor(0.0))  # high-frequency dampening
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, F_int: torch.Tensor, F_prev: torch.Tensor, M_dyn: torch.Tensor, H_res: torch.Tensor, S: torch.Tensor):
+        """
+        Args:
+            F_int: integrated resonance-flow vector (from S182)
+            F_prev: previous stabilized flow vector
+            M_dyn: dynamic manifold curvature
+            H_res: harmonic resonance field
+            S: MF-500 substrate field
+        Returns:
+            F_stable: stabilized resonance-flow vector (unit-norm)
+        """
+        # Step 1: Compute flow deviation
+        Delta = F_int - F_prev
+        delta = torch.norm(Delta, dim=-1, keepdim=True)
+
+        # Step 2: Learned stabilization gain
+        sigma = self.sigmoid(self.sigma_hat)
+
+        # Step 3: Stabilization correction
+        Delta_corr = Delta / (1.0 + sigma * delta)
+
+        # Step 4: Stabilized base flow
+        F_base = F_prev + Delta_corr
+
+        # Step 5: Geometry-harmonic refinement
+        G_raw = M_dyn + H_res + S
+        G = G_raw / (torch.norm(G_raw, dim=-1, keepdim=True) + 1e-12)
+
+        lam = self.sigmoid(self.lambda_hat)
+        F_ref = (1.0 - lam) * F_base + lam * G
+
+        # Step 6: High-frequency suppression filter
+        rho = self.sigmoid(self.rho_hat) * 4.0
+        h = torch.exp(-rho * delta)
+
+        F_smooth = h * F_ref + (1.0 - h) * F_prev
+
+        # Step 7: MF-500 normalization
+        mag = torch.norm(F_smooth, dim=-1, keepdim=True) + 1e-12
+        return F_smooth / mag
+
+# ==========================================================
+# S184 — Resonance Flow Consolidation Kernel (RFCK)
+# ==========================================================
+class S184_ResonanceFlowConsolidationKernel(nn.Module):
+    """
+    Consolidates the stabilized resonance flow (from S183) into a single coherent flow-state,
+    ensuring:
+    • stable accumulation of resonance influence
+    • alignment with manifold curvature
+    • suppression of residual flow discontinuities
+    • global substrate-harmonic coherence
+    • preparation for downstream resonance-flow refinement
+    
+    This operator is analogous to a flow-state consolidation pass that compresses, stabilizes,
+    and harmonizes the flow representation.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned parameters
+        self.kappa_hat = nn.Parameter(torch.tensor(0.0))  # consolidation gain
+        self.lambda_hat = nn.Parameter(torch.tensor(0.0))  # anchor blend
+        self.rho_hat = nn.Parameter(torch.tensor(0.0))  # residual correction
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, F_stable: torch.Tensor, F_prev: torch.Tensor, M_dyn: torch.Tensor, H_res: torch.Tensor, S: torch.Tensor):
+        """
+        Args:
+            F_stable: stabilized resonance-flow from S183
+            F_prev: previous consolidated flow state
+            M_dyn: dynamic manifold curvature
+            H_res: harmonic resonance field
+            S: substrate field
+        Returns:
+            F_cons: consolidated resonance-flow vector (unit-norm)
+        """
+        # Step 1: Compute consolidation deviation
+        Delta = F_stable - F_prev
+
+        # Step 2: Learned consolidation coefficient
+        kappa = self.sigmoid(self.kappa_hat)
+
+        # Step 3: Consolidated flow update
+        F_update = F_prev + kappa * Delta
+
+        # Step 4: Manifold–harmonic–substrate anchor integration
+        A_raw = M_dyn + H_res + S
+        A = A_raw / (torch.norm(A_raw, dim=-1, keepdim=True) + 1e-12)
+
+        lam = self.sigmoid(self.lambda_hat)
+        F_align = (1.0 - lam) * F_update + lam * A
+
+        # Step 5: Residual stabilization correction
+        R = F_align - F_prev
+        r = torch.norm(R, dim=-1, keepdim=True)
+
+        rho = self.sigmoid(self.rho_hat)
+        R_corr = R / (1.0 + rho * r)
+
+        F_ref = F_prev + R_corr
+
+        # Step 6: Flow normalization (MF-500 standard)
+        mag = torch.norm(F_ref, dim=-1, keepdim=True) + 1e-12
+        return F_ref / mag
+
 # ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
