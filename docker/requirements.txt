@@ -1,0 +1,8 @@
+torch==2.2.0
+numpy
+scipy
+pydantic
+fastapi
+uvicorn
+python-dotenv
+

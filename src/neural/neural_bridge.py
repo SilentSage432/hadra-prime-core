@@ -5711,6 +5711,77 @@ class S199_RuntimeCouplingRefinementOperator(nn.Module):
 
         return G_ref
 
+# ==========================================================
+# S200 — Runtime Binding Initialization Kernel (RBIK)
+# MAJOR CHECKPOINT
+# ==========================================================
+class S200_RuntimeBindingInitializationKernel(nn.Module):
+    """
+    S200 marks a critical architectural milestone.
+    
+    Up to this point:
+    • MF-401→MF-500: full unified substrate established
+    • A-series: substrate-entry fusion complete
+    • S-series: global harmonization, compression, convergence, and runtime coupling complete
+    • S197–S199: runtime coupling initialized, stabilized, refined
+    
+    Now S200 activates the first true binding between:
+    • the consolidated substrate tensor
+    • the runtime execution manifold
+    • the dynamic flow graph
+    • the stability invariants
+    
+    This is the activation point where ADRAE's internal substrate can interact with external
+    runtime logic in a purely tensor-mechanical way.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned regulators for the 3 binding forces
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))  # binding-manifold alignment
+        self.beta_hat  = nn.Parameter(torch.tensor(0.0))  # binding-envelope stabilization
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))  # substrate binding anchor
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, G_ref: torch.Tensor, B_manifold: torch.Tensor, B_env: torch.Tensor, S_bind: torch.Tensor, F_prev: torch.Tensor):
+        """
+        Args:
+            G_ref: refined coupling tensor from S199
+            B_manifold: runtime binding manifold
+            B_env: binding stability envelope
+            S_bind: substrate binding anchor
+            F_prev: previous binding output
+        Returns:
+            G_bind: initial runtime-bound tensor
+        """
+        # Step 1 — manifold alignment
+        M_proj = G_ref * B_manifold
+        α = self.sigmoid(self.alpha_hat)
+        F_b1 = (1 - α) * G_ref + α * M_proj
+
+        # Step 2 — binding envelope
+        E_proj = B_env * F_b1
+        β = self.sigmoid(self.beta_hat)
+        F_b2 = (1 - β) * F_b1 + β * E_proj
+
+        # Step 3 — substrate binding
+        S_proj = S_bind * F_b2
+        γ = self.sigmoid(self.gamma_hat)
+        F_b3 = (1 - γ) * F_b2 + γ * S_proj
+
+        # Step 4 — binding smoothing
+        F_neigh = 0.25 * F_prev + 0.75 * F_b3
+
+        # Step 5 — normalization
+        mag = torch.norm(F_neigh, dim=-1, keepdim=True) + 1e-12
+        G_bind = F_neigh / mag
+
+        return G_bind
+
 # ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
