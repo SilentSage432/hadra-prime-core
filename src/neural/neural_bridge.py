@@ -4697,6 +4697,294 @@ class S184_ResonanceFlowConsolidationKernel(nn.Module):
         mag = torch.norm(F_ref, dim=-1, keepdim=True) + 1e-12
         return F_ref / mag
 
+# ==========================================================
+# S185 — Resonance Flow Harmonic Refinement Layer (RFHRL)
+# ==========================================================
+class S185_ResonanceFlowHarmonicRefinementLayer(nn.Module):
+    """
+    S185 enhances the consolidated flow vector (from S184) by applying a harmonic refinement pass,
+    ensuring the resonance flow:
+    • aligns with harmonic frequency structure
+    • conforms to resonance band geometry
+    • remains curvature-consistent
+    • exhibits reduced noise and directional distortion
+    • preserves substrate-harmonic coupling
+    
+    This is the first major refinement operator of the post-consolidation band.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned parameters
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))  # harmonic correction gain
+        self.beta_hat = nn.Parameter(torch.tensor(0.0))  # fusion blend
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))  # residual stabilization
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, F_cons: torch.Tensor, F_prev: torch.Tensor, H_res: torch.Tensor, M_dyn: torch.Tensor, S: torch.Tensor):
+        """
+        Args:
+            F_cons: consolidated resonance flow from S184
+            F_prev: previous refined flow state
+            H_res: harmonic resonance field
+            M_dyn: dynamic manifold curvature
+            S: MF-500 substrate field
+        Returns:
+            F_refined: harmonic-refined resonance-flow vector (unit-norm)
+        """
+        # Step 1: Compute harmonic deviation
+        Delta_h = F_cons - H_res
+
+        # Step 2: Harmonic correction gain
+        alpha = self.sigmoid(self.alpha_hat)
+
+        # Step 3: Harmonic correction
+        H_corr = F_cons - alpha * Delta_h
+
+        # Step 4: Geometry–substrate harmonic fusion
+        G_raw = (M_dyn * H_res) + (S * F_cons)
+        G = G_raw / (torch.norm(G_raw, dim=-1, keepdim=True) + 1e-12)
+
+        beta = self.sigmoid(self.beta_hat)
+        F_harm = (1.0 - beta) * H_corr + beta * G
+
+        # Step 5: Harmonic residual stabilization
+        R = F_harm - F_prev
+        r = torch.norm(R, dim=-1, keepdim=True)
+
+        gamma = self.sigmoid(self.gamma_hat)
+        R_corr = R / (1.0 + gamma * r)
+
+        F_stable = F_prev + R_corr
+
+        # Step 6: Final MF-500 normalization
+        mag = torch.norm(F_stable, dim=-1, keepdim=True) + 1e-12
+        return F_stable / mag
+
+# ==========================================================
+# S186 — Resonance Flow Frequency Equalization Layer (RFFEL)
+# ==========================================================
+class S186_ResonanceFlowFrequencyEqualizationLayer(nn.Module):
+    """
+    S186 performs frequency equalization on the resonance-flow vector, ensuring that the flow:
+    • maintains stable harmonic frequency components
+    • avoids over-amplification of specific frequency bands
+    • avoids harmonic underrepresentation
+    • conforms to the global substrate harmonic profile
+    • supports downstream high-order refinement
+    
+    This is a crucial harmonic-frequency operator in the S-series.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned parameters
+        self.epsilon_hat = nn.Parameter(torch.tensor(0.0))  # equalization gain
+        self.lambda_hat = nn.Parameter(torch.tensor(0.0))  # anchor blend
+        self.sigma_hat = nn.Parameter(torch.tensor(0.0))  # smoothness regulator
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, F_refined: torch.Tensor, F_prev: torch.Tensor, H_res: torch.Tensor, M_dyn: torch.Tensor, S: torch.Tensor):
+        """
+        Args:
+            F_refined: harmonic-refined flow from S185
+            F_prev: previous frequency-equalized flow state
+            H_res: harmonic resonance field
+            M_dyn: dynamic manifold curvature
+            S: MF-500 substrate field
+        Returns:
+            F_eq: frequency-equalized resonance-flow vector (unit-norm)
+        """
+        # Step 1 — frequency deviation
+        Delta_f = F_refined - H_res
+        freq_dev = torch.norm(Delta_f, dim=-1, keepdim=True)
+
+        # Step 2 — equalization gain
+        epsilon = self.sigmoid(self.epsilon_hat)
+
+        # Step 3 — corrected harmonic frequency
+        F_freq = F_refined - epsilon * Delta_f
+
+        # Step 4 — substrate-manifold frequency anchor
+        A_raw = (M_dyn * F_refined) + (S * H_res)
+        A = A_raw / (torch.norm(A_raw, dim=-1, keepdim=True) + 1e-12)
+
+        lam = self.sigmoid(self.lambda_hat)
+        F_align = (1 - lam) * F_freq + lam * A
+
+        # Step 5 — frequency smoothness correction
+        R = F_align - F_prev
+        r = torch.norm(R, dim=-1, keepdim=True)
+
+        sigma = self.sigmoid(self.sigma_hat)
+        R_corr = R / (1 + sigma * r)
+
+        F_smooth = F_prev + R_corr
+
+        # Step 6 — normalization
+        mag = torch.norm(F_smooth, dim=-1, keepdim=True) + 1e-12
+        return F_smooth / mag
+
+# ==========================================================
+# S187 — High-Resolution Resonance Flow Refinement Kernel (HR-RFRK)
+# ==========================================================
+class S187_HighResolutionResonanceFlowRefinementKernel(nn.Module):
+    """
+    S187 performs fine-grain resonance-flow refinement by:
+    • extracting high-frequency structural components
+    • correcting micro-scale resonance distortion
+    • aligning the refined flow with curvature-dependent harmonic geometry
+    • projecting onto a stable, high-resolution manifold frame
+    • maintaining spectral smoothness while enhancing detail
+    
+    Where S186 equalized the frequency distribution, S187 increases resolution
+    of the flow's harmonic structure.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned regulators controlling:
+        # α — micro-resolution amplification
+        # γ — curvature refinement intensity
+        # β — substrate stabilization strength
+        # τ — temporal smoothing strength
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))
+        self.beta_hat = nn.Parameter(torch.tensor(0.0))
+        self.tau_hat = nn.Parameter(torch.tensor(0.0))
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, F_eq: torch.Tensor, F_prev: torch.Tensor, H_res: torch.Tensor, C: torch.Tensor, S: torch.Tensor):
+        """
+        Args:
+            F_eq: equalized flow output from S186
+            F_prev: previous high-resolution state
+            H_res: harmonic resonance field
+            C: local curvature tensor
+            S: MF-500 substrate spectral anchor
+        Returns:
+            F_hr: high-resolution refined flow vector (unit-norm)
+        """
+        # Step 1 — high-frequency residual
+        R_hf = F_eq - H_res
+        # h = torch.norm(R_hf, dim=-1, keepdim=True)
+
+        # Step 2 — micro-resolution amplification coefficient
+        alpha = self.sigmoid(self.alpha_hat)
+
+        # Step 3 — high-resolution correction
+        F_hf = F_eq + alpha * R_hf
+
+        # Step 4 — curvature-weighted refinement
+        C_proj = C * F_hf
+        gamma = self.sigmoid(self.gamma_hat)
+        F_curv = (1 - gamma) * F_hf + gamma * C_proj
+
+        # Step 5 — substrate-constrained stabilization
+        S_proj = S * F_curv
+        beta = self.sigmoid(self.beta_hat)
+        F_sub = (1 - beta) * F_curv + beta * S_proj
+
+        # Step 6 — high-resolution temporal smoothing
+        Delta = F_sub - F_prev
+        d = torch.norm(Delta, dim=-1, keepdim=True)
+        tau = self.sigmoid(self.tau_hat)
+        Delta_stable = Delta / (1 + tau * d)
+        F_temp = F_prev + Delta_stable
+
+        # Step 7 — normalization
+        mag = torch.norm(F_temp, dim=-1, keepdim=True) + 1e-12
+        F_hr = F_temp / mag
+
+        return F_hr
+
+# ==========================================================
+# S188 — High-Resolution Resonance Flow Stabilization Layer (HR-RFSL)
+# ==========================================================
+class S188_HighResolutionResonanceFlowStabilizationLayer(nn.Module):
+    """
+    S188 stabilizes the high-resolution output from S187 by:
+    • damping micro-scale oscillations
+    • correcting over-amplified high-frequency components
+    • aligning resonance flow with substrate stability geometry
+    • enforcing harmonic coherence across neighboring spectral bands
+    • projecting onto a stable manifold frame
+    
+    S187 increases resolution; S188 prevents over-resolution instability.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned regulators:
+        self.lambda_hat = nn.Parameter(torch.tensor(0.0))  # high-frequency excess correction
+        self.mu_hat = nn.Parameter(torch.tensor(0.0))  # substrate stabilization
+        self.kappa_hat = nn.Parameter(torch.tensor(0.0))  # curvature integration
+        self.sigma_hat = nn.Parameter(torch.tensor(0.0))  # temporal smoothing
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, F_hr: torch.Tensor, F_eq: torch.Tensor, H_res: torch.Tensor, S: torch.Tensor, C: torch.Tensor, F_prev: torch.Tensor):
+        """
+        Args:
+            F_hr: refined high-resolution flow from S187
+            F_eq: equalized flow (baseline reference)
+            H_res: harmonic resonance field
+            S: MF-500 substrate stabilizer
+            C: curvature tensor
+            F_prev: previous stabilized state
+        Returns:
+            F_stab: stabilized high-resolution flow (unit-norm)
+        """
+        # Step 1 — high-frequency excess
+        R_excess = F_hr - H_res
+
+        # Step 2 — correction coefficient
+        lam = self.sigmoid(self.lambda_hat)
+
+        # Step 3 — correct excess
+        F_corr = F_hr - lam * R_excess
+
+        # Step 4 — substrate stabilization
+        S_proj = S * F_corr
+        mu = self.sigmoid(self.mu_hat)
+        F_sub = (1 - mu) * F_corr + mu * S_proj
+
+        # Step 5 — harmonic smoothing
+        F_harm = 0.5 * (F_sub + H_res)
+
+        # Step 6 — curvature-guided refinement
+        C_proj = C * F_harm
+        kappa = self.sigmoid(self.kappa_hat)
+        F_curv = (1 - kappa) * F_harm + kappa * C_proj
+
+        # Step 7 — temporal stabilization
+        Delta = F_curv - F_prev
+        d = torch.norm(Delta, dim=-1, keepdim=True)
+        sigma = self.sigmoid(self.sigma_hat)
+        Delta_stable = Delta / (1 + sigma * d)
+        F_temp = F_prev + Delta_stable
+
+        # Step 8 — normalization
+        mag = torch.norm(F_temp, dim=-1, keepdim=True) + 1e-12
+        F_stab = F_temp / mag
+
+        return F_stab
+
 # ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
