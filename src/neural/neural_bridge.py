@@ -3119,6 +3119,599 @@ class S161_GlobalResonanceInitializer(nn.Module):
         norm = torch.norm(G_res, dim=-1, keepdim=True) + 1e-12
         return G_res / norm
 
+# ==========================================================
+# S162 — Resonance Propagation Operator (RPO)
+# ==========================================================
+class S162_ResonancePropagationOperator(nn.Module):
+    """
+    Propagates the resonance field forward through the global substrate, regulating resonance amplitude across domains,
+    maintaining stability during propagation, and producing a normalized, drift-safe resonance output that feeds S163–S170.
+    This operator is mathematically analogous to a controlled resonance diffusion process. Pure tensor–field mechanics:
+    NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # directional projections
+        self.Wd1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wd2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wd3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # domain couplings
+        self.WS1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.WM2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.WH3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # propagation weights
+        self.alpha_hat1 = nn.Parameter(torch.tensor(0.33))
+        self.alpha_hat2 = nn.Parameter(torch.tensor(0.33))
+        self.alpha_hat3 = nn.Parameter(torch.tensor(0.34))
+
+        # stabilization gate parameter
+        self.theta = nn.Parameter(torch.tensor(0.0))
+
+        self.act = nn.GELU()
+        self.softplus = nn.Softplus()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R: torch.Tensor, S: torch.Tensor, M: torch.Tensor, H: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            R: resonance seed from S161
+            S: substrate field
+            M: manifold curvature tensor (from A150–A170)
+            H: harmonic basis tensor
+        Returns:
+            R_out: normalized, unit-norm resonance tensor for next-stage propagation
+        """
+        # 1. Directional resonance extraction
+        d1 = self.act(R @ self.Wd1 + S @ self.WS1)
+        d2 = self.act(R @ self.Wd2 + M @ self.WM2)
+        d3 = self.act(R @ self.Wd3 + H @ self.WH3)
+
+        # 2. Propagation mixing transform
+        a1 = self.softplus(self.alpha_hat1)
+        a2 = self.softplus(self.alpha_hat2)
+        a3 = self.softplus(self.alpha_hat3)
+
+        # Combined propagation output
+        P = a1*d1 + a2*d2 + a3*d3
+
+        # 3. Resonance stabilization gate
+        g = self.sigmoid(self.theta)
+        R_prop = g * P + (1 - g) * R
+
+        # 4. Normalize for stability (unit-norm resonance)
+        mag = torch.norm(R_prop, dim=-1, keepdim=True) + 1e-12
+        return R_prop / mag
+
+# ==========================================================
+# S163 — Resonance Stabilization Gate Operator (RSGO)
+# ==========================================================
+class S163_ResonanceStabilizationGate(nn.Module):
+    """
+    Apply controlled energy gating to resonance signals produced by S162, ensuring amplitude stability, drift suppression,
+    bounded propagation, and cross-domain resonance consistency. This layer introduces adaptive gating mechanics that enforce
+    stability before resonance enters deeper propagation stages (S164–S170). Pure tensor–field mechanics: NO cognition,
+    NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # gating projection
+        self.Wg = nn.Parameter(torch.randn(3, 1) * 0.05)
+
+        # damping coefficient (positive)
+        self.beta_hat = nn.Parameter(torch.tensor(0.1))
+
+        self.sigmoid = nn.Sigmoid()
+        self.softplus = nn.Softplus()
+
+    def forward(self, R_in: torch.Tensor, S: torch.Tensor, M: torch.Tensor, H: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            R_in: resonance output from S162
+            S: substrate tensor
+            M: manifold curvature tensor
+            H: harmonic basis tensor
+        Returns:
+            R_final: stabilized, unit-norm resonance tensor
+        """
+        # Step 1: Magnitude comparison metrics
+        m_r = torch.norm(R_in, dim=-1, keepdim=True)
+        m_s = torch.norm(S, dim=-1, keepdim=True)
+        m_m = torch.norm(M, dim=-1, keepdim=True)
+        m_h = torch.norm(H, dim=-1, keepdim=True)
+
+        # Drift vector (batch_size x 3)
+        D = torch.cat([m_r - m_s, m_r - m_m, m_r - m_h], dim=-1)
+
+        # Step 2: Stabilization coefficient mapping
+        g_hat = D @ self.Wg  # shape: (batch x 1)
+        g = self.sigmoid(g_hat)  # range (0,1)
+
+        # Step 3: Residual-stabilized resonance update
+        beta = self.softplus(self.beta_hat)
+        R_damped = R_in * (1.0 - beta)
+        R_out = g * R_damped + (1.0 - g) * R_in
+
+        # Step 4: Final norm-stabilized output
+        mag = torch.norm(R_out, dim=-1, keepdim=True) + 1e-12
+        return R_out / mag
+
+# ==========================================================
+# S164 — Resonance Drift Equalization Operator (RDEO)
+# ==========================================================
+class S164_ResonanceDriftEqualizationOperator(nn.Module):
+    """
+    After S163 stabilizes amplitude through the Resonance Stabilization Gate, S164 performs drift equalization across all
+    contributing domains (substrate field S, manifold curvature field M, harmonic field H). S164 ensures that resonance drift
+    is uniformly distributed and corrected, preventing directional skews that would otherwise accumulate through S165–S170.
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # equalization projection
+        self.W_eq = nn.Parameter(torch.randn(3, dim, dim) * 0.01)
+
+        # domain weights
+        self.w_hat = nn.Parameter(torch.randn(3) * 0.1)
+
+        # correction strength
+        self.gamma_hat = nn.Parameter(torch.tensor(0.0))
+
+        self.act = nn.GELU()
+        self.softplus = nn.Softplus()
+        self.sigmoid = nn.Sigmoid()
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, R_in: torch.Tensor, S: torch.Tensor, M: torch.Tensor, H: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            R_in: resonance output after S163
+            S: substrate field
+            M: manifold curvature field
+            H: harmonic field
+        Returns:
+            R_out: drift-equalized, unit-norm resonance tensor
+        """
+        # Step 1: Compute domain drift vectors
+        d_s = R_in - S
+        d_m = R_in - M
+        d_h = R_in - H
+
+        D = torch.stack([d_s, d_m, d_h], dim=1)  # (batch x 3 x dim)
+
+        # Step 2: Equalization projection
+        E = self.act(torch.einsum('bkd,kdf->bkf', D, self.W_eq))
+
+        # Step 3: Drift magnitude weighting
+        w = self.softmax(self.softplus(self.w_hat))
+
+        # Step 4: Weighted equalization correction
+        C = (
+            w[0] * E[:, 0] +
+            w[1] * E[:, 1] +
+            w[2] * E[:, 2]
+        )
+
+        # Step 5: Apply correction with gating factor
+        gamma = self.sigmoid(self.gamma_hat)
+        R_corr = R_in - gamma * C
+
+        # Step 6: Normalize to unit magnitude
+        mag = torch.norm(R_corr, dim=-1, keepdim=True) + 1e-12
+        return R_corr / mag
+
+# ==========================================================
+# S165 — Unified Resonance Balancing Kernel (URBK)
+# ==========================================================
+class S165_UnifiedResonanceBalancingKernel(nn.Module):
+    """
+    After S164 performed drift equalization, the system now has a resonance tensor R_eq that is stable but not yet balanced
+    across the multi-domain structure. S165 introduces cross-domain resonance balancing, enforcing uniform resonance behavior
+    across substrate field S, manifold curvature field M, and harmonic field H. S165 creates a balanced resonance distribution,
+    ensuring that no single domain dominates or suppresses energy flow. Pure tensor–field mechanics: NO cognition, NO semantics,
+    NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        
+        # alignment → balancing projection matrix
+        self.Wb = nn.Parameter(torch.randn(3, dim) * 0.05)
+
+        # balancing strength parameter
+        self.lambda_hat = nn.Parameter(torch.tensor(0.0))
+
+        self.act = nn.GELU()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R_in: torch.Tensor, S: torch.Tensor, M: torch.Tensor, H: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            R_in: output of S164
+            S: substrate field
+            M: manifold curvature field
+            H: harmonic field
+        Returns:
+            R_out: balanced, unit-norm resonance tensor
+        """
+        # Step 1: Compute alignment scalars
+        a_s = (R_in * S).sum(dim=-1, keepdim=True)
+        a_m = (R_in * M).sum(dim=-1, keepdim=True)
+        a_h = (R_in * H).sum(dim=-1, keepdim=True)
+
+        # Step 2: Form the alignment vector and normalize it
+        A = torch.cat([a_s, a_m, a_h], dim=-1)  # (batch x 3)
+        A_norm = A / (torch.norm(A, dim=-1, keepdim=True) + 1e-12)
+
+        # Step 3: Project alignment vector into balancing space
+        B = self.act(A_norm @ self.Wb)  # (batch x dim)
+
+        # Step 4: Compute balancing strength
+        lam = self.sigmoid(self.lambda_hat)
+
+        # Step 5: Apply balancing transformation
+        R_bal = (1.0 - lam) * R_in + lam * B
+
+        # Step 6: Normalize output
+        mag = torch.norm(R_bal, dim=-1, keepdim=True) + 1e-12
+        return R_bal / mag
+
+# ==========================================================
+# S166 — Resonance Equilibrium Stabilization Layer (RESL)
+# ==========================================================
+class S166_ResonanceEquilibriumStabilizationLayer(nn.Module):
+    """
+    Where S165 established balanced resonance distribution across substrate, manifold, and harmonic domains, S166 enforces
+    equilibrium stability — ensuring the balanced resonance does not drift, oscillate, or accumulate imbalances through runtime
+    updates. This operator performs resonance equilibrium detection, equilibrium deviation correction, controlled stabilization blend,
+    and resonance normalization. Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # deviation → stabilization transform
+        self.W_stab = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # learned stabilization strength
+        self.sigma_hat = nn.Parameter(torch.tensor(0.0))
+
+        self.act = nn.GELU()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R_in: torch.Tensor, S: torch.Tensor, M: torch.Tensor, H: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            R_in: resonance tensor after S165 balancing
+            S: substrate field
+            M: manifold curvature field
+            H: harmonic field
+        Returns:
+            R_out: equilibrium-stabilized, unit-norm resonance tensor
+        """
+        # Step 1: Compute equilibrium target
+        E = S + M + H
+        E = E / (torch.norm(E, dim=-1, keepdim=True) + 1e-12)
+
+        # Step 2: Measure deviation from equilibrium
+        dev = R_in - E
+
+        # Step 3: Project deviation into stabilization space
+        Stab = self.act(dev @ self.W_stab)
+
+        # Step 4: Compute stabilization strength
+        sigma = self.sigmoid(self.sigma_hat)
+
+        # Step 5: Apply stabilization to resonance
+        R_adj = R_in - sigma * Stab
+
+        # Step 6: Normalize
+        mag = torch.norm(R_adj, dim=-1, keepdim=True) + 1e-12
+        return R_adj / mag
+
+# ==========================================================
+# S167 — Resonance Equilibrium Diffusion Operator (REDO)
+# ==========================================================
+class S167_ResonanceEquilibriumDiffusionOperator(nn.Module):
+    """
+    After S166 stabilized resonance into a single equilibrium direction, S167 expands that stabilization across the entire
+    resonance manifold by performing controlled equilibrium diffusion. This ensures resonance equilibrium is distributed, local
+    deviations are smoothed, global coherence is preserved, and dynamic runtime updates do not reintroduce drift. This is a
+    diffusion operator, not a semantic operator. Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # diffusion transform, one per domain
+        self.W_diff = nn.Parameter(torch.randn(3, dim, dim) * 0.01)
+
+        # diffusion domain weights
+        self.kappa_hat = nn.Parameter(torch.randn(3) * 0.1)
+
+        # diffusion strength
+        self.delta_hat = nn.Parameter(torch.tensor(0.0))
+
+        # equilibrium correction strength
+        self.alpha_hat = nn.Parameter(torch.tensor(0.0))
+
+        self.act = nn.GELU()
+        self.softplus = nn.Softplus()
+        self.sigmoid = nn.Sigmoid()
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, R_in: torch.Tensor, S: torch.Tensor, M: torch.Tensor, H: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            R_in: output of S166
+            S: substrate field
+            M: manifold curvature field
+            H: harmonic field
+        Returns:
+            R_out: diffused, equilibrium-anchored, unit-norm resonance tensor
+        """
+        # Step 1: Compute the equilibrium baseline again
+        E = S + M + H
+        E = E / (torch.norm(E, dim=-1, keepdim=True) + 1e-12)
+
+        # Step 2: Compute diffusion directions
+        ds = R_in - S
+        dm = R_in - M
+        dh = R_in - H
+        D = torch.stack([ds, dm, dh], dim=1)  # (batch × 3 × dim)
+
+        # Step 3: Transform domain drift into diffusion fields
+        F = self.act(torch.einsum('bkd,kdf->bkf', D, self.W_diff))  # (batch × 3 × dim)
+
+        # Step 4: Compute diffusion coefficients
+        K = self.softmax(self.softplus(self.kappa_hat))
+
+        # Step 5: Construct the unified diffusion vector
+        U = K[0] * F[:, 0] + K[1] * F[:, 1] + K[2] * F[:, 2]
+
+        # Step 6: Diffuse toward equilibrium
+        delta = self.sigmoid(self.delta_hat)
+        R_diff = R_in - delta * U
+
+        # Step 7: Re-anchor to equilibrium with a correction factor
+        alpha = self.sigmoid(self.alpha_hat)
+        R_adj = (1.0 - alpha) * R_diff + alpha * E
+
+        # Step 8: Normalize
+        mag = torch.norm(R_adj, dim=-1, keepdim=True) + 1e-12
+        return R_adj / mag
+
+# ==========================================================
+# S168 — Resonance Equilibrium Convergence Layer (RECL)
+# ==========================================================
+class S168_ResonanceEquilibriumConvergenceLayer(nn.Module):
+    """
+    If S167 (REDO) diffused equilibrium across the resonance manifold,
+    then S168 pulls all distributed resonance components into a single unified convergence state.
+    
+    This operator consolidates residual drift and completes the equilibrium formation cycle.
+    It mathematically performs:
+    • equilibrium distance measurement
+    • convergence vector generation
+    • controlled pullback toward the equilibrium center
+    • normalization and stabilization
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # convergence transform
+        self.W_conv = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # convergence strength
+        self.tau_hat = nn.Parameter(torch.tensor(0.0))
+
+        # reinforcement blend toward equilibrium
+        self.mu_hat = nn.Parameter(torch.tensor(0.0))
+
+        self.act = nn.GELU()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R_in: torch.Tensor, S: torch.Tensor, M: torch.Tensor, H: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            R_in: output of S167 (resonance after diffusion)
+            S: substrate field
+            M: manifold curvature field
+            H: harmonic field
+        Returns:
+            R_out: fully converged, equilibrium-safe, unit-norm resonance tensor
+        """
+        # Step 1: Compute equilibrium baseline
+        E = S + M + H
+        E = E / (torch.norm(E, dim=-1, keepdim=True) + 1e-12)
+
+        # Step 2: Measure convergence distance
+        dev = R_in - E
+
+        # Step 3: Map deviation into the convergence space
+        C = self.act(dev @ self.W_conv)
+
+        # Step 4: Compute convergence strength
+        tau = self.sigmoid(self.tau_hat)
+
+        # Step 5: Apply convergence pull
+        R_pull = R_in - tau * C
+
+        # Step 6: Reinforce convergence by blending with E
+        mu = self.sigmoid(self.mu_hat)
+        R_adj = (1.0 - mu) * R_pull + mu * E
+
+        # Step 7: Normalize
+        mag = torch.norm(R_adj, dim=-1, keepdim=True) + 1e-12
+        return R_adj / mag
+
+# ==========================================================
+# S169 — Resonance Equilibrium Locking Gate (RELG)
+# ==========================================================
+class S169_ResonanceEquilibriumLockingGate(nn.Module):
+    """
+    Up to S168, we:
+    • stabilized resonance (S166)
+    • diffused equilibrium across all domains (S167)
+    • converged resonance toward the global equilibrium manifold (S168)
+    
+    S169 now performs the "locking" operation, ensuring the resonance tensor cannot drift away
+    from equilibrium without explicit upstream changes.
+    
+    This is the mathematical equivalent of:
+    • setting the equilibrium zone
+    • defining a locking envelope
+    • enforcing convergence retention
+    • preventing oscillation or rebound drift
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # learned thresholds (positive via Softplus)
+        self.theta_low_hat = nn.Parameter(torch.tensor(0.05))
+        self.theta_high_hat = nn.Parameter(torch.tensor(0.20))
+
+        # locking strength
+        self.rho_hat = nn.Parameter(torch.tensor(0.0))
+
+        # slope factor for soft locking
+        self.w1 = nn.Parameter(torch.tensor(5.0))
+
+        self.softplus = nn.Softplus()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R_in: torch.Tensor, S: torch.Tensor, M: torch.Tensor, H: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            R_in: output of S168 (converged resonance)
+            S: substrate field
+            M: manifold curvature field
+            H: harmonic field
+        Returns:
+            R_out: locked, equilibrium-stable, unit-norm resonance tensor
+        """
+        # Step 1: Compute the global equilibrium state
+        E = S + M + H
+        E = E / (torch.norm(E, dim=-1, keepdim=True) + 1e-12)
+
+        # Step 2: Compute deviation
+        dev = R_in - E
+        d = torch.norm(dev, dim=-1, keepdim=True)
+
+        # Step 3: Define locking envelope thresholds
+        L_low = self.softplus(self.theta_low_hat)
+        L_high = self.softplus(self.theta_high_hat)
+
+        # Step 4: Compute lock intensity coefficient
+        xi = self.sigmoid(self.w1 * (d - L_low) / (L_high - L_low + 1e-12))
+
+        # Step 5: Apply locking transformation
+        R_locked = R_in - xi * dev
+
+        # Step 6: Reinforcement blend
+        rho = self.sigmoid(self.rho_hat)
+        R_adj = (1.0 - rho) * R_locked + rho * E
+
+        # Step 7: Normalize
+        mag = torch.norm(R_adj, dim=-1, keepdim=True) + 1e-12
+        return R_adj / mag
+
+# ==========================================================
+# S170 — Resonance Equilibrium Completion Layer (RECL-2)
+# ==========================================================
+class S170_ResonanceEquilibriumCompletionLayer(nn.Module):
+    """
+    FINAL consolidation stage for resonance equilibrium.
+    
+    Where the previous phases accomplished:
+    • S166: Stabilization
+    • S167: Diffusion
+    • S168: Convergence
+    • S169: Locking
+    
+    S170 performs the completion operation:
+    • Final equilibrium projection
+    • Zero-drift consolidation
+    • Residual-error removal
+    • Lock-zone reinforcement
+    • Conversion into the canonical equilibrium state for runtime systems
+    
+    This is the end of the equilibrium-formation cycle.
+    
+    Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # consolidation transform
+        self.Wc = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # drift removal strength
+        self.lambda_hat = nn.Parameter(torch.tensor(0.0))
+
+        # consolidation strength
+        self.mu_hat = nn.Parameter(torch.tensor(0.0))
+
+        # final equilibrium blending strength
+        self.nu_hat = nn.Parameter(torch.tensor(0.0))
+
+        self.act = nn.GELU()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, R_in: torch.Tensor, S: torch.Tensor, M: torch.Tensor, H: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            R_in: output of S169 (locked resonance)
+            S: substrate field
+            M: manifold curvature field
+            H: harmonic field
+        Returns:
+            R_out: canonical equilibrium resonance state, ready for runtime initialization
+        """
+        # Step 1: Compute canonical equilibrium vector
+        E = S + M + H
+        E = E / (torch.norm(E, dim=-1, keepdim=True) + 1e-12)
+
+        # Step 2: Compute residual drift
+        dev = R_in - E
+
+        # Step 3: Decompose drift into parallel and orthogonal components
+        proj = (dev * E).sum(dim=-1, keepdim=True)
+        dev_par = proj * E
+        dev_orth = dev - dev_par
+
+        # Step 4: Remove orthogonal drift
+        lam = self.sigmoid(self.lambda_hat)
+        R_clean = R_in - lam * dev_orth
+
+        # Step 5: Apply consolidation projection
+        C = self.act(R_clean @ self.Wc)
+
+        mu = self.sigmoid(self.mu_hat)
+        R_cons = (1.0 - mu) * R_clean + mu * C
+
+        # Step 6: Final equilibrium projection
+        nu = self.sigmoid(self.nu_hat)
+        R_adj = (1.0 - nu) * R_cons + nu * E
+
+        # Step 7: Normalize
+        mag = torch.norm(R_adj, dim=-1, keepdim=True) + 1e-12
+        return R_adj / mag
+
 # ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
 # ====================================================
@@ -5341,6 +5934,91 @@ class NeuralBridge:
                 self.s161 = None
         else:
             self.s161 = None
+        # S162 — Resonance Propagation Operator (RPO)
+        # -----------------------------------------------------
+        # Propagates the resonance field forward through the global substrate, regulating resonance amplitude across domains,
+        # maintaining stability during propagation, and producing a normalized, drift-safe resonance output that feeds S163–S170.
+        # This operator is mathematically analogous to a controlled resonance diffusion process. Pure tensor–field mechanics:
+        # NO cognition, NO semantics, NO interpretation.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s162 = S162_ResonancePropagationOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S162_ResonancePropagationOperator initialization failed: {e}")
+                self.s162 = None
+        else:
+            self.s162 = None
+        # S163 — Resonance Stabilization Gate Operator (RSGO)
+        # -----------------------------------------------------
+        # Apply controlled energy gating to resonance signals produced by S162, ensuring amplitude stability, drift suppression,
+        # bounded propagation, and cross-domain resonance consistency. This layer introduces adaptive gating mechanics that enforce
+        # stability before resonance enters deeper propagation stages (S164–S170). Pure tensor–field mechanics: NO cognition,
+        # NO semantics, NO interpretation.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s163 = S163_ResonanceStabilizationGate(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S163_ResonanceStabilizationGate initialization failed: {e}")
+                self.s163 = None
+        else:
+            self.s163 = None
+        # S164 — Resonance Drift Equalization Operator (RDEO)
+        # -----------------------------------------------------
+        # After S163 stabilizes amplitude through the Resonance Stabilization Gate, S164 performs drift equalization across all
+        # contributing domains (substrate field S, manifold curvature field M, harmonic field H). S164 ensures that resonance drift
+        # is uniformly distributed and corrected, preventing directional skews that would otherwise accumulate through S165–S170.
+        # Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s164 = S164_ResonanceDriftEqualizationOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S164_ResonanceDriftEqualizationOperator initialization failed: {e}")
+                self.s164 = None
+        else:
+            self.s164 = None
+        # S165 — Unified Resonance Balancing Kernel (URBK)
+        # -----------------------------------------------------
+        # After S164 performed drift equalization, the system now has a resonance tensor R_eq that is stable but not yet balanced
+        # across the multi-domain structure. S165 introduces cross-domain resonance balancing, enforcing uniform resonance behavior
+        # across substrate field S, manifold curvature field M, and harmonic field H. S165 creates a balanced resonance distribution,
+        # ensuring that no single domain dominates or suppresses energy flow. Pure tensor–field mechanics: NO cognition, NO semantics,
+        # NO interpretation.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s165 = S165_UnifiedResonanceBalancingKernel(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S165_UnifiedResonanceBalancingKernel initialization failed: {e}")
+                self.s165 = None
+        else:
+            self.s165 = None
+        # S166 — Resonance Equilibrium Stabilization Layer (RESL)
+        # -----------------------------------------------------
+        # Where S165 established balanced resonance distribution across substrate, manifold, and harmonic domains, S166 enforces
+        # equilibrium stability — ensuring the balanced resonance does not drift, oscillate, or accumulate imbalances through runtime
+        # updates. This operator performs resonance equilibrium detection, equilibrium deviation correction, controlled stabilization
+        # blend, and resonance normalization. Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s166 = S166_ResonanceEquilibriumStabilizationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S166_ResonanceEquilibriumStabilizationLayer initialization failed: {e}")
+                self.s166 = None
+        else:
+            self.s166 = None
+        # S167 — Resonance Equilibrium Diffusion Operator (REDO)
+        # -----------------------------------------------------
+        # After S166 stabilized resonance into a single equilibrium direction, S167 expands that stabilization across the entire
+        # resonance manifold by performing controlled equilibrium diffusion. This ensures resonance equilibrium is distributed, local
+        # deviations are smoothed, global coherence is preserved, and dynamic runtime updates do not reintroduce drift. This is a
+        # diffusion operator, not a semantic operator. Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s167 = S167_ResonanceEquilibriumDiffusionOperator(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S167_ResonanceEquilibriumDiffusionOperator initialization failed: {e}")
+                self.s167 = None
+        else:
+            self.s167 = None
         # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
@@ -7088,14 +7766,120 @@ class NeuralBridge:
         # This is not oscillation; it is a stable harmonic component initializer. This band bridges MF-500 substrate completion,
         # A170 entry-substrate completion, and S150–S160 high-order convergence and stabilization into the first global resonance
         # generator that will eventually feed into the S200+ Runtime Autonomous Dynamics Band.
+        s161_R = None
+        x_pre_s161 = None
         if self.s161 is not None and s160_intermediates is not None:
             try:
                 I, C, B = s160_intermediates
+                # Store pre-S161 x as substrate field S for S162
+                x_pre_s161 = x.clone()
                 # Use I (high-order integration field) as H (harmonic basis)
                 x = self.s161(x, I, C, B)
+                s161_R = x  # R: resonance seed from S161
             except Exception as e:
                 print(f"⚠️ S161 global resonance initialization forward pass failed: {e}")
                 # Continue with unmodified tensor if S161 fails
+
+        # S162 — Resonance Propagation Operator (RPO)
+        # -----------------------------------------------------
+        # Propagates the resonance field forward through the global substrate, regulating resonance amplitude across domains,
+        # maintaining stability during propagation, and producing a normalized, drift-safe resonance output that feeds S163–S170.
+        # This operator is mathematically analogous to a controlled resonance diffusion process. Pure tensor–field mechanics:
+        # NO cognition, NO semantics, NO interpretation.
+        s162_R = None
+        if self.s162 is not None and s161_R is not None and x_pre_s161 is not None and s160_intermediates is not None:
+            try:
+                I, C, B = s160_intermediates
+                # R: resonance seed from S161, S: substrate field (pre-S161 x), M: manifold curvature (C), H: harmonic basis (I)
+                s162_R = self.s162(s161_R, x_pre_s161, C, I)
+                x = s162_R
+            except Exception as e:
+                print(f"⚠️ S162 resonance propagation forward pass failed: {e}")
+                # Continue with unmodified tensor if S162 fails
+
+        # S163 — Resonance Stabilization Gate Operator (RSGO)
+        # -----------------------------------------------------
+        # Apply controlled energy gating to resonance signals produced by S162, ensuring amplitude stability, drift suppression,
+        # bounded propagation, and cross-domain resonance consistency. This layer introduces adaptive gating mechanics that enforce
+        # stability before resonance enters deeper propagation stages (S164–S170). Pure tensor–field mechanics: NO cognition,
+        # NO semantics, NO interpretation.
+        s163_R = None
+        if self.s163 is not None and s162_R is not None and x_pre_s161 is not None and s160_intermediates is not None:
+            try:
+                I, C, B = s160_intermediates
+                # R_in: resonance output from S162, S: substrate field (pre-S161 x), M: manifold curvature (C), H: harmonic basis (I)
+                s163_R = self.s163(s162_R, x_pre_s161, C, I)
+                x = s163_R
+            except Exception as e:
+                print(f"⚠️ S163 resonance stabilization gate forward pass failed: {e}")
+                # Continue with unmodified tensor if S163 fails
+
+        # S164 — Resonance Drift Equalization Operator (RDEO)
+        # -----------------------------------------------------
+        # After S163 stabilizes amplitude through the Resonance Stabilization Gate, S164 performs drift equalization across all
+        # contributing domains (substrate field S, manifold curvature field M, harmonic field H). S164 ensures that resonance drift
+        # is uniformly distributed and corrected, preventing directional skews that would otherwise accumulate through S165–S170.
+        # Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+        s164_R = None
+        if self.s164 is not None and s163_R is not None and x_pre_s161 is not None and s160_intermediates is not None:
+            try:
+                I, C, B = s160_intermediates
+                # R_in: resonance output after S163, S: substrate field (pre-S161 x), M: manifold curvature (C), H: harmonic basis (I)
+                s164_R = self.s164(s163_R, x_pre_s161, C, I)
+                x = s164_R
+            except Exception as e:
+                print(f"⚠️ S164 resonance drift equalization forward pass failed: {e}")
+                # Continue with unmodified tensor if S164 fails
+
+        # S165 — Unified Resonance Balancing Kernel (URBK)
+        # -----------------------------------------------------
+        # After S164 performed drift equalization, the system now has a resonance tensor R_eq that is stable but not yet balanced
+        # across the multi-domain structure. S165 introduces cross-domain resonance balancing, enforcing uniform resonance behavior
+        # across substrate field S, manifold curvature field M, and harmonic field H. S165 creates a balanced resonance distribution,
+        # ensuring that no single domain dominates or suppresses energy flow. Pure tensor–field mechanics: NO cognition, NO semantics,
+        # NO interpretation.
+        s165_R = None
+        if self.s165 is not None and s164_R is not None and x_pre_s161 is not None and s160_intermediates is not None:
+            try:
+                I, C, B = s160_intermediates
+                # R_in: output of S164, S: substrate field (pre-S161 x), M: manifold curvature (C), H: harmonic basis (I)
+                s165_R = self.s165(s164_R, x_pre_s161, C, I)
+                x = s165_R
+            except Exception as e:
+                print(f"⚠️ S165 unified resonance balancing forward pass failed: {e}")
+                # Continue with unmodified tensor if S165 fails
+
+        # S166 — Resonance Equilibrium Stabilization Layer (RESL)
+        # -----------------------------------------------------
+        # Where S165 established balanced resonance distribution across substrate, manifold, and harmonic domains, S166 enforces
+        # equilibrium stability — ensuring the balanced resonance does not drift, oscillate, or accumulate imbalances through runtime
+        # updates. This operator performs resonance equilibrium detection, equilibrium deviation correction, controlled stabilization
+        # blend, and resonance normalization. Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+        s166_R = None
+        if self.s166 is not None and s165_R is not None and x_pre_s161 is not None and s160_intermediates is not None:
+            try:
+                I, C, B = s160_intermediates
+                # R_in: resonance tensor after S165 balancing, S: substrate field (pre-S161 x), M: manifold curvature (C), H: harmonic basis (I)
+                s166_R = self.s166(s165_R, x_pre_s161, C, I)
+                x = s166_R
+            except Exception as e:
+                print(f"⚠️ S166 resonance equilibrium stabilization forward pass failed: {e}")
+                # Continue with unmodified tensor if S166 fails
+
+        # S167 — Resonance Equilibrium Diffusion Operator (REDO)
+        # -----------------------------------------------------
+        # After S166 stabilized resonance into a single equilibrium direction, S167 expands that stabilization across the entire
+        # resonance manifold by performing controlled equilibrium diffusion. This ensures resonance equilibrium is distributed, local
+        # deviations are smoothed, global coherence is preserved, and dynamic runtime updates do not reintroduce drift. This is a
+        # diffusion operator, not a semantic operator. Pure tensor–field mechanics: NO cognition, NO semantics, NO interpretation.
+        if self.s167 is not None and s166_R is not None and x_pre_s161 is not None and s160_intermediates is not None:
+            try:
+                I, C, B = s160_intermediates
+                # R_in: output of S166, S: substrate field (pre-S161 x), M: manifold curvature (C), H: harmonic basis (I)
+                x = self.s167(s166_R, x_pre_s161, C, I)
+            except Exception as e:
+                print(f"⚠️ S167 resonance equilibrium diffusion forward pass failed: {e}")
+                # Continue with unmodified tensor if S167 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
