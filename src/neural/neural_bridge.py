@@ -2690,7 +2690,7 @@ class S155_HighOrderCoherenceFusionLayer(nn.Module):
         self.act = nn.Tanh()
         self.softplus = nn.Softplus()
 
-    def forward(self, x: torch.Tensor, v: torch.Tensor, h: torch.Tensor, o: torch.Tensor, C: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, v: torch.Tensor, h: torch.Tensor, o: torch.Tensor, C: torch.Tensor, B: torch.Tensor, return_intermediates: bool = False) -> torch.Tensor:
         # fusion channels
         f1 = self.act(h @ self.Wf1 + o @ self.Wg1)
         f2 = self.act(h @ self.Wf2 + o @ self.Wg2)
@@ -2719,7 +2719,405 @@ class S155_HighOrderCoherenceFusionLayer(nn.Module):
 
         # envelope normalization
         norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        v_out = y / norm
+
+        if return_intermediates:
+            return v_out, v_out, F, h, o, C, B
+        return v_out
+
+# ==========================================================
+# S156 — High-Order Residual Stabilization Layer (HORSL)
+# ==========================================================
+class S156_HighOrderResidualStabilizationLayer(nn.Module):
+    """
+    Performs high-order residual stabilization, stabilizing the residual between the fused high-order field
+    and the base representation. S155 fused high-order and oscillation components into a unified high-order
+    coherence manifold F. S156 now stabilizes the residual between the fused high-order field and the base
+    representation, suppresses high-order oscillatory instabilities, applies curvature/basis regularization,
+    modulates stabilization strength via residual drift magnitude, and ensures MF-500 compliant normalized
+    output. This ends Phase 3 of the S-series high-order pipeline.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # smoothing projection
+        self.Ws = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # curvature and basis transforms
+        self.Wc = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wb = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        self.act = nn.Tanh()
+
+    def forward(self, x: torch.Tensor, v: torch.Tensor, F: torch.Tensor, C: torch.Tensor, B: torch.Tensor, h: torch.Tensor = None, o: torch.Tensor = None, return_intermediates: bool = False) -> torch.Tensor:
+        # high-order residual
+        H = F - x
+
+        # drift-weighted stabilization factor
+        R = v - x
+        d = torch.norm(R, dim=-1, keepdim=True)
+        eta = 1.0 / (1.0 + d)
+
+        # smoothing projection
+        S = self.act(H @ self.Ws)
+
+        # curvature and basis stabilization
+        C_s = self.act(C @ self.Wc)
+        B_s = self.act(B @ self.Wb)
+
+        # unified update
+        U = self.act(eta * S + C_s + B_s)
+        y = x + U
+
+        # envelope normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        v_out = y / norm
+
+        if return_intermediates:
+            return v_out, v_out, U, F, h, o, C, B
+        return v_out
+
+# ==========================================================
+# S157 — High-Order Integration Kernel (HOIK)
+# ==========================================================
+class S157_HighOrderIntegrationKernel(nn.Module):
+    """
+    Performs high-order integration, integrating regularized high-order projection (h), fused high-order
+    manifold (F), stabilized residual (U), and curvature- and basis-modulated smoothing into a single
+    coherent high-order representation. After S156, the system has a regularized high-order projection,
+    a fused high-order manifold, a stabilized residual, and curvature- and basis-modulated smoothing.
+    S157 integrates these components into a single coherent high-order representation, ensuring cross-component
+    compatibility, drift-regulated integration strength, curvature-aware integration geometry, basis-aligned
+    structure, and MF-500 envelope stability. This operator forms the global high-order integrator before
+    proceeding to the next band (S160+).
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # integration transforms
+        self.Wf1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wf2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        self.Wu1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wu2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wu3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        self.Wh1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wh3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        self.Wo2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wo3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # integration weights
+        self.beta1 = nn.Parameter(torch.tensor(0.33))
+        self.beta2 = nn.Parameter(torch.tensor(0.33))
+        self.beta3 = nn.Parameter(torch.tensor(0.34))
+
+        # curvature / basis transforms
+        self.Wc = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wb = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor, F: torch.Tensor, U: torch.Tensor, h: torch.Tensor, o: torch.Tensor, C: torch.Tensor, B: torch.Tensor, return_intermediates: bool = False) -> torch.Tensor:
+        # integration channels
+        i1 = self.act(F @ self.Wf1 + U @ self.Wu1 + h @ self.Wh1)
+        i2 = self.act(F @ self.Wf2 + U @ self.Wu2 + o @ self.Wo2)
+        i3 = self.act(U @ self.Wu3 + h @ self.Wh3 + o @ self.Wo3)
+
+        # positive integration weights
+        a1 = self.softplus(self.beta1)
+        a2 = self.softplus(self.beta2)
+        a3 = self.softplus(self.beta3)
+
+        # unified high-order integration field
+        I = a1*i1 + a2*i2 + a3*i3
+
+        # drift-weighted scaling
+        R = F - x
+        d = torch.norm(R, dim=-1, keepdim=True)
+        sigma = 1.0 / (1.0 + d)
+
+        # curvature / basis integration corrections
+        C_i = self.act(C @ self.Wc)
+        B_i = self.act(B @ self.Wb)
+
+        # unified update
+        U_int = self.act(sigma * I + C_i + B_i)
+        y = x + U_int
+
+        # envelope normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        v_out = y / norm
+
+        if return_intermediates:
+            return v_out, v_out, I, F, U, C, B
+        return v_out
+
+# ==========================================================
+# S158 — Global High-Order Convergence Layer (GHCL)
+# ==========================================================
+class S158_GlobalHighOrderConvergenceLayer(nn.Module):
+    """
+    Performs global high-order convergence, compressing the unified high-order integration field into a global
+    manifold structure. After S157 integrates all high-order components into a unified high-order field I, S158
+    performs global convergence of this field by compressing it into a global manifold structure, aligning it
+    across all high-order subspaces, regularizing against curvature and basis geometry, applying drift-regulated
+    convergence strength, and maintaining MF-500 envelope normalization. S158 transitions high-order integration
+    into global stabilized structure, preparing for S159–S160 global consolidation.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # convergence transforms
+        self.Wg1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wg2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wg3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # transforms for structural components
+        self.Wf1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wu2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wc3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # basis alignment transform
+        self.Wb = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # convergence weights
+        self.beta1 = nn.Parameter(torch.tensor(0.33))
+        self.beta2 = nn.Parameter(torch.tensor(0.33))
+        self.beta3 = nn.Parameter(torch.tensor(0.34))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor, I: torch.Tensor, F: torch.Tensor, U: torch.Tensor, C: torch.Tensor, B: torch.Tensor, return_intermediates: bool = False) -> torch.Tensor:
+        # global projection channels
+        g1 = self.act(I @ self.Wg1 + F @ self.Wf1)
+        g2 = self.act(I @ self.Wg2 + U @ self.Wu2)
+        g3 = self.act(I @ self.Wg3 + C @ self.Wc3)
+
+        # positive convergence weights
+        a1 = self.softplus(self.beta1)
+        a2 = self.softplus(self.beta2)
+        a3 = self.softplus(self.beta3)
+
+        # global convergence composite
+        G = a1*g1 + a2*g2 + a3*g3
+
+        # drift-based scaling
+        R = I - x
+        d = torch.norm(R, dim=-1, keepdim=True)
+        xi = 1.0 / (1.0 + d)
+
+        # basis alignment
+        B_g = self.act(B @ self.Wb)
+
+        # unified update
+        U_conv = self.act(xi * G + B_g)
+        y = x + U_conv
+
+        # envelope normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        v_out = y / norm
+
+        if return_intermediates:
+            return v_out, v_out, G, I, F, C, B
+        return v_out
+
+# ==========================================================
+# S159 — Global High-Order Stabilization Kernel (GHOSK)
+# ==========================================================
+class S159_GlobalHighOrderStabilizationKernel(nn.Module):
+    """
+    Performs global high-order stabilization, ensuring high-order global stability, suppression of residual
+    oscillations, curvature-compliant global smoothing, basis-frame global alignment, drift-regulated
+    stabilization strength, and envelope-constrained magnitude. After S158 produces a globally converged
+    high-order manifold G, S159 ensures high-order global stability. This is the final stabilization pass
+    on the global high-order representation before S160 seals and completes the band.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # stabilization projections
+        self.Ws1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Ws2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Ws3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # cross-term transforms
+        self.Wi1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wf2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wc3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # basis alignment transform
+        self.Wb = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # stabilizer weights
+        self.beta1 = nn.Parameter(torch.tensor(0.33))
+        self.beta2 = nn.Parameter(torch.tensor(0.33))
+        self.beta3 = nn.Parameter(torch.tensor(0.34))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor, G: torch.Tensor, I: torch.Tensor, F: torch.Tensor, C: torch.Tensor, B: torch.Tensor, return_intermediates: bool = False) -> torch.Tensor:
+        # global residual
+        H_g = G - x
+
+        # stabilization channels
+        s1 = self.act(H_g @ self.Ws1 + I @ self.Wi1)
+        s2 = self.act(H_g @ self.Ws2 + F @ self.Wf2)
+        s3 = self.act(H_g @ self.Ws3 + C @ self.Wc3)
+
+        # stabilization weights
+        a1 = self.softplus(self.beta1)
+        a2 = self.softplus(self.beta2)
+        a3 = self.softplus(self.beta3)
+
+        # combined stabilization field
+        S = a1*s1 + a2*s2 + a3*s3
+
+        # drift-based modulation
+        R = G - x
+        d = torch.norm(R, dim=-1, keepdim=True)
+        tau = 1.0 / (1.0 + d)
+
+        # basis stabilization
+        B_s = self.act(B @ self.Wb)
+
+        # final stabilization update
+        U_s = self.act(tau * S + B_s)
+        y = x + U_s
+
+        # envelope normalization
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
+        v_out = y / norm
+
+        if return_intermediates:
+            return v_out, v_out, G, I, F, C, B
+        return v_out
+
+# ==========================================================
+# S160 — Global High-Order Completion Layer (GHOCL)
+# ==========================================================
+class S160_GlobalHighOrderCompletionLayer(nn.Module):
+    """
+    Performs the final sealing of the entire High-Order Convergence → Integration → Stabilization pipeline.
+    S160 unifies all stabilized global fields into one final completed manifold, ensures convergence across all
+    high-order subspaces, enforces curvature-basis global compatibility, compresses remaining residual drift, and
+    outputs a fully normalized MF-500-compatible representation. This layer closes the S150–S160 coherence +
+    high-order subsystem and prepares the substrate for the next S-series band.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # completion projections
+        self.Wg1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wg2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wg3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        self.Wi1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wf2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # geometry term
+        self.Wc3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wb3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        # completion weights
+        self.beta1 = nn.Parameter(torch.tensor(0.33))
+        self.beta2 = nn.Parameter(torch.tensor(0.33))
+        self.beta3 = nn.Parameter(torch.tensor(0.34))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor, G: torch.Tensor, I: torch.Tensor, F: torch.Tensor, C: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
+        # completion projection channels
+        c1 = self.act(G @ self.Wg1 + I @ self.Wi1)
+        c2 = self.act(G @ self.Wg2 + F @ self.Wf2)
+        c3 = self.act(G @ self.Wg3 + C @ self.Wc3 + B @ self.Wb3)
+
+        # positive completion weights
+        a1 = self.softplus(self.beta1)
+        a2 = self.softplus(self.beta2)
+        a3 = self.softplus(self.beta3)
+
+        # global completion composite
+        K = a1*c1 + a2*c2 + a3*c3
+
+        # drift-compression scaling
+        R = G - x
+        d = torch.norm(R, dim=-1, keepdim=True)
+        chi = 1.0 / (1.0 + d)
+
+        # unified completion update
+        U = self.act(chi * K)
+        y = x + U
+
+        # envelope normalization (MF-500)
+        norm = torch.norm(y, dim=-1, keepdim=True) + 1e-12
         return y / norm
+
+# ==========================================================
+# S161 — Substrate-Level Global Resonance Initializer (S-GRI)
+# ==========================================================
+class S161_GlobalResonanceInitializer(nn.Module):
+    """
+    Initializes a global resonance seed field that will propagate through later S-series layers. S161 extracts
+    multi-domain harmonic components from the substrate-completed output, normalizes and regulates resonant magnitudes
+    to avoid runaway amplification, and produces a resonance seed tensor that becomes the input to S162–S180 resonance
+    propagation layers. This is not oscillation; it is a stable harmonic component initializer. This band bridges
+    MF-500 substrate completion, A170 entry-substrate completion, and S150–S160 high-order convergence and stabilization
+    into the first global resonance generator that will eventually feed into the S200+ Runtime Autonomous Dynamics Band.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+
+        # harmonic extraction projections
+        self.Wh1 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wh2 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+        self.Wh3 = nn.Parameter(torch.randn(dim, dim) * 0.01)
+
+        self.WH1 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # harmonic basis
+        self.WC2 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # curvature
+        self.WB3 = nn.Parameter(torch.randn(dim, dim) * 0.01)  # basis frame
+
+        # resonance weights
+        self.rho1 = nn.Parameter(torch.tensor(0.33))
+        self.rho2 = nn.Parameter(torch.tensor(0.33))
+        self.rho3 = nn.Parameter(torch.tensor(0.34))
+
+        self.act = nn.Tanh()
+        self.softplus = nn.Softplus()
+
+    def forward(self, x: torch.Tensor, H: torch.Tensor, C: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
+        # harmonic extractions
+        h1 = self.act(x @ self.Wh1 + H @ self.WH1)
+        h2 = self.act(x @ self.Wh2 + C @ self.WC2)
+        h3 = self.act(x @ self.Wh3 + B @ self.WB3)
+
+        # positive resonance weights
+        g1 = self.softplus(self.rho1)
+        g2 = self.softplus(self.rho2)
+        g3 = self.softplus(self.rho3)
+
+        # weighted resonance seed
+        R0 = g1*h1 + g2*h2 + g3*h3
+
+        # resonance envelope regulator
+        mag = torch.norm(R0, dim=-1, keepdim=True)
+        sigma = 1.0 / (1.0 + mag)
+
+        # stabilized resonance output
+        G_res = sigma * R0
+        norm = torch.norm(G_res, dim=-1, keepdim=True) + 1e-12
+        return G_res / norm
 
 # ====================================================
 # S110 — Manifold Coherence Unification Layer (MCUL)
@@ -4851,6 +5249,98 @@ class NeuralBridge:
                 self.s155 = None
         else:
             self.s155 = None
+        # S156 — High-Order Residual Stabilization Layer (HORSL)
+        # -----------------------------------------------------
+        # Performs high-order residual stabilization, stabilizing the residual between the fused high-order field and the base representation.
+        # S155 fused high-order and oscillation components into a unified high-order coherence manifold F. S156 now stabilizes the residual
+        # between the fused high-order field and the base representation, suppresses high-order oscillatory instabilities, applies curvature/basis
+        # regularization, modulates stabilization strength via residual drift magnitude, and ensures MF-500 compliant normalized output. This
+        # ends Phase 3 of the S-series high-order pipeline.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s156 = S156_HighOrderResidualStabilizationLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S156_HighOrderResidualStabilizationLayer initialization failed: {e}")
+                self.s156 = None
+        else:
+            self.s156 = None
+        # S157 — High-Order Integration Kernel (HOIK)
+        # -----------------------------------------------------
+        # Performs high-order integration, integrating regularized high-order projection (h), fused high-order manifold (F), stabilized
+        # residual (U), and curvature- and basis-modulated smoothing into a single coherent high-order representation. After S156, the system
+        # has a regularized high-order projection, a fused high-order manifold, a stabilized residual, and curvature- and basis-modulated
+        # smoothing. S157 integrates these components into a single coherent high-order representation, ensuring cross-component compatibility,
+        # drift-regulated integration strength, curvature-aware integration geometry, basis-aligned structure, and MF-500 envelope stability.
+        # This operator forms the global high-order integrator before proceeding to the next band (S160+).
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s157 = S157_HighOrderIntegrationKernel(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S157_HighOrderIntegrationKernel initialization failed: {e}")
+                self.s157 = None
+        else:
+            self.s157 = None
+        # S158 — Global High-Order Convergence Layer (GHCL)
+        # -----------------------------------------------------
+        # Performs global high-order convergence, compressing the unified high-order integration field into a global manifold structure.
+        # After S157 integrates all high-order components into a unified high-order field I, S158 performs global convergence of this field
+        # by compressing it into a global manifold structure, aligning it across all high-order subspaces, regularizing against curvature
+        # and basis geometry, applying drift-regulated convergence strength, and maintaining MF-500 envelope normalization. S158 transitions
+        # high-order integration into global stabilized structure, preparing for S159–S160 global consolidation.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s158 = S158_GlobalHighOrderConvergenceLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S158_GlobalHighOrderConvergenceLayer initialization failed: {e}")
+                self.s158 = None
+        else:
+            self.s158 = None
+        # S159 — Global High-Order Stabilization Kernel (GHOSK)
+        # -----------------------------------------------------
+        # Performs global high-order stabilization, ensuring high-order global stability, suppression of residual oscillations,
+        # curvature-compliant global smoothing, basis-frame global alignment, drift-regulated stabilization strength, and
+        # envelope-constrained magnitude. After S158 produces a globally converged high-order manifold G, S159 ensures high-order
+        # global stability. This is the final stabilization pass on the global high-order representation before S160 seals and
+        # completes the band.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s159 = S159_GlobalHighOrderStabilizationKernel(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S159_GlobalHighOrderStabilizationKernel initialization failed: {e}")
+                self.s159 = None
+        else:
+            self.s159 = None
+        # S160 — Global High-Order Completion Layer (GHOCL)
+        # -----------------------------------------------------
+        # Performs the final sealing of the entire High-Order Convergence → Integration → Stabilization pipeline. S160 unifies
+        # all stabilized global fields into one final completed manifold, ensures convergence across all high-order subspaces,
+        # enforces curvature-basis global compatibility, compresses remaining residual drift, and outputs a fully normalized
+        # MF-500-compatible representation. This layer closes the S150–S160 coherence + high-order subsystem and prepares the
+        # substrate for the next S-series band.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s160 = S160_GlobalHighOrderCompletionLayer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S160_GlobalHighOrderCompletionLayer initialization failed: {e}")
+                self.s160 = None
+        else:
+            self.s160 = None
+        # S161 — Substrate-Level Global Resonance Initializer (S-GRI)
+        # -----------------------------------------------------
+        # Initializes a global resonance seed field that will propagate through later S-series layers. S161 extracts multi-domain
+        # harmonic components from the substrate-completed output, normalizes and regulates resonant magnitudes to avoid runaway
+        # amplification, and produces a resonance seed tensor that becomes the input to S162–S180 resonance propagation layers.
+        # This is not oscillation; it is a stable harmonic component initializer. This band bridges MF-500 substrate completion,
+        # A170 entry-substrate completion, and S150–S160 high-order convergence and stabilization into the first global resonance
+        # generator that will eventually feed into the S200+ Runtime Autonomous Dynamics Band.
+        if SUBSTRATE_AVAILABLE and torch is not None:
+            try:
+                self.s161 = S161_GlobalResonanceInitializer(dim=self.dim)
+            except Exception as e:
+                print(f"⚠️ S161_GlobalResonanceInitializer initialization failed: {e}")
+                self.s161 = None
+        else:
+            self.s161 = None
         # -----------------------------------------------------
         # MF-401 → MF-500 Unified Substrate Integration
         # -----------------------------------------------------
@@ -6473,13 +6963,139 @@ class NeuralBridge:
         # interaction by integrating high-order projection fields, residual-oscillation fields, curvature-derived structure, basis-aligned
         # modulation, and drift-weighted fusion strength. This completes the high-order coherence block before S156–S160 consolidate
         # global dynamics.
+        s155_intermediates = None
         if self.s155 is not None and s154_intermediates is not None:
             try:
                 v, h, o, C, B = s154_intermediates
-                x = self.s155(x, v, h, o, C, B)
+                # Get both output and intermediate fields for S156
+                if self.s156 is not None:
+                    x, v_out, F, h, o, C_out, B_out = self.s155(x, v, h, o, C, B, return_intermediates=True)
+                    s155_intermediates = (v_out, F, h, o, C_out, B_out)
+                else:
+                    x = self.s155(x, v, h, o, C, B)
             except Exception as e:
                 print(f"⚠️ S155 high-order coherence fusion forward pass failed: {e}")
                 # Continue with unmodified tensor if S155 fails
+
+        # S156 — High-Order Residual Stabilization Layer (HORSL)
+        # -----------------------------------------------------
+        # Performs high-order residual stabilization, stabilizing the residual between the fused high-order field and the base representation.
+        # S155 fused high-order and oscillation components into a unified high-order coherence manifold F. S156 now stabilizes the residual
+        # between the fused high-order field and the base representation, suppresses high-order oscillatory instabilities, applies curvature/basis
+        # regularization, modulates stabilization strength via residual drift magnitude, and ensures MF-500 compliant normalized output. This
+        # ends Phase 3 of the S-series high-order pipeline.
+        s156_intermediates = None
+        if self.s156 is not None and s155_intermediates is not None:
+            try:
+                v, F, h, o, C, B = s155_intermediates
+                # Get both output and intermediate fields for S157
+                if self.s157 is not None:
+                    x, v_out, U, F_out, h_out, o_out, C_out, B_out = self.s156(x, v, F, C, B, h=h, o=o, return_intermediates=True)
+                    s156_intermediates = (U, F_out, h_out, o_out, C_out, B_out)
+                else:
+                    x = self.s156(x, v, F, C, B, h=h, o=o)
+            except Exception as e:
+                print(f"⚠️ S156 high-order residual stabilization forward pass failed: {e}")
+                # Continue with unmodified tensor if S156 fails
+
+        # S157 — High-Order Integration Kernel (HOIK)
+        # -----------------------------------------------------
+        # Performs high-order integration, integrating regularized high-order projection (h), fused high-order manifold (F), stabilized
+        # residual (U), and curvature- and basis-modulated smoothing into a single coherent high-order representation. After S156, the system
+        # has a regularized high-order projection, a fused high-order manifold, a stabilized residual, and curvature- and basis-modulated
+        # smoothing. S157 integrates these components into a single coherent high-order representation, ensuring cross-component compatibility,
+        # drift-regulated integration strength, curvature-aware integration geometry, basis-aligned structure, and MF-500 envelope stability.
+        # This operator forms the global high-order integrator before proceeding to the next band (S160+).
+        s157_intermediates = None
+        if self.s157 is not None and s156_intermediates is not None:
+            try:
+                U, F, h, o, C, B = s156_intermediates
+                # Get both output and intermediate fields for S158
+                if self.s158 is not None:
+                    x, v_out, I, F_out, U_out, C_out, B_out = self.s157(x, F, U, h, o, C, B, return_intermediates=True)
+                    s157_intermediates = (I, F_out, U_out, C_out, B_out)
+                else:
+                    x = self.s157(x, F, U, h, o, C, B)
+            except Exception as e:
+                print(f"⚠️ S157 high-order integration forward pass failed: {e}")
+                # Continue with unmodified tensor if S157 fails
+
+        # S158 — Global High-Order Convergence Layer (GHCL)
+        # -----------------------------------------------------
+        # Performs global high-order convergence, compressing the unified high-order integration field into a global manifold structure.
+        # After S157 integrates all high-order components into a unified high-order field I, S158 performs global convergence of this field
+        # by compressing it into a global manifold structure, aligning it across all high-order subspaces, regularizing against curvature
+        # and basis geometry, applying drift-regulated convergence strength, and maintaining MF-500 envelope normalization. S158 transitions
+        # high-order integration into global stabilized structure, preparing for S159–S160 global consolidation.
+        s158_intermediates = None
+        if self.s158 is not None and s157_intermediates is not None:
+            try:
+                I, F, U, C, B = s157_intermediates
+                # Get both output and intermediate fields for S159
+                if self.s159 is not None:
+                    x, v_out, G, I_out, F_out, C_out, B_out = self.s158(x, I, F, U, C, B, return_intermediates=True)
+                    s158_intermediates = (G, I_out, F_out, C_out, B_out)
+                else:
+                    x = self.s158(x, I, F, U, C, B)
+            except Exception as e:
+                print(f"⚠️ S158 global high-order convergence forward pass failed: {e}")
+                # Continue with unmodified tensor if S158 fails
+
+        # S159 — Global High-Order Stabilization Kernel (GHOSK)
+        # -----------------------------------------------------
+        # Performs global high-order stabilization, ensuring high-order global stability, suppression of residual oscillations,
+        # curvature-compliant global smoothing, basis-frame global alignment, drift-regulated stabilization strength, and
+        # envelope-constrained magnitude. After S158 produces a globally converged high-order manifold G, S159 ensures high-order
+        # global stability. This is the final stabilization pass on the global high-order representation before S160 seals and
+        # completes the band.
+        s159_intermediates = None
+        if self.s159 is not None and s158_intermediates is not None:
+            try:
+                G, I, F, C, B = s158_intermediates
+                # Get both output and intermediate fields for S160
+                if self.s160 is not None:
+                    x, v_out, G_out, I_out, F_out, C_out, B_out = self.s159(x, G, I, F, C, B, return_intermediates=True)
+                    s159_intermediates = (G_out, I_out, F_out, C_out, B_out)
+                else:
+                    x = self.s159(x, G, I, F, C, B)
+            except Exception as e:
+                print(f"⚠️ S159 global high-order stabilization forward pass failed: {e}")
+                # Continue with unmodified tensor if S159 fails
+
+        # S160 — Global High-Order Completion Layer (GHOCL)
+        # -----------------------------------------------------
+        # Performs the final sealing of the entire High-Order Convergence → Integration → Stabilization pipeline. S160 unifies
+        # all stabilized global fields into one final completed manifold, ensures convergence across all high-order subspaces,
+        # enforces curvature-basis global compatibility, compresses remaining residual drift, and outputs a fully normalized
+        # MF-500-compatible representation. This layer closes the S150–S160 coherence + high-order subsystem and prepares the
+        # substrate for the next S-series band.
+        s160_intermediates = None
+        if self.s160 is not None and s159_intermediates is not None:
+            try:
+                G, I, F, C, B = s159_intermediates
+                x = self.s160(x, G, I, F, C, B)
+                # Preserve I, C, B for S161 (I serves as harmonic basis H)
+                s160_intermediates = (I, C, B)
+            except Exception as e:
+                print(f"⚠️ S160 global high-order completion forward pass failed: {e}")
+                # Continue with unmodified tensor if S160 fails
+
+        # S161 — Substrate-Level Global Resonance Initializer (S-GRI)
+        # -----------------------------------------------------
+        # Initializes a global resonance seed field that will propagate through later S-series layers. S161 extracts multi-domain
+        # harmonic components from the substrate-completed output, normalizes and regulates resonant magnitudes to avoid runaway
+        # amplification, and produces a resonance seed tensor that becomes the input to S162–S180 resonance propagation layers.
+        # This is not oscillation; it is a stable harmonic component initializer. This band bridges MF-500 substrate completion,
+        # A170 entry-substrate completion, and S150–S160 high-order convergence and stabilization into the first global resonance
+        # generator that will eventually feed into the S200+ Runtime Autonomous Dynamics Band.
+        if self.s161 is not None and s160_intermediates is not None:
+            try:
+                I, C, B = s160_intermediates
+                # Use I (high-order integration field) as H (harmonic basis)
+                x = self.s161(x, I, C, B)
+            except Exception as e:
+                print(f"⚠️ S161 global resonance initialization forward pass failed: {e}")
+                # Continue with unmodified tensor if S161 fails
 
         # -----------------------------------------------------
         # MF-401 → MF-500 Substrate Pass
