@@ -9,6 +9,8 @@ except ImportError:
     TORCH_AVAILABLE = False
     torch = None
 
+# Persistent data root directory
+DATA_ROOT = "/data"
 
 def make_json_serializable(obj):
     """
@@ -34,7 +36,10 @@ def make_json_serializable(obj):
 class MemoryStore:
 
     def __init__(self, filename="prime_memory.json"):
-        self.filename = filename
+        # Ensure memory directory exists
+        memory_dir = os.path.join(DATA_ROOT, "memory")
+        os.makedirs(memory_dir, exist_ok=True)
+        self.filename = os.path.join(memory_dir, filename)
         self.data = {
             "reflections": [],
             "identity_updates": [],

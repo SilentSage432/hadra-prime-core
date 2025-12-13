@@ -1,11 +1,19 @@
 import fs from "fs";
 import path from "path";
 
+// Persistent data root directory
+const DATA_ROOT = "/data";
+
 export default class LongTermMemory {
-  private storePath = path.resolve(process.cwd(), "prime_ltm.json");
+  private storePath = path.join(DATA_ROOT, "memory", "prime_ltm.json");
   private data: Record<string, any[]> = {};
 
   constructor() {
+    // Ensure memory directory exists
+    const memoryDir = path.join(DATA_ROOT, "memory");
+    if (!fs.existsSync(memoryDir)) {
+      fs.mkdirSync(memoryDir, { recursive: true });
+    }
     this.load();
   }
 

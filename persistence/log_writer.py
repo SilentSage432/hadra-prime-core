@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime
 
 try:
@@ -8,6 +9,8 @@ except ImportError:
     TORCH_AVAILABLE = False
     torch = None
 
+# Persistent data root directory
+DATA_ROOT = "/data"
 
 def make_json_serializable(obj):
     """
@@ -33,7 +36,10 @@ def make_json_serializable(obj):
 class LogWriter:
 
     def __init__(self, filename="prime_runtime.log"):
-        self.filename = filename
+        # Ensure log directory exists
+        log_dir = os.path.join(DATA_ROOT, "logs")
+        os.makedirs(log_dir, exist_ok=True)
+        self.filename = os.path.join(log_dir, filename)
 
     def write(self, entry: dict):
         entry["timestamp"] = datetime.utcnow().isoformat()

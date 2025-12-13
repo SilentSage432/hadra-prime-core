@@ -23,11 +23,17 @@ try:
 except:
     torch = None
 
+# Persistent data root directory
+DATA_ROOT = "/data"
+
 
 class LifelongPersonalityContinuity:
 
-    def __init__(self, save_path="continuity/personality.json", drift_threshold=0.25):
-        self.save_path = save_path
+    def __init__(self, save_path="personality.json", drift_threshold=0.25):
+        # Ensure continuity directory exists and set full path
+        continuity_dir = os.path.join(DATA_ROOT, "continuity")
+        os.makedirs(continuity_dir, exist_ok=True)
+        self.save_path = os.path.join(continuity_dir, save_path)
         self.drift_threshold = drift_threshold
 
         # Personality timeline checkpoints
