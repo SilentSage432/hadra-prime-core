@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: adrae
+  namespace: adrae
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: adrae
+  template:
+    metadata:
+      labels:
+        app: adrae
+    spec:
+      ### REQUIRED FOR SINGLE-NODE TALOS CONTROL PLANE ###
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+
+      imagePullSecrets:
+        - name: ghcr-secret
+
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: adrae
+          image: ghcr.io/silentsage432/hadra-prime-core/adrae:dc10
+          imagePullPolicy: Always
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+
+          volumeMounts:
+            - name: adrae-data
+              mountPath: /data
+
+      volumes:
+        - name: adrae-data
+          hostPath:
+            path: /var/mnt/adrae
+            type: Directory
