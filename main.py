@@ -16,6 +16,7 @@ import time
 import traceback
 
 from src.neural.neural_bridge import NeuralBridge
+from src.cognition.emergent.concept_observer import ConceptObserver
 
 
 class PrimeRuntime:
@@ -25,6 +26,7 @@ class PrimeRuntime:
         self.bridge = NeuralBridge()
         self.running = True
         self._last_output = None
+        self.concept_observer = ConceptObserver()
 
     def start(self):
         print("🔥 HADRA-PRIME cognitive runtime started")
@@ -36,6 +38,16 @@ class PrimeRuntime:
                 output = self.bridge.cognitive_step()
                 # Store last output for observer access (read-only)
                 self._last_output = output
+
+                # Observe fusion vector for concept formation
+                try:
+                    if hasattr(self.bridge, 'fusion') and hasattr(self.bridge.fusion, 'last_fusion_vector'):
+                        fusion_vector = self.bridge.fusion.last_fusion_vector
+                        if fusion_vector is not None:
+                            self.concept_observer.observe(fusion_vector)
+                except Exception:
+                    # ECFL cannot stop ADRAE - silent failure
+                    pass
 
                 # Log (you can later redirect this to a file)
                 print("—— Cognitive Step ——")
