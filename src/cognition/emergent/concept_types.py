@@ -19,6 +19,8 @@ class EmergentConcept:
     last_updated: float
     maturity: float
     quiet: bool
+    tension: float
+    conflicts: List[str]
 
     @staticmethod
     def create(initial_vector: torch.Tensor):
@@ -35,5 +37,7 @@ class EmergentConcept:
             last_updated=now,
             maturity=0.0,
             quiet=True,
+            tension=0.0,
+            conflicts=[],
         )
 

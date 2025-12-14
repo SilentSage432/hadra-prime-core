@@ -1,6 +1,7 @@
 # src/cognition/emergent/concept_observer.py
 
 import torch
+import torch.nn.functional as F
 import time
 from .concept_store import ConceptStore
 from .concept_types import EmergentConcept
@@ -11,13 +12,19 @@ class ConceptObserver:
         distance_threshold: float = 0.15,
         stability_gain: float = 0.05,
         maturity_threshold: float = 0.35,
-        dominance_threshold: float = 0.65
+        dominance_threshold: float = 0.65,
+        tension_similarity_threshold: float = 0.45,
+        tension_increment: float = 0.05,
+        tension_decay: float = 0.01
     ):
         self.store = ConceptStore()
         self.distance_threshold = distance_threshold
         self.stability_gain = stability_gain
         self.maturity_threshold = maturity_threshold
         self.dominance_threshold = dominance_threshold
+        self.tension_similarity_threshold = tension_similarity_threshold
+        self.tension_increment = tension_increment
+        self.tension_decay = tension_decay
 
     def observe(self, fusion_vector: torch.Tensor):
         """
@@ -40,7 +47,13 @@ class ConceptObserver:
                     0.0,
                     concept.stability_score - decay_amount
                 )
+                # Tension decay over time
+                concept.tension = max(0.0, concept.tension - self.tension_decay)
+                if concept.tension == 0.0:
+                    concept.conflicts.clear()
             
+            # Collect all matching concepts (active in this observation)
+            active_concepts = []
             matched = False
 
             for concept in self.store.concepts:
@@ -62,8 +75,41 @@ class ConceptObserver:
                     # Maturity accumulation - earned slowly through reoccurrence
                     concept.maturity += 0.01
                     concept.maturity = min(concept.maturity, 1.0)
+                    active_concepts.append(concept)
                     matched = True
-                    break
+
+            # Detect tension between co-activating concepts
+            if len(active_concepts) > 1:
+                for i, a in enumerate(active_concepts):
+                    for b in active_concepts[i+1:]:
+                        if a.id == b.id:
+                            continue
+                        
+                        # Both must have non-zero maturity
+                        if a.maturity == 0.0 or b.maturity == 0.0:
+                            continue
+                        
+                        # Compute cosine similarity
+                        try:
+                            # Ensure vectors are 1D and have same shape
+                            vec_a = a.centroid.flatten()
+                            vec_b = b.centroid.flatten()
+                            if vec_a.shape == vec_b.shape:
+                                sim = F.cosine_similarity(vec_a.unsqueeze(0), vec_b.unsqueeze(0), dim=1).item()
+                                
+                                if sim < self.tension_similarity_threshold:
+                                    a.tension += self.tension_increment
+                                    b.tension += self.tension_increment
+                                    a.tension = min(a.tension, 1.0)
+                                    b.tension = min(b.tension, 1.0)
+                                    
+                                    if b.id not in a.conflicts:
+                                        a.conflicts.append(b.id)
+                                    if a.id not in b.conflicts:
+                                        b.conflicts.append(a.id)
+                        except Exception:
+                            # Silent failure - skip tension detection if error
+                            pass
 
             if not matched:
                 self.store.concepts.append(
@@ -112,6 +158,12 @@ class ConceptObserver:
                         c1.decay_score = max(c1.decay_score, c2.decay_score)
                         # Preserve higher maturity when merging
                         c1.maturity = max(c1.maturity, c2.maturity)
+                        # Preserve higher tension when merging
+                        c1.tension = max(c1.tension, c2.tension)
+                        # Merge conflicts lists
+                        for conflict_id in c2.conflicts:
+                            if conflict_id not in c1.conflicts and conflict_id != c1.id:
+                                c1.conflicts.append(conflict_id)
                         # Quiet status will be recalculated in classification pass
                         used.add(j)
 
@@ -145,6 +197,17 @@ class ConceptObserver:
         """
         try:
             return any(not c.quiet for c in self.store.concepts)
+        except Exception:
+            # Silent failure - return False on error
+            return False
+
+    def has_unresolved_tension(self):
+        """
+        Returns True if any concept has unresolved tension (tension > 0.2).
+        Used to gate expression, UI cues, and translator ambiguity markers.
+        """
+        try:
+            return any(c.tension > 0.2 for c in self.store.concepts)
         except Exception:
             # Silent failure - return False on error
             return False

@@ -28,6 +28,8 @@ class ConceptStore:
                 last_updated = c.get("last_updated", c.get("last_seen", time.time()))
                 maturity = c.get("maturity", 0.0)
                 quiet = c.get("quiet", True)  # Default to quiet for old concepts
+                tension = c.get("tension", 0.0)
+                conflicts = c.get("conflicts", [])
                 
                 self.concepts.append(
                     EmergentConcept(
@@ -42,6 +44,8 @@ class ConceptStore:
                         last_updated=last_updated,
                         maturity=maturity,
                         quiet=quiet,
+                        tension=tension,
+                        conflicts=conflicts,
                     )
                 )
         except Exception:
@@ -64,6 +68,8 @@ class ConceptStore:
                         "last_updated": c.last_updated,
                         "maturity": c.maturity,
                         "quiet": c.quiet,
+                        "tension": c.tension,
+                        "conflicts": c.conflicts,
                     }
                     for c in self.concepts
                 ], f, indent=2)
