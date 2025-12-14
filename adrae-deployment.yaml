@@ -13,32 +13,51 @@ spec:
       labels:
         app: adrae
     spec:
-      ### REQUIRED FOR SINGLE-NODE TALOS CONTROL PLANE ###
       tolerations:
         - key: "node-role.kubernetes.io/control-plane"
           operator: "Exists"
           effect: "NoSchedule"
 
-      imagePullSecrets:
-        - name: ghcr-secret
-
-      securityContext:
-        seccompProfile:
-          type: RuntimeDefault
+      initContainers:
+        - name: init-adrae-permissions
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Preparing ADRAE data directories..."
+              mkdir -p /data/logs
+              mkdir -p /data/memory
+              mkdir -p /data/continuity
+              mkdir -p /data/stability
+              mkdir -p /data/substrate
+              chown -R 1000:1000 /data
+              chmod -R 755 /data
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: adrae-data
+              mountPath: /data
 
       containers:
         - name: adrae
-          image: ghcr.io/silentsage432/hadra-prime-core/adrae:dc10
+          image: ghcr.io/silentsage432/adrae:latest
           imagePullPolicy: Always
-
           securityContext:
-            allowPrivilegeEscalation: false
-            runAsNonRoot: true
             runAsUser: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
             capabilities:
-              drop:
-                - ALL
-
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
           volumeMounts:
             - name: adrae-data
               mountPath: /data

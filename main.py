@@ -24,6 +24,7 @@ class PrimeRuntime:
         self.loop_interval = loop_interval
         self.bridge = NeuralBridge()
         self.running = True
+        self._last_output = None
 
     def start(self):
         print("🔥 HADRA-PRIME cognitive runtime started")
@@ -33,6 +34,8 @@ class PrimeRuntime:
             try:
                 # Execute a single cognitive cycle
                 output = self.bridge.cognitive_step()
+                # Store last output for observer access (read-only)
+                self._last_output = output
 
                 # Log (you can later redirect this to a file)
                 print("—— Cognitive Step ——")
@@ -59,6 +62,21 @@ class PrimeRuntime:
 
 
 if __name__ == "__main__":
+    from threading import Thread
+    from src.prime_core.observable_state import export_observable_state
+    from src.observers.minimal_observer import observer_loop
+
     runtime = PrimeRuntime(loop_interval=0.35)
+
+    def read_state():
+        return export_observable_state(runtime)
+
+    observer_thread = Thread(
+        target=observer_loop,
+        args=(read_state,),
+        daemon=True
+    )
+
+    observer_thread.start()
     runtime.start()
 
