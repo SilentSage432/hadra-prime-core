@@ -11,6 +11,8 @@ mkdir -p /data/memory
 mkdir -p /data/continuity
 mkdir -p /data/stability
 mkdir -p /data/substrate
+mkdir -p /data/observations
+mkdir -p /data/events
 
 # Activate environment variables
 if [ -f "/app/docker/adrae.env" ]; then

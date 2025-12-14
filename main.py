@@ -17,6 +17,9 @@ import traceback
 
 from src.neural.neural_bridge import NeuralBridge
 from src.cognition.emergent.concept_observer import ConceptObserver
+from src.cognition.observation_ledger import ObservationLedger
+from src.cognition.internal_events import get_event_logger
+from src.cognition.inference_cooldown import InferenceTracker
 
 
 class PrimeRuntime:
@@ -27,6 +30,9 @@ class PrimeRuntime:
         self.running = True
         self._last_output = None
         self.concept_observer = ConceptObserver()
+        self.observation_ledger = ObservationLedger()
+        self.inference_tracker = InferenceTracker()
+        self.event_logger = get_event_logger()
 
     def start(self):
         print("🔥 HADRA-PRIME cognitive runtime started")
@@ -39,12 +45,51 @@ class PrimeRuntime:
                 # Store last output for observer access (read-only)
                 self._last_output = output
 
-                # Observe fusion vector for concept formation
+                # Record internal inference as observation
                 try:
+                    fusion_vector = None
                     if hasattr(self.bridge, 'fusion') and hasattr(self.bridge.fusion, 'last_fusion_vector'):
                         fusion_vector = self.bridge.fusion.last_fusion_vector
-                        if fusion_vector is not None:
-                            self.concept_observer.observe(fusion_vector)
+                    
+                    if fusion_vector is not None:
+                        # Record fusion output as internal inference observation
+                        fusion_hash = self.observation_ledger.record(
+                            source="internal",
+                            channel="signal",
+                            payload={
+                                "type": "fusion_output",
+                                "dim": fusion_vector.numel() if hasattr(fusion_vector, 'numel') else len(fusion_vector)
+                            },
+                            metadata={
+                                "provenance": {
+                                    "origin": "internal_inference",
+                                    "inputs": [],  # Will be populated if tracking input sources
+                                    "confidence": 0.5,  # Default confidence, can be refined
+                                    "revisable": True
+                                }
+                            }
+                        )
+                        
+                        # Track inference for cooldown window
+                        inference_id = f"fusion_{fusion_hash}"
+                        count = self.inference_tracker.record_observation(inference_id)
+                        
+                        # Check if inference is ready (passed cooldown)
+                        if count == self.inference_tracker.cooldown_threshold:
+                            self.event_logger.log_event(
+                                "inference_stabilized",
+                                {"inference_id": inference_id, "observation_count": count}
+                            )
+                        
+                        # Observe fusion vector for concept formation
+                        self.concept_observer.observe(fusion_vector)
+                        
+                        # Check for pattern density (repeated observations)
+                        if count > 1:
+                            self.event_logger.log_event(
+                                "observation_repeat",
+                                {"inference_id": inference_id, "count": count}
+                            )
                 except Exception:
                     # ECFL cannot stop ADRAE - silent failure
                     pass
