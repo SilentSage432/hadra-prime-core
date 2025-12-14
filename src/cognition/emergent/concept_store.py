@@ -26,6 +26,8 @@ class ConceptStore:
                 # Handle migration from old format (backward compatibility)
                 decay_score = c.get("decay_score", 0.0)
                 last_updated = c.get("last_updated", c.get("last_seen", time.time()))
+                maturity = c.get("maturity", 0.0)
+                quiet = c.get("quiet", True)  # Default to quiet for old concepts
                 
                 self.concepts.append(
                     EmergentConcept(
@@ -38,6 +40,8 @@ class ConceptStore:
                         stability_score=c["stability_score"],
                         decay_score=decay_score,
                         last_updated=last_updated,
+                        maturity=maturity,
+                        quiet=quiet,
                     )
                 )
         except Exception:
@@ -58,6 +62,8 @@ class ConceptStore:
                         "stability_score": c.stability_score,
                         "decay_score": c.decay_score,
                         "last_updated": c.last_updated,
+                        "maturity": c.maturity,
+                        "quiet": c.quiet,
                     }
                     for c in self.concepts
                 ], f, indent=2)

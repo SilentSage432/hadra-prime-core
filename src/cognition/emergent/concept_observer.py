@@ -9,11 +9,15 @@ class ConceptObserver:
     def __init__(
         self,
         distance_threshold: float = 0.15,
-        stability_gain: float = 0.05
+        stability_gain: float = 0.05,
+        maturity_threshold: float = 0.35,
+        dominance_threshold: float = 0.65
     ):
         self.store = ConceptStore()
         self.distance_threshold = distance_threshold
         self.stability_gain = stability_gain
+        self.maturity_threshold = maturity_threshold
+        self.dominance_threshold = dominance_threshold
 
     def observe(self, fusion_vector: torch.Tensor):
         """
@@ -55,6 +59,9 @@ class ConceptObserver:
 
                     concept.variance = dist
                     concept.stability_score = min(1.0, concept.stability_score + self.stability_gain)
+                    # Maturity accumulation - earned slowly through reoccurrence
+                    concept.maturity += 0.01
+                    concept.maturity = min(concept.maturity, 1.0)
                     matched = True
                     break
 
@@ -65,6 +72,10 @@ class ConceptObserver:
 
             # Consolidation pass - merge highly similar concepts
             self.consolidate()
+            
+            # Classification pass - quiet vs dominant concepts
+            self._classify_concepts()
+            
             self.store.save()
         except Exception:
             # ECFL cannot stop ADRAE - silent failure
@@ -99,6 +110,9 @@ class ConceptObserver:
                         c1.last_seen = max(c1.last_seen, c2.last_seen)
                         # Combine decay scores
                         c1.decay_score = max(c1.decay_score, c2.decay_score)
+                        # Preserve higher maturity when merging
+                        c1.maturity = max(c1.maturity, c2.maturity)
+                        # Quiet status will be recalculated in classification pass
                         used.add(j)
 
                 merged.append(c1)
@@ -108,4 +122,30 @@ class ConceptObserver:
         except Exception:
             # Silent failure - consolidation must not affect runtime
             pass
+
+    def _classify_concepts(self):
+        """
+        Classify concepts as quiet or dominant based on maturity.
+        Silent failure - never affects runtime.
+        """
+        try:
+            for concept in self.store.concepts:
+                if concept.maturity < self.maturity_threshold:
+                    concept.quiet = True
+                elif concept.maturity >= self.dominance_threshold:
+                    concept.quiet = False
+        except Exception:
+            # Silent failure - classification must not affect runtime
+            pass
+
+    def has_dominant_concepts(self):
+        """
+        Returns True if any concept is dominant (not quiet).
+        Used by translator layer, UI projection, and response gating.
+        """
+        try:
+            return any(not c.quiet for c in self.store.concepts)
+        except Exception:
+            # Silent failure - return False on error
+            return False
 
