@@ -24,19 +24,34 @@ class ConceptObserver:
             if fusion_vector is None:
                 return
             
+            current_time = time.time()
+            
+            # Decay pass - concepts weaken if not re-observed
+            for concept in self.store.concepts:
+                time_delta = current_time - concept.last_seen
+                decay_amount = min(time_delta * 0.00001, 0.05)
+                
+                concept.decay_score += decay_amount
+                concept.stability_score = max(
+                    0.0,
+                    concept.stability_score - decay_amount
+                )
+            
             matched = False
 
             for concept in self.store.concepts:
                 dist = torch.norm(fusion_vector - concept.centroid).item()
                 if dist <= self.distance_threshold:
                     concept.occurrences += 1
-                    concept.last_seen = time.time()
+                    concept.last_seen = current_time
+                    concept.last_updated = current_time
 
-                    # Update centroid (running average)
+                    # Drift-aware centroid update (momentum smoothing)
+                    alpha = 0.15  # learning rate
                     concept.centroid = (
-                        concept.centroid * (concept.occurrences - 1) +
-                        fusion_vector
-                    ) / concept.occurrences
+                        (1 - alpha) * concept.centroid +
+                        alpha * fusion_vector
+                    )
 
                     concept.variance = dist
                     concept.stability_score = min(1.0, concept.stability_score + self.stability_gain)
@@ -48,8 +63,49 @@ class ConceptObserver:
                     EmergentConcept.create(fusion_vector)
                 )
 
+            # Consolidation pass - merge highly similar concepts
+            self.consolidate()
             self.store.save()
         except Exception:
             # ECFL cannot stop ADRAE - silent failure
+            pass
+
+    def consolidate(self):
+        """
+        Merge highly similar concepts to prevent redundancy.
+        Silent failure - never affects runtime.
+        """
+        try:
+            merged = []
+            used = set()
+
+            for i, c1 in enumerate(self.store.concepts):
+                if i in used:
+                    continue
+
+                for j, c2 in enumerate(self.store.concepts):
+                    if i == j or j in used:
+                        continue
+
+                    dist = torch.norm(c1.centroid - c2.centroid).item()
+                    if dist < self.distance_threshold * 0.75:
+                        # Merge c2 into c1
+                        c1.centroid = (c1.centroid + c2.centroid) / 2
+                        c1.occurrences += c2.occurrences
+                        c1.stability_score += c2.stability_score * 0.5
+                        # Preserve earliest first_seen
+                        c1.first_seen = min(c1.first_seen, c2.first_seen)
+                        # Preserve latest last_seen
+                        c1.last_seen = max(c1.last_seen, c2.last_seen)
+                        # Combine decay scores
+                        c1.decay_score = max(c1.decay_score, c2.decay_score)
+                        used.add(j)
+
+                merged.append(c1)
+                used.add(i)
+
+            self.store.concepts = merged
+        except Exception:
+            # Silent failure - consolidation must not affect runtime
             pass
 

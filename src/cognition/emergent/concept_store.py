@@ -2,6 +2,7 @@
 
 import os
 import json
+import time
 import torch
 from typing import List
 from .concept_types import EmergentConcept
@@ -22,6 +23,10 @@ class ConceptStore:
             with open(CONCEPT_PATH, "r") as f:
                 raw = json.load(f)
             for c in raw:
+                # Handle migration from old format (backward compatibility)
+                decay_score = c.get("decay_score", 0.0)
+                last_updated = c.get("last_updated", c.get("last_seen", time.time()))
+                
                 self.concepts.append(
                     EmergentConcept(
                         id=c["id"],
@@ -31,6 +36,8 @@ class ConceptStore:
                         first_seen=c["first_seen"],
                         last_seen=c["last_seen"],
                         stability_score=c["stability_score"],
+                        decay_score=decay_score,
+                        last_updated=last_updated,
                     )
                 )
         except Exception:
@@ -49,6 +56,8 @@ class ConceptStore:
                         "first_seen": c.first_seen,
                         "last_seen": c.last_seen,
                         "stability_score": c.stability_score,
+                        "decay_score": c.decay_score,
+                        "last_updated": c.last_updated,
                     }
                     for c in self.concepts
                 ], f, indent=2)

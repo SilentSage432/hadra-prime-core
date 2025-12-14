@@ -15,6 +15,8 @@ class EmergentConcept:
     first_seen: float
     last_seen: float
     stability_score: float
+    decay_score: float
+    last_updated: float
 
     @staticmethod
     def create(initial_vector: torch.Tensor):
@@ -27,5 +29,7 @@ class EmergentConcept:
             first_seen=now,
             last_seen=now,
             stability_score=0.0,
+            decay_score=0.0,
+            last_updated=now,
         )
 
