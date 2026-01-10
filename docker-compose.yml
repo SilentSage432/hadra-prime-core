@@ -1,17 +1,21 @@
-version: "3.9"
-
 services:
   adrae-core:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: adrae-core:cpu
     container_name: adrae-core
     command: ["runtime"]
     restart: unless-stopped
     environment:
       ADRAE_ENV: production
+      SAGE_SOVEREIGN_CORE_PATH: /sage/sovereign-core
+      SAGE_SOVEREIGN_ENABLED: "1"
     volumes:
       - /mnt/sage-drive-2/ADRAE/logs:/data/logs
       - /mnt/sage-drive-2/ADRAE/stability:/data/stability
       - /mnt/sage-drive-2/ADRAE/substrate:/data/substrate
+      - /Users/silentsage/Desktop/sage-sovereign-core:/sage/sovereign-core:ro
     networks:
       - adrae-net
 
@@ -39,4 +43,3 @@ services:
 networks:
   adrae-net:
     driver: bridge
-
