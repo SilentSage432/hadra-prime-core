@@ -45,6 +45,32 @@ class CognitiveLoopOrchestrator:
         self._uncertainty_value = 0.0  # Initialize uncertainty value
         # A218 — Competency clustering tracking
         self._step_count = 0  # Track steps for periodic clustering
+        
+        # --- ADRAE-INTENT-01A (one-time init) ---
+        try:
+            from integration.sovereign_client import build_client_from_env
+            from integration.intent_emitter import IntentEmitter, EmitPolicy
+
+            self._sovereign_client = build_client_from_env()
+            self._intent_emitter = IntentEmitter(
+                self._sovereign_client,
+                EmitPolicy(
+                    min_interval_seconds=60,
+                    max_per_hour=30,
+                    min_confidence=0.60,
+                    allowed_actions=("sync_with_sage",),
+                ),
+            )
+        except Exception as e:
+            # If initialization fails, disable intent emission
+            self._sovereign_client = None
+            self._intent_emitter = None
+            if hasattr(self.bridge, 'logger'):
+                self.bridge.logger.write({
+                    "event": "sovereign_client_init_error",
+                    "error": str(e),
+                })
+        # --- end ADRAE-INTENT-01A ---
 
     def _monitor_and_reroute(self, action_result):
         """
@@ -520,6 +546,10 @@ class CognitiveLoopOrchestrator:
                         self.bridge.logger.write({"thought_signature_update_error": str(e)})
                     except Exception:
                         pass
+        
+        # Store dbg for use in intent emission hook (after all signature updates)
+        # Ensure it's always a dict for safe access
+        self._current_step_dbg = dbg if isinstance(dbg, dict) else {}
         
         # A222 — Harmonize chosen thought toward ADRAE's identity signature
         if chosen_embedding is not None:
@@ -1131,6 +1161,53 @@ class CognitiveLoopOrchestrator:
         
         # 3. Execute a cognitive action
         action_output = self.bridge.perform_action(action)
+        
+        # --- ADRAE-INTENT-01A (observational hook) ---
+        try:
+            if action == "sync_with_sage" and self._intent_emitter is not None:
+                # Use signature alignment as confidence (stable, bounded)
+                confidence = 0.5  # Default confidence
+                if hasattr(self, '_current_step_dbg') and isinstance(self._current_step_dbg, dict):
+                    confidence = float(
+                        self._current_step_dbg.get("signature_align", self._current_step_dbg.get("coherence", 0.5))
+                    )
+                
+                if self._intent_emitter.should_emit(action, confidence):
+                    # Get additional context from debug info
+                    coherence = float(self._current_step_dbg.get("coherence", 0.0)) if hasattr(self, '_current_step_dbg') and isinstance(self._current_step_dbg, dict) else 0.0
+                    salience = float(self._current_step_dbg.get("salience", 0.0)) if hasattr(self, '_current_step_dbg') and isinstance(self._current_step_dbg, dict) else 0.0
+                    novelty = float(self._current_step_dbg.get("novelty", 0.0)) if hasattr(self, '_current_step_dbg') and isinstance(self._current_step_dbg, dict) else 0.0
+                    
+                    outcome = self._intent_emitter.emit(
+                        action=action,
+                        goal="Synchronize under sovereign governance",
+                        confidence=confidence,
+                        context={
+                            "coherence": coherence,
+                            "salience": salience,
+                            "novelty": novelty,
+                            "cycle": self.bridge.cycle_count,
+                        },
+                    )
+
+                    # Log outcome into existing runtime log stream
+                    self.bridge.logger.write(
+                        {
+                            "event": "sovereign_outcome",
+                            "action": action,
+                            "outcome": outcome,
+                        }
+                    )
+        except Exception as e:
+            # Never block cognition
+            if hasattr(self.bridge, 'logger'):
+                self.bridge.logger.write(
+                    {
+                        "event": "sovereign_intent_error",
+                        "error": str(e),
+                    }
+                )
+        # --- end ADRAE-INTENT-01A ---
         
         # 3b. A212 — Monitor multi-step execution chain
         chain_update = None
