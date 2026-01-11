@@ -12635,6 +12635,7 @@ class NeuralBridge:
                                                                                                                                                 hasattr(self, 'unified_predictive_core') and self.unified_predictive_core is not None):
                                                                                                                                                 self.integrate_A301()
                                                                                                                                             # A302 — Adaptive Meta-Field Resonance Stabilizer
+                                                                                                                                            internal_state = {}
                                                                                                                                             stabilized_output = None
                                                                                                                                             try:
                                                                                                                                                 if hasattr(self, 'meta_field_stabilizer') and self.meta_field_stabilizer is not None:
