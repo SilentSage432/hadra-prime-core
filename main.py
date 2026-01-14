@@ -20,6 +20,7 @@ from src.cognition.emergent.concept_observer import ConceptObserver
 from src.cognition.observation_ledger import ObservationLedger
 from src.cognition.internal_events import get_event_logger
 from src.cognition.inference_cooldown import InferenceTracker
+from persistence.log_writer import LogWriter
 # ⚠️ PHASE II: Rhythm Observer (read-only, append-only)
 from src.observers.rhythm_observer import get_rhythm_observer
 # ⚠️ PHASE I: Phase Observer (read-only, append-only, Python-native)
@@ -41,6 +42,8 @@ class PrimeRuntime:
         self.rhythm_observer = get_rhythm_observer()
         # ⚠️ PHASE I: Initialize phase observer (read-only, append-only, Python-native)
         self.phase_observer = get_phase_observer()
+        # Shared log writer sink (prime_runtime.log)
+        self.log_writer = LogWriter()
 
     def start(self):
         print("🔥 HADRA-PRIME cognitive runtime started")
@@ -61,7 +64,7 @@ class PrimeRuntime:
                 # ⚠️ PHASE II: Observe rhythm (read-only, does not modify output or delay loop)
                 # This checks if 60 seconds have passed and emits [ADRAE-RHYTHM] logs if needed
                 try:
-                    self.rhythm_observer.observe_step(output)
+                    self.rhythm_observer.observe_step(output, self.log_writer)
                 except Exception as e:
                     # Log error but don't stop the loop
                     print(f"[PHASE-II-ERROR] Rhythm observer failed: {e}", flush=True)
@@ -81,7 +84,8 @@ class PrimeRuntime:
                         PhaseTelemetryEmitter.emit(
                             phase_descriptor,
                             observer_output,
-                            self.phase_observer.get_version()
+                            self.phase_observer.get_version(),
+                            self.log_writer
                         )
                         
                         # Update observation time (internal tracking only)

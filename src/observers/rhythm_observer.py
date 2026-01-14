@@ -16,6 +16,7 @@ import json
 from datetime import datetime, timezone
 from collections import defaultdict, deque
 from typing import Dict, Any, Optional
+from persistence.log_writer import LogWriter
 
 
 class RhythmObserver:
@@ -43,7 +44,7 @@ class RhythmObserver:
         # ⚠️ PHASE II INVARIANT: This observer never modifies runtime behavior
         # All data structures are append-only for observation purposes
     
-    def observe_step(self, output: Dict[str, Any]) -> None:
+    def observe_step(self, output: Dict[str, Any], log_writer: Optional[LogWriter] = None) -> None:
         """
         Observe a single cognitive step.
         
@@ -84,7 +85,7 @@ class RhythmObserver:
         # Check if 60 seconds have passed since last observation
         time_since_last = current_time - self.last_observation_time
         if time_since_last >= self.observation_interval:
-            self._emit_rhythm_log(current_time, wall_time)
+            self._emit_rhythm_log(current_time, wall_time, log_writer)
             self.last_observation_time = current_time
         # Diagnostic: Log when we're close to emitting (for debugging)
         elif time_since_last >= 55.0:  # Within 5 seconds of emitting
@@ -108,7 +109,7 @@ class RhythmObserver:
         while self.cognitive_step_timestamps and self.cognitive_step_timestamps[0][0] < cutoff_time:
             self.cognitive_step_timestamps.popleft()
     
-    def _emit_rhythm_log(self, current_monotonic: float, current_wall: float) -> None:
+    def _emit_rhythm_log(self, current_monotonic: float, current_wall: float, log_writer: Optional[LogWriter] = None) -> None:
         """
         Emit a single [ADRAE-RHYTHM] log line.
         
@@ -168,6 +169,16 @@ class RhythmObserver:
         # ⚠️ PHASE II: Write-only telemetry emission
         # Use flush=True to ensure logs appear immediately
         print(f"[ADRAE-RHYTHM] {json.dumps(rhythm_data)}", flush=True)
+        # Append-only telemetry to shared log sink if available
+        if log_writer:
+            try:
+                log_writer.write({
+                    "source": "phase_ii_rhythm",
+                    "telemetry": rhythm_data
+                })
+            except Exception:
+                # Telemetry failures should never disrupt runtime
+                pass
     
     def _infer_state(self, cognitive_steps: int, avg_drift: float, coherence: float) -> str:
         """

@@ -16,6 +16,7 @@ import time
 import json
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
+from persistence.log_writer import LogWriter
 
 
 class PhaseObserver:
@@ -147,7 +148,7 @@ class PhaseTelemetryEmitter:
     """
     
     @staticmethod
-    def emit(phase_descriptor: Dict[str, Any], observer_output: Dict[str, Any], observer_version: str) -> None:
+    def emit(phase_descriptor: Dict[str, Any], observer_output: Dict[str, Any], observer_version: str, log_writer: Optional[LogWriter] = None) -> None:
         """
         Emit phase telemetry metadata to console.
         
@@ -173,6 +174,16 @@ class PhaseTelemetryEmitter:
         
         # Use flush=True to ensure logs appear immediately
         print(f"[ADRAE-PHASE-TELEMETRY] {json.dumps(telemetry_data)}", flush=True)
+        # Append-only telemetry to shared log sink if available
+        if log_writer:
+            try:
+                log_writer.write({
+                    "source": "phase_i_observer",
+                    "telemetry": telemetry_data
+                })
+            except Exception:
+                # Telemetry failures should never disrupt runtime
+                pass
 
 
 def create_default_phase_descriptor() -> Dict[str, Any]:
