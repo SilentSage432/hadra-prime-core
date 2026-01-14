@@ -22,6 +22,8 @@ from src.cognition.internal_events import get_event_logger
 from src.cognition.inference_cooldown import InferenceTracker
 # ⚠️ PHASE II: Rhythm Observer (read-only, append-only)
 from src.observers.rhythm_observer import get_rhythm_observer
+# ⚠️ PHASE I: Phase Observer (read-only, append-only, Python-native)
+from src.observers.phase_observer import get_phase_observer, create_default_phase_descriptor, PhaseTelemetryEmitter
 
 
 class PrimeRuntime:
@@ -37,6 +39,8 @@ class PrimeRuntime:
         self.event_logger = get_event_logger()
         # ⚠️ PHASE II: Initialize rhythm observer (read-only, append-only)
         self.rhythm_observer = get_rhythm_observer()
+        # ⚠️ PHASE I: Initialize phase observer (read-only, append-only, Python-native)
+        self.phase_observer = get_phase_observer()
 
     def start(self):
         print("🔥 HADRA-PRIME cognitive runtime started")
@@ -52,6 +56,26 @@ class PrimeRuntime:
                 # ⚠️ PHASE II: Observe rhythm (read-only, does not modify output or delay loop)
                 # This checks if 60 seconds have passed and emits [ADRAE-RHYTHM] logs if needed
                 self.rhythm_observer.observe_step(output)
+                
+                # ⚠️ PHASE I: Observe phase (read-only, gated by 60-second cadence, no threads/no loops)
+                # Check if 60 seconds have passed since last Phase I observation
+                current_time = time.monotonic()
+                if self.phase_observer.should_emit(current_time):
+                    # Create phase descriptor for telemetry (read-only)
+                    phase_descriptor = create_default_phase_descriptor()
+                    
+                    # Observe runtime state (read-only, no behavior change)
+                    observer_output = self.phase_observer.observe(output, self.bridge)
+                    
+                    # Emit telemetry (append-only, write-only)
+                    PhaseTelemetryEmitter.emit(
+                        phase_descriptor,
+                        observer_output,
+                        self.phase_observer.get_version()
+                    )
+                    
+                    # Update observation time (internal tracking only)
+                    self.phase_observer.update_observation_time(current_time)
 
                 # Record internal inference as observation
                 try:
