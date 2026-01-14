@@ -82,9 +82,13 @@ class RhythmObserver:
         self._clean_old_data(cutoff_time)
         
         # Check if 60 seconds have passed since last observation
-        if current_time - self.last_observation_time >= self.observation_interval:
+        time_since_last = current_time - self.last_observation_time
+        if time_since_last >= self.observation_interval:
             self._emit_rhythm_log(current_time, wall_time)
             self.last_observation_time = current_time
+        # Diagnostic: Log when we're close to emitting (for debugging)
+        elif time_since_last >= 55.0:  # Within 5 seconds of emitting
+            print(f"[PHASE-II-DEBUG] Rhythm observer: {time_since_last:.1f}s since last, will emit in {60.0 - time_since_last:.1f}s", flush=True)
     
     def _clean_old_data(self, cutoff_time: float) -> None:
         """
@@ -162,7 +166,8 @@ class RhythmObserver:
         }
         
         # ⚠️ PHASE II: Write-only telemetry emission
-        print(f"[ADRAE-RHYTHM] {json.dumps(rhythm_data)}")
+        # Use flush=True to ensure logs appear immediately
+        print(f"[ADRAE-RHYTHM] {json.dumps(rhythm_data)}", flush=True)
     
     def _infer_state(self, cognitive_steps: int, avg_drift: float, coherence: float) -> str:
         """

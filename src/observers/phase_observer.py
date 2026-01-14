@@ -113,7 +113,12 @@ class PhaseObserver:
         Returns:
             True if 60 seconds have passed, False otherwise
         """
-        return (current_time - self.last_observation_time) >= self.observation_interval
+        time_since_last = current_time - self.last_observation_time
+        should_emit = time_since_last >= self.observation_interval
+        # Diagnostic: Log when we're close to emitting (for debugging)
+        if not should_emit and time_since_last >= 55.0:  # Within 5 seconds of emitting
+            print(f"[PHASE-I-DEBUG] Phase observer: {time_since_last:.1f}s since last, will emit in {60.0 - time_since_last:.1f}s", flush=True)
+        return should_emit
     
     def update_observation_time(self, current_time: float) -> None:
         """
@@ -166,7 +171,8 @@ class PhaseTelemetryEmitter:
             }
         }
         
-        print(f"[ADRAE-PHASE-TELEMETRY] {json.dumps(telemetry_data)}")
+        # Use flush=True to ensure logs appear immediately
+        print(f"[ADRAE-PHASE-TELEMETRY] {json.dumps(telemetry_data)}", flush=True)
 
 
 def create_default_phase_descriptor() -> Dict[str, Any]:

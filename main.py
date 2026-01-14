@@ -45,6 +45,11 @@ class PrimeRuntime:
     def start(self):
         print("🔥 HADRA-PRIME cognitive runtime started")
         print("Press CTRL+C to stop.\n")
+        # Diagnostic: Verify observers initialized
+        print(f"[DIAGNOSTIC] Phase I observer initialized: {self.phase_observer is not None}", flush=True)
+        print(f"[DIAGNOSTIC] Phase II observer initialized: {self.rhythm_observer is not None}", flush=True)
+        print(f"[DIAGNOSTIC] Phase I last_observation_time: {self.phase_observer.last_observation_time}", flush=True)
+        print(f"[DIAGNOSTIC] Phase II last_observation_time: {self.rhythm_observer.last_observation_time}", flush=True)
 
         while self.running:
             try:
@@ -55,27 +60,37 @@ class PrimeRuntime:
                 
                 # ⚠️ PHASE II: Observe rhythm (read-only, does not modify output or delay loop)
                 # This checks if 60 seconds have passed and emits [ADRAE-RHYTHM] logs if needed
-                self.rhythm_observer.observe_step(output)
+                try:
+                    self.rhythm_observer.observe_step(output)
+                except Exception as e:
+                    # Log error but don't stop the loop
+                    print(f"[PHASE-II-ERROR] Rhythm observer failed: {e}", flush=True)
                 
                 # ⚠️ PHASE I: Observe phase (read-only, gated by 60-second cadence, no threads/no loops)
                 # Check if 60 seconds have passed since last Phase I observation
-                current_time = time.monotonic()
-                if self.phase_observer.should_emit(current_time):
-                    # Create phase descriptor for telemetry (read-only)
-                    phase_descriptor = create_default_phase_descriptor()
-                    
-                    # Observe runtime state (read-only, no behavior change)
-                    observer_output = self.phase_observer.observe(output, self.bridge)
-                    
-                    # Emit telemetry (append-only, write-only)
-                    PhaseTelemetryEmitter.emit(
-                        phase_descriptor,
-                        observer_output,
-                        self.phase_observer.get_version()
-                    )
-                    
-                    # Update observation time (internal tracking only)
-                    self.phase_observer.update_observation_time(current_time)
+                try:
+                    current_time = time.monotonic()
+                    if self.phase_observer.should_emit(current_time):
+                        # Create phase descriptor for telemetry (read-only)
+                        phase_descriptor = create_default_phase_descriptor()
+                        
+                        # Observe runtime state (read-only, no behavior change)
+                        observer_output = self.phase_observer.observe(output, self.bridge)
+                        
+                        # Emit telemetry (append-only, write-only)
+                        PhaseTelemetryEmitter.emit(
+                            phase_descriptor,
+                            observer_output,
+                            self.phase_observer.get_version()
+                        )
+                        
+                        # Update observation time (internal tracking only)
+                        self.phase_observer.update_observation_time(current_time)
+                except Exception as e:
+                    # Log error but don't stop the loop
+                    print(f"[PHASE-I-ERROR] Phase observer failed: {e}", flush=True)
+                    import traceback
+                    traceback.print_exc()
 
                 # Record internal inference as observation
                 try:
