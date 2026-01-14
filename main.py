@@ -24,7 +24,7 @@ from persistence.log_writer import LogWriter
 # ⚠️ PHASE II: Rhythm Observer (read-only, append-only)
 from src.observers.rhythm_observer import get_rhythm_observer
 # ⚠️ PHASE I: Phase Observer (read-only, append-only, Python-native)
-from src.observers.phase_observer import get_phase_observer, create_default_phase_descriptor, PhaseTelemetryEmitter
+from src.observers.phase_observer import get_phase_observer, PhaseTelemetryEmitter
 
 
 class PrimeRuntime:
@@ -71,22 +71,26 @@ class PrimeRuntime:
                 
                 # ⚠️ PHASE I: Observe phase (read-only, gated by 60-second cadence, no threads/no loops)
                 # Check if 60 seconds have passed since last Phase I observation
+                # OR if this is the first observation (current_phase is None)
                 try:
                     current_time = time.monotonic()
-                    if self.phase_observer.should_emit(current_time):
-                        # Create phase descriptor for telemetry (read-only)
-                        phase_descriptor = create_default_phase_descriptor()
-                        
+                    should_check = (
+                        self.phase_observer.should_emit(current_time) or 
+                        self.phase_observer.current_phase is None
+                    )
+                    
+                    if should_check:
                         # Observe runtime state (read-only, no behavior change)
                         observer_output = self.phase_observer.observe(output, self.bridge)
                         
-                        # Emit telemetry (append-only, write-only)
-                        PhaseTelemetryEmitter.emit(
-                            phase_descriptor,
-                            observer_output,
-                            self.phase_observer.get_version(),
-                            self.log_writer
-                        )
+                        # Emit log ONLY when phase changes (not every interval)
+                        if observer_output.get("phase_changed", False):
+                            PhaseTelemetryEmitter.emit_phase_change(
+                                observer_output["phase"],
+                                observer_output["metrics"],
+                                observer_output["confidence"],
+                                self.log_writer
+                            )
                         
                         # Update observation time (internal tracking only)
                         self.phase_observer.update_observation_time(current_time)
