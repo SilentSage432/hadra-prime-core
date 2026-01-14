@@ -1240,6 +1240,26 @@ setInterval(() => {
   SEL.coolTension();
 }, 2500);
 
+// ⚠️ PHASE I: Periodic phase observation (observational only, does not affect behavior)
+// This runs phaseEngine with minimal state to emit Phase I telemetry
+// This is purely for observation - it does not trigger cognition or change behavior
+setInterval(async () => {
+  try {
+    // Create minimal state for Phase I observation (QUIET_WAKE state)
+    const observationState: any = {
+      intent: null, // QUIET_WAKE - no active intent
+      safety: {},
+      prediction: {},
+      phase: null
+    };
+    // Call phaseEngine for Phase I telemetry observation only
+    // This will emit [ADRAE-PHASE-TELEMETRY] logs without affecting system behavior
+    await phaseEngine(observationState);
+  } catch (error) {
+    // Silently ignore errors - Phase I observation should not disrupt system
+  }
+}, 5000); // Every 5 seconds - matches long-term SEL drift interval
+
 // A37: Long-term SEL drift applied every few cycles (very lightweight)
 setInterval(() => {
   SEL.applyDrift();

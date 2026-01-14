@@ -20,6 +20,8 @@ from src.cognition.emergent.concept_observer import ConceptObserver
 from src.cognition.observation_ledger import ObservationLedger
 from src.cognition.internal_events import get_event_logger
 from src.cognition.inference_cooldown import InferenceTracker
+# ⚠️ PHASE II: Rhythm Observer (read-only, append-only)
+from src.observers.rhythm_observer import get_rhythm_observer
 
 
 class PrimeRuntime:
@@ -33,6 +35,8 @@ class PrimeRuntime:
         self.observation_ledger = ObservationLedger()
         self.inference_tracker = InferenceTracker()
         self.event_logger = get_event_logger()
+        # ⚠️ PHASE II: Initialize rhythm observer (read-only, append-only)
+        self.rhythm_observer = get_rhythm_observer()
 
     def start(self):
         print("🔥 HADRA-PRIME cognitive runtime started")
@@ -44,6 +48,10 @@ class PrimeRuntime:
                 output = self.bridge.cognitive_step()
                 # Store last output for observer access (read-only)
                 self._last_output = output
+                
+                # ⚠️ PHASE II: Observe rhythm (read-only, does not modify output or delay loop)
+                # This checks if 60 seconds have passed and emits [ADRAE-RHYTHM] logs if needed
+                self.rhythm_observer.observe_step(output)
 
                 # Record internal inference as observation
                 try:
