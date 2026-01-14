@@ -17,17 +17,8 @@ export async function phaseEngine(state: any) {
   }
 
   try {
-    if (state.intent === null) {
-      console.log("[PRIME-PHASE] Null intent — halting pipeline");
-      return state;
-    }
-
-    if (state.safety?.halt) {
-      console.log("[PRIME-PHASE] Safety halt engaged — stopping");
-      return state;
-    }
-
     // ⚠️ PHASE I: Observational scaffolding (does not change behavior)
+    // Phase I observation runs regardless of intent state (QUIET_WAKE is the default)
     // Create phase descriptor for telemetry (read-only)
     const phaseDescriptor = createDefaultPhaseDescriptor();
     
@@ -55,6 +46,16 @@ export async function phaseEngine(state: any) {
       phaseObserver.getVersion()
     );
     emitPhaseTelemetry(phaseTelemetry);
+
+    if (state.intent === null) {
+      console.log("[PRIME-PHASE] Null intent — halting pipeline");
+      return state;
+    }
+
+    if (state.safety?.halt) {
+      console.log("[PRIME-PHASE] Safety halt engaged — stopping");
+      return state;
+    }
     
     // ⚠️ PHASE I BEHAVIORAL INVARIANT: Original behavior unchanged
     // The phase engine still returns "complete" as before.
