@@ -1,7 +1,7 @@
 # ============================================================
 # STAGE 1 — BUILDER (installs dependencies, compiles wheels)
 # ============================================================
-FROM python:3.12-slim as builder
+FROM python:3.12-slim AS builder
 
 # System dependencies for building Python wheels
 RUN apt-get update && apt-get install -y \
