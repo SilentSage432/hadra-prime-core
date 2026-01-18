@@ -27,7 +27,7 @@ class RhythmObserver:
     Uses monotonic time to track 60-second intervals without interfering with the main loop.
     """
     
-    def __init__(self):
+    def __init__(self, phase3_observer=None):
         # ⚠️ PHASE II: Read-only state tracking
         self.start_time = time.monotonic()  # Monotonic time for interval tracking
         self.process_start_time = time.time()  # Wall-clock time for uptime calculation
@@ -40,6 +40,9 @@ class RhythmObserver:
         
         # Current window boundaries
         self.observation_interval = 60.0  # 60 seconds
+        
+        # ⚠️ PHASE III: Optional hook for Phase III observer (preferred)
+        self.phase3_observer = phase3_observer
         
         # ⚠️ PHASE II INVARIANT: This observer never modifies runtime behavior
         # All data structures are append-only for observation purposes
@@ -179,6 +182,14 @@ class RhythmObserver:
             except Exception:
                 # Telemetry failures should never disrupt runtime
                 pass
+        
+        # ⚠️ PHASE III: Optional hook to feed rhythm payload to Phase III observer (preferred)
+        if self.phase3_observer:
+            try:
+                self.phase3_observer.observe_rhythm(rhythm_data)
+            except Exception:
+                # Phase III failures should never disrupt Phase II or runtime
+                pass
     
     def _infer_state(self, cognitive_steps: int, avg_drift: float, coherence: float) -> str:
         """
@@ -215,16 +226,23 @@ class RhythmObserver:
 _rhythm_observer_instance: Optional[RhythmObserver] = None
 
 
-def get_rhythm_observer() -> RhythmObserver:
+def get_rhythm_observer(phase3_observer=None) -> RhythmObserver:
     """
     Get or create the singleton RhythmObserver instance.
     
     ⚠️ PHASE II: One observer instance per process lifetime.
     No threads, no subprocesses.
+    
+    Args:
+        phase3_observer: Optional Phase III observer instance to receive rhythm payloads
     """
     global _rhythm_observer_instance
     if _rhythm_observer_instance is None:
-        _rhythm_observer_instance = RhythmObserver()
+        _rhythm_observer_instance = RhythmObserver(phase3_observer=phase3_observer)
+    else:
+        # Update phase3_observer if provided after first initialization
+        if phase3_observer is not None:
+            _rhythm_observer_instance.phase3_observer = phase3_observer
     return _rhythm_observer_instance
 
 

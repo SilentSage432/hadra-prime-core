@@ -25,6 +25,8 @@ from persistence.log_writer import LogWriter
 from src.observers.rhythm_observer import get_rhythm_observer
 # ⚠️ PHASE I: Phase Observer (read-only, append-only, Python-native)
 from src.observers.phase_observer import get_phase_observer, PhaseTelemetryEmitter
+# ⚠️ PHASE III: Rotation Baselines & Window Detection (read-only, append-only)
+from src.telemetry.phase3_rotation_observer import get_phase3_rotation_observer
 
 
 class PrimeRuntime:
@@ -38,12 +40,15 @@ class PrimeRuntime:
         self.observation_ledger = ObservationLedger()
         self.inference_tracker = InferenceTracker()
         self.event_logger = get_event_logger()
-        # ⚠️ PHASE II: Initialize rhythm observer (read-only, append-only)
-        self.rhythm_observer = get_rhythm_observer()
-        # ⚠️ PHASE I: Initialize phase observer (read-only, append-only, Python-native)
-        self.phase_observer = get_phase_observer()
         # Shared log writer sink (prime_runtime.log)
         self.log_writer = LogWriter()
+        # ⚠️ PHASE III: Initialize rotation observer (read-only, append-only)
+        self.phase3_observer = get_phase3_rotation_observer()
+        # ⚠️ PHASE II: Initialize rhythm observer (read-only, append-only)
+        # Pass Phase III observer to Phase II for preferred payload hook
+        self.rhythm_observer = get_rhythm_observer(phase3_observer=self.phase3_observer)
+        # ⚠️ PHASE I: Initialize phase observer (read-only, append-only, Python-native)
+        self.phase_observer = get_phase_observer()
 
     def start(self):
         print("🔥 HADRA-PRIME cognitive runtime started")
@@ -63,11 +68,23 @@ class PrimeRuntime:
                 
                 # ⚠️ PHASE II: Observe rhythm (read-only, does not modify output or delay loop)
                 # This checks if 60 seconds have passed and emits [ADRAE-RHYTHM] logs if needed
+                # Phase II will also feed payload to Phase III observer (preferred)
                 try:
                     self.rhythm_observer.observe_step(output, self.log_writer)
                 except Exception as e:
                     # Log error but don't stop the loop
                     print(f"[PHASE-II-ERROR] Rhythm observer failed: {e}", flush=True)
+                
+                # ⚠️ PHASE III: Also observe per-step (for action histogram tracking)
+                # Primary input is via Phase II rhythm payload (above), but we also observe steps
+                try:
+                    self.phase3_observer.observe_step(output)
+                    # Periodic tick (internally rate-limited, safe to call every step)
+                    current_time = time.monotonic()
+                    self.phase3_observer.tick(current_time)
+                except Exception as e:
+                    # Log error but don't stop the loop
+                    print(f"[PHASE-III-ERROR] Rotation observer failed: {e}", flush=True)
                 
                 # ⚠️ PHASE I: Observe phase (read-only, gated by 60-second cadence, no threads/no loops)
                 # Check if 60 seconds have passed since last Phase I observation
