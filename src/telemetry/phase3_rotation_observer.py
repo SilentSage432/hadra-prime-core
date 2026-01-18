@@ -83,6 +83,9 @@ class Phase3RotationObserver:
         # One-time initial log flag (for deployment verification)
         self._initial_log_emitted: bool = False
         
+        # One-time wiring confirmation log flag (for execution audit)
+        self._wiring_log_emitted: bool = False
+        
         # ⚠️ PHASE III INVARIANT: This observer never modifies runtime behavior
         # All data structures are for observation purposes only
     
@@ -132,6 +135,11 @@ class Phase3RotationObserver:
         if not self._initial_log_emitted:
             print("[ADRAE-ROTATION] Phase III observer active", flush=True)
             self._initial_log_emitted = True
+        
+        # ⚠️ PHASE III: One-time wiring confirmation log (execution audit only)
+        if not self._wiring_log_emitted:
+            print("[ADRAE-PHASE-III] observer wired and receiving data", flush=True)
+            self._wiring_log_emitted = True
         
         # Add to rhythm buffer
         self.rhythm_buffer.append((current_time, rhythm_payload))
