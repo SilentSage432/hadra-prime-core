@@ -194,6 +194,9 @@ if __name__ == "__main__":
     from threading import Thread
     from src.prime_core.observable_state import export_observable_state
     from src.observers.minimal_observer import observer_loop
+    # ⚠️ PHASE A: Rhythm telemetry endpoint (read-only, no side effects)
+    from src.api.rhythm_telemetry import create_rhythm_endpoint
+    import uvicorn
 
     runtime = PrimeRuntime(loop_interval=0.35)
 
@@ -206,6 +209,24 @@ if __name__ == "__main__":
         daemon=True
     )
 
+    # ⚠️ PHASE A: Start HTTP server for rhythm telemetry endpoint
+    # Server runs in daemon thread to avoid blocking main loop
+    def runtime_getter():
+        return runtime
+    
+    telemetry_app = create_rhythm_endpoint(runtime_getter)
+    
+    def run_server():
+        # Run server on localhost, port 8000 (configurable later if needed)
+        # No logging to stdout (as per Phase A requirements)
+        uvicorn.run(telemetry_app, host="127.0.0.1", port=8000, log_level="critical")
+    
+    telemetry_thread = Thread(
+        target=run_server,
+        daemon=True
+    )
+    
+    telemetry_thread.start()
     observer_thread.start()
     runtime.start()
 
